@@ -177,14 +177,16 @@ no per-script wrappers, so a new script never needs a pixi line (the
   not a rustup proxy, so the pin file does not re-pin inside `pixi run`).
   Do not suggest npx/pnpm/cargo-from-path; hooks and CI assume exactly these.
   `pixi install` (decision-8) provisions every tool the gates call — bun, rust
-  with clippy+rustfmt, the wasm32 std, wasm-pack, convco, actionlint,
-  cargo-deny, cargo-nextest, cargo-llvm-cov — pinned through the committed
-  `pixi.lock`, split across three features (`rust`, `web`, `utils`) so a
-  toolchain change is a reviewable diff on its own. Pixi manages **tools
+  with clippy+rustfmt, the wasm32 std, wasm-pack, wasm-bindgen-cli, convco,
+  actionlint, cargo-deny, cargo-nextest, cargo-llvm-cov — pinned through the
+  committed `pixi.lock`, split across three features (`rust`, `web`, `utils`)
+  so a toolchain change is a reviewable diff on its own. Pixi manages **tools
   only**: scripts stay behind `bun run` (reached from the env as `pixi run
-  bun run <script>` — the task table has no per-script wrappers), and
-  contributors who prefer rustup + bun.sh installs get the same binaries the
-  same way CI does.
+  bun run <script>` — the task table has no per-script wrappers). **CI
+  installs that same environment** (decision-10: `setup-pixi`, `--locked`,
+  activated onto `PATH`), so a tool is added in one place and a stale
+  `pixi.lock` fails the gate instead of drifting; contributors who prefer
+  rustup + bun.sh installs get the same binaries, provisioned differently.
 - Hooks and repo linters: **lefthook** is a devDependency, installed by the
   guarded `prepare` script (skips silently where there is no `.git`, so
   `bun install` never breaks in a snapshot/zip export). The commit-msg hook

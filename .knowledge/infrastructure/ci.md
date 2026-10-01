@@ -9,7 +9,7 @@ status: stable
 generated:
   by: agent/castellan-kb
   at: "2026-10-01T22:00:00Z"
-updated: "2026-10-01T20:45:00Z"
+updated: "2026-10-01T23:45:00Z"
 id: infrastructure/ci
 category: infrastructure
 refs:
@@ -18,13 +18,26 @@ refs:
 ---
 # CI
 
-One job, ordered gates, fast-fail: checkout → rustup + bun (pinned) →
-cargo caches (workspace `Cargo.lock` keyed) → `bun install --frozen-lockfile`
-→ codegen → `bun run wasm` → `cargo fmt --all --check` → actionlint
+One job, ordered gates, fast-fail: checkout → apt webkit/gtk (Tauri) →
+`setup-pixi --locked`, activated onto `PATH` → cargo caches (workspace
+`Cargo.lock` keyed) → `bun install --frozen-lockfile` → codegen →
+`bun run wasm` → `cargo fmt --all --check` → actionlint
 (`bun run lint:workflows`) → `bun run lint` → typecheck → docs build →
-tests (`cargo test` + `bun test` through turbo) → cargo-deny advisories.
-Clippy `-D warnings` runs in the lint task; codegen-then-typecheck means
-a stale generated directory fails the build instead of a review.
+tests (`cargo test` + `bun test` through turbo) → e2e → storybook →
+cargo-deny advisories. Clippy `-D warnings` runs in the lint task;
+codegen-then-typecheck means a stale generated directory fails the build
+instead of a review.
+
+**Every gate tool comes from `pixi.lock`** (decision-10): bun, rust with
+clippy+rustfmt, the wasm32 std, wasm-pack, wasm-bindgen-cli, cargo-deny and
+actionlint. The steps are the bare commands a contributor types, so the two
+sides cannot resolve different binaries, and `locked: true` turns a stale
+lockfile into a failed gate rather than a silent re-solve (relock.yml owns
+fixing the drift). One override survives activation: conda-forge's rust points
+cargo at conda's gcc, so CI resets
+`CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=cc` — the Tauri crates link
+against apt's webkit/gtk, built for the runner's glibc, not conda's older
+sysroot.
 
 ## What each gate buys
 
@@ -40,10 +53,12 @@ a stale generated directory fails the build instead of a review.
   id/error/wire-shape properties) and `createFixture` fixtures — same
   vocabulary, other side of the wire (see [Testing](testing.md)).
 - **actionlint**: the workflows are code too; `bun run lint:workflows`
-  runs on every push, on a release binary the job installs (convco, the
-  other toolchain-binary linter, stays local: the commit-msg hook runs it
-  when present, and `convco check` over history needs a full clone CI
-  does not fetch).
+  runs on every push, on the conda-forge binary `pixi.lock` pins (convco,
+  the other toolchain-binary linter, is in the same environment but stays
+  unused by CI: the commit-msg hook runs it when present, and
+  `convco check` over history needs a full clone CI does not fetch). The
+  gate's own first failure was this step installing actionlint into a
+  directory that was not on `PATH` — hence decision-10.
 - **codegen zero-diff**: proves the committed TS matches the Rust — drift
   dies at review time.
 - **docs build**: `bun run docs:build` — the Starlight site is a workspace
@@ -57,7 +72,8 @@ a stale generated directory fails the build instead of a review.
 | Gap | Owner |
 | --- | --- |
 | Desktop/mobile production vite builds not in CI | e2e covers the dev-server build of both faces and the extension's *built* MV3 (its e2e script chains `wxt build`), but `vite build` output of the apps is still ungated; add when a release artifact matters |
-| Tool list duplicated between pixi.toml and ci.yml | CI installs bun/rust/cargo-deny/actionlint directly, pixi is the local env (decision-8) — a tool added to one and not the other drifts silently; whoever touches either file updates both, review checks |
+| Mirrored version pins (rust, bun) | Closed for the tool *list* — CI installs `pixi.lock` itself (decision-10) — but rust-toolchain.toml and `packageManager` still mirror two pins for the rustup + bun.sh route; the manifests name each other in comments, review checks they moved together |
+| `wasm-opt` still downloaded by wasm-pack | `wasm-bindgen-cli` is pinned in the environment, binaryen is not; the release profile fetches it, so the wasm gate is the one step that still needs the network (and the one that fails in a restored airlock) |
 | Tauri app crates (no webkit in CI) | release builds + the task-37 reproducible-build work |
 | Mobile on-device behavior (biometrics, providers) | hardware checklists, tasks 23/30/31/32 |
 | Extension in real browsers | Playwright suite runs, but store-review quirks are manual |
