@@ -19,6 +19,12 @@ on:
   push:
     branches: [main]
   pull_request:
+  # relock.yml pushes its `chore(lock):` commit with GITHUB_TOKEN, which starts
+  # no workflow, and then dispatches this one — that dispatch is the only
+  # verdict a lock commit ever gets. Without this trigger the dispatch fails
+  # ("workflow does not have workflow_dispatch trigger") and the refreshed
+  # lockfile sits on the branch unverified.
+  workflow_dispatch:
 
 permissions:
   contents: read
