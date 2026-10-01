@@ -1,0 +1,38 @@
+name: tmp lock debug
+
+# TEMPORARY, delete before merge. Actions log blobs are unreachable from the
+# agent sandbox, so this surfaces `pixi lock`'s failure as an annotation and a
+# job summary, both of which the API does return.
+
+on:
+  push:
+    branches: [arena/01a0f9ca-castellan]
+
+permissions:
+  contents: read
+
+jobs:
+  solve:
+    name: solve
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: prefix-dev/setup-pixi@d3f436a425481402e6a95a1d1fc10331c708cd9e # v0.10.2
+        with:
+          pixi-version: v0.81.0
+          run-install: false
+      - name: Report what pixi lock says
+        run: |
+          set +e
+          out=$(pixi lock 2>&1)
+          code=$?
+          {
+            echo "### pixi lock exited ${code}"
+            echo '```'
+            echo "${out}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "${code}" -ne 0 ]; then
+            escaped=$(printf '%s' "${out}" | tail -c 3000 | sed ':a;N;$!ba;s/\n/%0A/g')
+            printf '::error::%s\n' "${escaped}"
+          fi
