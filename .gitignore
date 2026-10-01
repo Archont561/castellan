@@ -1,0 +1,76 @@
+# ── Rust ────────────────────────────────────────────────────────────────
+# One rule, not anchored: cargo decides where target/ goes and a rule that
+# only covers today's location fails on the next layout.
+target/
+
+# ── pixi ────────────────────────────────────────────────────────────────
+# The dev-tool environment's installs and caches. pixi.lock is the
+# reproducibility anchor and stays committed, like bun.lock and Cargo.lock.
+.pixi/
+
+# ── JavaScript / TypeScript ──────────────────────────────────────────────
+node_modules/
+dist/
+.turbo/
+*.tsbuildinfo
+
+# ── Faces' build outputs ─────────────────────────────────────────────────
+# SvelteKit static output (adapter-static), consumed by src-tauri.
+apps/*/build/
+# SvelteKit's generated types and cache.
+.svelte-kit/
+# WXT's generated types and build output.
+.wxt/
+# The wasm-pack output of crates/wasm: a build artifact, rebuilt by
+# `bun run wasm`, deterministic enough not to review — except the .d.ts,
+# which is committed so `bun run all:typecheck` passes on a fresh clone
+# before the first wasm build (the JS/WASM themselves stay untracked).
+packages/wasm/src/pkg/*
+!packages/wasm/src/pkg/castellan_wasm.d.ts
+!packages/wasm/src/pkg/castellan_wasm_bg.d.ts
+
+# ── Docs site (Astro + Starlight) ───────────────────────────────────────
+# Astro's generated types dir; `astro build`/`astro dev` rewrite it.
+# apps/docs/dist/ is already covered by the unanchored dist/ rule above,
+# and node_modules/ by its own — bun hoists a workspace install to the root.
+apps/docs/.astro/
+
+# ── Playwright / Storybook ──────────────────────────────────────────────
+# Playwright's run artifacts: failure traces/videos (test-results/), the
+# HTML report, the run blob store, and `playwright-cli`'s on-disk page
+# snapshots (.playwright-cli/) for agent-driven exploration. Storybook's
+# static build (storybook-static/) is reproducible from source. The
+# chromium binary itself is NOT here: it downloads at `bun install` time
+# via the root @playwright/browser-chromium devDependency, into the
+# user-level Playwright cache.
+test-results/
+playwright-report/
+blob-report/
+.playwright-cli/
+storybook-static/
+# The component-testing runtime's pre-build cache (packages/ui/playwright/
+# .cache): compiled mount page and registry, rebuilt whenever the component
+# set changes.
+.cache/
+
+# ── Tauri ────────────────────────────────────────────────────────────────
+# `tauri android/ios init` generates these; they are machine-local scaffolds
+# with signing state in them, not source.
+**/src-tauri/gen/
+
+# ── editors and OS ────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# ── pixi-sandbox transports ──────────────────────────────────────────────
+# Output of `pixi-sandbox pack` and input of `publish` (lives on the sandbox
+# branch, never here); the restored environment + vendored-crates tree a
+# `restore.sh` materializes; pixi publish's absolute-path build dirs.
+.sandbox-transport/
+.sandbox-out/
+.sandbox-packages/
+.pixi-sandbox/
+.publish/

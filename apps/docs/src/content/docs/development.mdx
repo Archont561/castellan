@@ -1,0 +1,99 @@
+---
+title: Development
+description: Prerequisites, the daily commands, and the conventions the repository enforces.
+---
+
+## Prerequisites
+
+Two tools, pinned by the repository itself:
+
+- **Rust** 1.98 — pinned by `rust-toolchain.toml`; rustup installs it
+  automatically on the first cargo command.
+- **Bun** — pinned by `packageManager` in the root `package.json`. There
+  is no node anywhere: hooks, CI, and every script assume `bun run`.
+
+The Tauri desktop app additionally needs the platform webkit libraries
+(`libwebkit2gtk-4.1-dev` and friends on Linux — the lists are in
+`.github/workflows/ci.yml`).
+
+Or skip the per-tool installs entirely: [pixi](https://pixi.sh) provisions
+all of it in one command — `pixi install` brings bun, rust with clippy and
+rustfmt, the wasm32 target, wasm-pack, convco, actionlint, cargo-deny,
+cargo-nextest and cargo-llvm-cov, pinned through the committed `pixi.lock`.
+Pixi manages tools only (decision-8): every `pixi run <task>` is a thin
+wrapper over the same `bun run` commands.
+
+## The daily loop
+
+```console
+$ bun install                  # once: JS deps for every workspace
+$ bun run codegen              # regenerate packages/protocol/src/generated
+$ bun run wasm                 # rebuild the WASM package for the extension
+$ bun run gates                # lint + typecheck + test, every language
+
+$ bun run all:e2e              # browser e2e: desktop, mobile, extension
+$ bun run all:storybook        # build the ui package's Storybook
+$ bun run dev:storybook        # Storybook dev server (packages/ui)
+
+$ bun run dev:desktop          # tauri dev (apps/desktop)
+$ bun run dev:mobile           # tauri dev (apps/mobile)
+$ bun run dev:ext              # wxt dev (chromium; :firefox for gecko)
+$ bun run dev:docs             # this documentation site
+
+$ cargo test --workspace       # the Rust suites directly
+$ cargo run -p castellan-xtask -- codegen
+```
+
+`gates` is the same command CI runs, through the same turbo graph: Rust
+runs once as one node in the JS task graph (the `@castellan/rust`
+façade), TypeScript fans out per package.
+
+## Conventions worth knowing
+
+- **Commits** are Conventional-Commits, enforced by the lefthook
+  `commit-msg` hook; changelogs are generated from them.
+- **Rust dependencies** are declared in the root `[workspace.dependencies]`
+  with a reason, never inline in a crate. `[workspace.lints]` applies
+  `missing_docs`, clippy `all`, and `unsafe_code = "forbid"` to every
+  member.
+- **TypeScript projects** extend the bases from `@castellan/utils`:
+  packages `lib.json` (+ bun types), apps their framework config *and*
+  `app.json` via extends-arrays. (This docs app is the one exception —
+  it extends Astro's strict base, because Starlight needs Astro's
+  client types.)
+- **The `@` alias** is each workspace member's own root (`@/src/…`),
+  wired per stack: tsconfig `paths` in packages, `kit.alias` in the
+  SvelteKit apps (tsc *and* vite), WXT's generated config in the
+  extension, tsconfig paths here (Astro reads them). It is for tests
+  and app source — never for a shared package's `src/`, whose files are
+  bundled by the consuming app, where `@` means *that* app.
+- **Library packages build with bunup**, their configs two lines around
+  the shared `libPreset` from `@castellan/utils`: ESM + declarations to
+  a gitignored `dist/`, workspace dependencies external. The artifact
+  proves bundleability (and is the future publish output); workspace
+  consumers still import `src/`.
+- **Browser tests are one Playwright and one chromium.** All playwright
+  packages are pinned to the same version (the last line of
+  `@playwright/experimental-ct-svelte`), and the browser is a root
+  devDependency — `@playwright/browser-chromium` downloads it during
+  `bun install`, so there is no `playwright install` step anywhere. See
+  [Testing](/testing) for the shapes: app e2e, component tests, and the
+  `playwright-cli` agent workflow.
+- **Adding a crate**: a directory under `crates/` with a manifest that
+  inherits, a line in root `[workspace.dependencies]`, a row in
+  `crates/README.md`. The glob does the rest.
+- **Adding a protocol method**: a variant in `RpcMethod` (+ `RpcResult`),
+  `bun run codegen`, a method on `CastellanClient`, a match arm in each
+  dispatcher. Four files — and the compiler finds the ones you forget.
+
+`AGENTS.md` in the repository root is the full contract for agents and
+humans working in this tree: the invariants, the commands, the
+conventions, and what is deliberately not there yet.
+
+## The documentation site you are reading
+
+`docs/` is a workspace member: Astro + Starlight, served by
+`bun run dev:docs`, built by `bun run --cwd docs build` (CI builds it on
+every push). Pages are MDX under `docs/src/content/docs/`; the sidebar is
+hand-written in `docs/astro.config.mjs` — a generated sidebar documents
+the file tree, not the reading order.

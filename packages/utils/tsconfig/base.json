@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  // The strictness floor for every TypeScript project in this repo. No
+  // environment assumptions live here on purpose: no DOM, no `types`, no
+  // include — a library package and a Svelte app compose this base with
+  // different environments layered on top.
+  //
+  // Extends through the package exports (`@castellan/utils/tsconfig/base.json`)
+  // so the floor has exactly one home; TypeScript has resolved `extends` from
+  // package exports since 5.0, which is the version this repo pins.
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "Preserve",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
+    "resolveJsonModule": true,
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "exactOptionalPropertyTypes": true,
+    "useUnknownInCatchVariables": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "removeComments": false,
+    "newLine": "lf",
+
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "exclude": ["**/node_modules", "**/dist", "**/target"]
+}

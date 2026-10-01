@@ -1,0 +1,30 @@
+[package]
+name = "castellan-vault"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+description = "The KDBX vault core: unlock, entry projection, passphrase generation"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+argon2 = { workspace = true }
+castellan-protocol = { workspace = true }
+getrandom = { workspace = true }
+keepass = { workspace = true }
+secrecy = { workspace = true }
+thiserror = { workspace = true }
+zeroize = { workspace = true }
+
+[dev-dependencies]
+# save_kdbx4 only here, never in [dependencies]: production code must keep
+# the copy-before-write discipline, while tests may build fixture files.
+keepass = { workspace = true, features = ["save_kdbx4"] }
+proptest = { workspace = true }
+rstest = { workspace = true }

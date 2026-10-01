@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "skills": {
+    "backlog": {
+      "source": "Archont561/pixi-sandbox",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/backlog/SKILL.md",
+      "computedHash": "ac14e69d38e1966c9023c5541c8300ba9c77b7a11305cf67e4c7e6fe1535b92a"
+    },
+    "playwright-cli": {
+      "source": "microsoft/playwright-cli",
+      "sourceType": "github",
+      "skillPath": "skills/playwright-cli/SKILL.md",
+      "computedHash": "ffbd59a973d4e2c19c6ecc31254a14497069c362f1d1820b6a6cfbe62de34a73"
+    },
+    "refactor": {
+      "source": "Archont561/pixi-sandbox",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/refactor/SKILL.md",
+      "computedHash": "58a38edd230cdcdd866939906321c8ba6f47c98a70d0cda373360196ee2ca1a7"
+    },
+    "session": {
+      "source": "Archont561/pixi-sandbox",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/session/SKILL.md",
+      "computedHash": "2b399f5b1f2b6c054b88e1abf2900770c13fe65b190a8ea95b9e3c6548e7bc40"
+    },
+    "skill-creator": {
+      "source": "Archont561/pixi-sandbox",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/skill-creator/SKILL.md",
+      "computedHash": "dcd4803e61e913e6fc27294184cd3a71f09f5e924ff20c8a9a20173e7b3c2bcf"
+    },
+    "tdd": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/tdd/SKILL.md",
+      "computedHash": "9ce12c4a1e209e557fcf9d02086ade3d7ffdb976186018fc1b063b4164246004"
+    },
+    "writing-for-agents": {
+      "source": "Archont561/pixi-sandbox",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/writing-for-agents/SKILL.md",
+      "computedHash": "551adca942227b44192edba88acd4e8db911f0121ce58ad16944ccf6a896a74a"
+    }
+  }
+}

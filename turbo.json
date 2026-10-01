@@ -1,0 +1,53 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "ui": "stream",
+  "globalDependencies": [
+    "biome.json",
+    "packages/utils/tsconfig/*.json",
+    "Cargo.toml",
+    "Cargo.lock",
+    "deny.toml"
+  ],
+  "globalEnv": ["CASTELLAN_VERSION"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", "build/**", ".wxt/**", "src/pkg/**"]
+    },
+    "e2e": {
+      "outputs": ["playwright-report/**", "test-results/**", "blob-report/**"],
+      "cache": false
+    },
+    "build:storybook": {
+      "dependsOn": ["^build"],
+      "outputs": ["storybook-static/**"]
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "typecheck": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "lint": {
+      "outputs": []
+    },
+    "cov": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage.xml"]
+    },
+    "fmt": {
+      "cache": false
+    },
+    "advisories": {
+      "cache": false
+    },
+    "//#lint": {
+      "inputs": ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts,json,jsonc,svelte}", "biome.json"]
+    },
+    "//#fmt": {
+      "cache": false
+    }
+  }
+}

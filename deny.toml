@@ -1,0 +1,59 @@
+# Dependency policy, enforced by `cargo deny check` in the lint task and CI.
+# cargo-deny reads this from the workspace root (which is the repository
+# root — see the Cargo.toml header comment for why that matters).
+
+[graph]
+# The two Tauri app crates resolve their own trees; the policy covers them.
+all-features = false
+
+# ── licenses ──────────────────────────────────────────────────────────────
+# A secrets manager ships to people who read license files for fun. Every
+# entry is matched by at least one crate in the graph (cargo-deny warns about
+# unmatched allowances, and it is right to: a dead entry is a decision nobody
+# revisits). MPL-2.0 is webpki-roots and friends in the TLS stacks —
+# file-level copyleft, fine for a distributed binary, but every addition
+# here is a decision, not an accident.
+[licenses]
+version = 2
+allow = [
+  "MIT",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-3-Clause",
+  "MPL-2.0",
+  "Unicode-3.0",
+  "Zlib",
+  "0BSD",
+  "CC0-1.0",
+]
+
+# ── bans ──────────────────────────────────────────────────────────────────
+# Duplicate versions are a warning, not an error: the Tauri and keepass
+# trees will disagree about something forever, and an error we can never fix
+# is a gate nobody obeys. Multiple versions of *crypto* crates would still
+# deserve a look.
+[bans]
+multiple-versions = "warn"
+deny = []
+
+# ── sources ───────────────────────────────────────────────────────────────
+# Crates.io only. A git dependency is a dependency CI cannot reproduce from
+# the lockfile alone; when one is genuinely needed (a fix not yet released),
+# add it here with a comment and a removal date.
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []
+
+# ── advisories ────────────────────────────────────────────────────────────
+[advisories]
+version = 2
+yanked = "deny"
+ignore = [
+  # RUSTSEC-2024-0370: proc-macro-error is unmaintained (not a vulnerability).
+  # Purely transitive under tauri → muda → gtk → glib-macros, no upgrade
+  # exists, and dropping it is upstream gtk-rs's call. Revisit on every
+  # tauri bump; remove the day the chain moves.
+  "RUSTSEC-2024-0370",
+]

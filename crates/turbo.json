@@ -1,0 +1,18 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    // Rust tasks are never replayed from the turbo cache: cargo's own
+    // fingerprinting (target/) is better at incremental builds than turbo's
+    // file hashing, and caching both is double the storage for half the
+    // confidence.
+    "build": { "cache": false },
+    "test": { "cache": false },
+    "lint": { "cache": false },
+    "typecheck": { "cache": false },
+    "codegen": { "cache": false, "outputs": ["../packages/protocol/src/generated/**"] },
+    "cov": { "cache": false },
+    "fmt": { "cache": false },
+    "advisories": { "cache": false }
+  }
+}

@@ -1,0 +1,7 @@
+# The toolchain is pinned rather than inherited, so a contributor's rustup
+# version cannot decide whether `cargo clippy` passes (the same policy
+# geoquery's pixi.toml states). rust-version in Cargo.toml is the floor the
+# dependency graph needs; this is the compiler the releases are built with.
+[toolchain]
+channel = "1.98.0"
+components = ["rustfmt", "clippy"]

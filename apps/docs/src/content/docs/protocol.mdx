@@ -1,0 +1,56 @@
+---
+title: The protocol
+description: The one message language every face speaks — wire shape, the origin-matching rule, errors, and versioning.
+---
+
+The normative source is `crates/protocol/src/lib.rs`; the TypeScript
+surface is generated from it by ts-rs. This page is the readable
+version. Hand-written TypeScript for a wire shape is a review blocker,
+not a style preference.
+
+## Wire shape
+
+Length-prefixed JSON (4-byte little-endian) over three transports — the
+Tauri `rpc` command, native messaging, and (future) the CLI's IPC socket
+— which share framing byte-for-byte with Chromium's native messaging.
+Host-to-browser messages cap at 1 MB, enforced where the bytes flow; list
+answers paginate rather than approach it.
+
+## Requests and results
+
+`RpcRequest` is the request id flattened into the method: `get_entries`,
+`get_totp`, `generate_passphrase`, `save_entry`, `lock_database`,
+`ping`. Every entry-scoped request carries the tab origin where the face
+has one, and **the app validates it before answering** — enforcement
+lives in the trusted process, never only in the extension.
+
+Three rules keep the protocol safe to expose:
+
+1. **List answers carry no secrets.** `EntrySummary` exposes booleans
+   (`has_totp`, `has_passkey`), never seeds or passwords. Secrets cross
+   one entry at a time through explicit getters.
+2. **`lock_database` never fails.** Locking is a right, not a privilege.
+3. **Errors are codes, messages are for humans.** `vault_locked` is not
+   an error banner; it is a state the UI renders.
+
+## The origin-matching rule
+
+Exact host equality, or the page is a **single-label subdomain** of the
+entry's host: an entry for `example.org` fills at `login.example.org`,
+but not at `a.b.example.org` (more likely a distinct service), and the
+reverse never matches — a login page on a subdomain is usually a
+different, less-trusted service. Ports are compared when both sides have
+them. One implementation in Rust; the extension pre-filters with the
+WASM build of the same function.
+
+## Versioning and events
+
+`PROTOCOL_VERSION` is one number with two doors: compiled into Rust and
+generated into TypeScript. Connections open with `hello` carrying the
+version and capability list (`autofill`, `totp`, `passkeys`,
+`recovery_codes`, `beam`); a version mismatch degrades to the methods
+both sides know, never a disconnect.
+
+The app pushes events — `database_locked`, `database_unlocked`,
+`entry_changed` — rather than waiting to be asked. Lock state is live on
+every face, and the stale-state failure class cannot exist.

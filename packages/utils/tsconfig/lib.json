@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  // For the shared packages (protocol, core, wasm, ui, utils): everything in
+  // `packages/` runs its tests under `bun test`, so `bun:test` hooks and the
+  // Bun globals are part of the package's own source environment, not an
+  // app-specific extra.
+  "extends": "./base.json",
+  "compilerOptions": {
+    "types": ["bun"]
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "name": "@castellan/mobile",
+  "version": "0.1.0",
+  "license": "MIT OR Apache-2.0",
+  "description": "Castellan mobile (Tauri 2 iOS/Android + SvelteKit, static adapter)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "lint": "biome check src",
+    "tauri": "tauri",
+    "android": "tauri android dev",
+    "android:init": "tauri android init",
+    "ios": "tauri ios dev",
+    "ios:init": "tauri ios init",
+    "e2e": "playwright test"
+  },
+  "dependencies": {
+    "@castellan/core": "workspace:*",
+    "@castellan/protocol": "workspace:*",
+    "@castellan/ui": "workspace:*",
+    "@castellan/wasm": "workspace:*",
+    "@tauri-apps/api": "^2.5.0"
+  },
+  "devDependencies": {
+    "@castellan/utils": "workspace:*",
+    "@playwright/test": "1.58.2",
+    "@sveltejs/adapter-static": "^3.0.8",
+    "@sveltejs/kit": "^2.20.0",
+    "@sveltejs/vite-plugin-svelte": "^5.0.0",
+    "@tauri-apps/cli": "^2.5.0",
+    "svelte": "^5.28.0",
+    "svelte-check": "^4.1.0",
+    "typescript": "^5.9.0",
+    "vite": "^6.3.5"
+  }
+}

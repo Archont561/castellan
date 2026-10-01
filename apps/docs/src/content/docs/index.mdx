@@ -1,0 +1,77 @@
+---
+title: Castellan
+description: The local-first password manager — one KDBX vault, three faces, a soft security key, a LAN device mesh. No cloud anywhere.
+template: splash
+hero:
+  tagline: The keeper of the keys — a password manager you own, on a disk you control, that talks to your other devices without a cloud.
+  image:
+    file: ../../assets/logo-light.svg
+  actions:
+    - text: Start developing
+      link: /castellan/development/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/Archont561/castellan
+      icon: external
+      variant: minimal
+---
+
+Castellan is a local-first, offline password manager built around one idea:
+**the vault is a file you own.** A KDBX database on your disk, opened with
+your master password, projected to three faces — a desktop app, a mobile
+app, and **Fob**, the browser companion — through one protocol with one
+implementation of every rule.
+
+There are no accounts, no cloud, no subscription, and no telemetry. Where
+Bitwarden has a server, Castellan has a **device mesh**: your devices find
+each other on the LAN, pair by QR code, and sync the vault directly.
+
+## Why another password manager?
+
+<div class="feature-grid">
+  <div>
+    ### [:icon{name="lucide:castle"} Local-first](/castellan/architecture/)
+    KDBX 4 is the on-disk format. Your existing KeePass vault opens as-is,
+    and every save is copy-aside protected.
+  </div>
+  <div>
+    ### [:icon{name="lucide:key-round"} The soft security key](/castellan/security/)
+    Passkeys on every platform — desktop, Android, iOS — from the same
+    vault, with enforcement in the trusted process, not the extension.
+  </div>
+  <div>
+    ### [:icon{name="lucide:smartphone"} Real mobile parity](/castellan/roadmap/)
+    More than KeePassDX offers: autofill, passkey provider, biometric
+    unlock, authenticator imports.
+  </div>
+  <div>
+    ### [:icon{name="lucide:network"} The device mesh](/castellan/architecture/)
+    LocalSend-compatible LAN sync between paired devices. No relay, no
+    NAT traversal, ever.
+  </div>
+  <div>
+    ### [:icon{name="lucide:file-code-2"} One implementation](/castellan/protocol/)
+    Rust core, TypeScript derived — the origin-matching rule the extension
+    pre-filters with is the same function the app enforces.
+  </div>
+  <div>
+    ### [:icon{name="lucide:terminal"} Developer tier](/castellan/roadmap/)
+    SSH agent, CLI with env injection, git credential helper — the vault
+    as a local secrets manager for development.
+  </div>
+</div>
+
+## The promise this repo is built around
+
+One vault file, three faces that render it, one protocol they all speak,
+and one implementation of every security rule — in the trusted process,
+never in the browser. Everything else is a feature; those four are the
+product.
+
+:::note[Status]
+Castellan is pre-release: the monorepo, protocol, and core crates are
+built and validated; the user-facing milestones are sequenced in the
+[roadmap](/castellan/roadmap/). The docs you are reading cover the
+architecture and the repository as they exist today.
+:::

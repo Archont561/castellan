@@ -1,0 +1,25 @@
+[package]
+name = "castellan-otp"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+description = "otpauth:// parsing and RFC 6238 TOTP codes, shared by the apps and the WASM build"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+data-encoding = { workspace = true }
+hmac = { workspace = true }
+sha1 = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+data-encoding = { workspace = true }
+proptest = { workspace = true }
+rstest = { workspace = true }

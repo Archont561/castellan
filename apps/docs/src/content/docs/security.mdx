@@ -1,0 +1,55 @@
+---
+title: Security model
+description: Assets, adversaries, trust boundaries — and the residual risks stated in plain language.
+---
+
+## The invariants
+
+Five rules that are not preferences — a change that breaks one is wrong,
+whatever else it fixes:
+
+1. No secrets in list answers. Metadata and flags, never values.
+2. Origin and RP-ID enforcement in the app process, never only in the
+   extension.
+3. The copy-aside save rule: the original file is copied aside before
+   every write; a failed save leaves it byte-identical.
+4. No localhost TCP for browser integration, ever.
+5. The sync mesh never gains a cloud relay.
+
+## Trust boundaries
+
+**Trusted**: the Rust core and the app process. **Semi-trusted**: the
+webview UI (render-only, no vault) and the extension — bounded by the
+containment contract: it never holds the vault, never more than one
+secret at a time, never TOTP seeds, never the authority to decide an
+origin matches. **Untrusted**: web pages, the LAN, other local
+processes.
+
+Under those rules a compromised extension leaks at most entry metadata
+for origins it asked about, and single passwords it filled. That is the
+whole point of the design.
+
+## Biometric unlock
+
+Biometrics never decrypt anything and are never the only factor. They
+gate a hardware-protected key (`K_hw` — Secure Enclave, Android Keystore
+with StrongBox, Windows Hello TPM) that wraps the vault key. The master
+password stays the root; enrollment change invalidates `K_hw` and
+re-prompts; the Linux path is a software gate and its settings copy says
+so.
+
+## Passkeys, honestly
+
+Castellan is a **software** authenticator: keys live in the vault,
+recoverable through the mesh, usable everywhere. That trades away secure
+element isolation — a fully compromised device can export soft keys —
+and the product says so in its own copy, not fine print. Hardware-bound
+mode is a per-credential opt-in with a "dies with the device" warning
+and two-credential guidance for accounts that matter.
+
+## Recovery, by design
+
+There are no accounts, so there is no account recovery. What exists:
+timestamped HMAC-verified backups, a printable emergency kit (the master
+password is written by hand on paper, because that is the only place it
+can live), and optional Shamir 3-of-5 splitting for households.

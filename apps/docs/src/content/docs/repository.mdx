@@ -1,0 +1,52 @@
+---
+title: Repository
+description: The layout, the lineage (what was copied from where, with credit), and the planning and knowledge systems.
+---
+
+## What came from where
+
+This repository's setup is copied and adjusted from two of the author's
+projects, and the ledger is kept honestly:
+
+**From geoquery** — the monorepo pattern: bun as the only JS runtime,
+the `crates/package.json` turbo façade (the Rust workspace as one node
+in the JS task graph), ts-rs codegen through an xtask crate, documented
+version ranges in root `[workspace.dependencies]`, the strict shared
+TypeScript bases (`@castellan/utils`), biome, lefthook, single-job CI,
+dual MIT/Apache-2.0 licensing.
+
+**From pixi-sandbox** — the manifest-header-comment house style (the
+*why* and the tradeoff live in the file, not the wiki), `deny.toml` as
+the license gate, the `backlog/` delivery system with the backlog.md
+tool, the `.knowledge/` Open Knowledge Format bundle with its
+conformance validator, and this documentation site's template (Astro +
+Starlight, adjusted).
+
+## Two systems, one boundary
+
+- [`backlog/`](https://github.com/Archont561/castellan/tree/main/backlog)
+  is **delivery state**: 37 tasks with acceptance criteria, 6 milestones,
+  7 decision records, 11 planning/spec/research/spike docs. What ships
+  next, and whether it shipped.
+- [`.knowledge/`](https://github.com/Archont561/castellan/tree/main/.knowledge)
+  is **durable knowledge**, in Google's Open Knowledge Format v0.2: 24
+  concepts across project, faces, security, features, infrastructure,
+  and research. The *why*, the contracts, the research. Validated by a
+  vendored conformance validator (`bun run okf:check`).
+
+The boundary rule: task checklists and status live in backlog; the
+architecture rationale never buries itself in a task. A change with both
+halves gets both files, cross-linked.
+
+The five facts an agent needs before touching the repository are in
+`.knowledge/CONTEXT.md` — start there.
+
+## Tooling notes
+
+- `skills` (devDependency) — the agent-skills CLI, matching the
+  pixi-sandbox setup. `bunx skills install <source>` writes skills into
+  `.agents/skills/` with `skills-lock.json` tracking sources and hashes;
+  the repository commits no skills yet, so the dependency is capability,
+  not content.
+- `bun run backlog` serves the kanban board locally; `bun run okf:check`
+  validates the knowledge bundle; `bun run dev:docs` serves this site.

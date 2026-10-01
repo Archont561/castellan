@@ -1,0 +1,33 @@
+# The Tauri app crate. It is a workspace member (see the root Cargo.toml) so
+# the shared crates and the lint policy reach it, but it is not a library
+# other crates depend on, which is why it lives beside its frontend rather
+# than under crates/.
+[package]
+name = "castellan-mobile"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+description = "The Castellan mobile app (Tauri)"
+publish = false
+
+[lints]
+workspace = true
+
+[lib]
+name = "castellan_mobile_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { workspace = true }
+
+[dependencies]
+castellan-ipc = { workspace = true }
+castellan-protocol = { workspace = true }
+castellan-vault = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tauri = { workspace = true }

@@ -1,0 +1,12 @@
+# ts-rs's `#[ts(export)]` attributes generate a test per type, which writes
+# to TS_RS_EXPORT_DIR (default ./bindings, a second directory nobody reads)
+# whenever `cargo test` runs. Pointing it at the same directory
+# castellan-xtask writes means `cargo test -p castellan-protocol` regenerates
+# exactly what `bun run codegen` regenerates — one output, two doors,
+# identical bytes. `relative = true` resolves against this file's directory
+# (the repository root), so it is correct from any invocation directory.
+#
+# This file is tracked on purpose (unlike the sandbox-restored /.cargo/ in
+# geoquery, which is a machine artifact): it is part of the codegen contract.
+[env]
+TS_RS_EXPORT_DIR = { value = "packages/protocol/src/generated", relative = true }

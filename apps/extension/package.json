@@ -1,0 +1,32 @@
+{
+  "name": "@castellan/extension",
+  "version": "0.1.0",
+  "license": "MIT OR Apache-2.0",
+  "description": "Fob — the Castellan browser companion: autofill, TOTP and passkeys over one native channel",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "dev:firefox": "wxt --browser firefox",
+    "build": "wxt build",
+    "build:firefox": "wxt build --browser firefox",
+    "zip": "wxt zip",
+    "compile": "wxt prepare && tsc --noEmit",
+    "typecheck": "wxt prepare && tsc --noEmit",
+    "lint": "biome check entrypoints src",
+    "e2e": "wxt build && playwright test"
+  },
+  "dependencies": {
+    "@castellan/core": "workspace:*",
+    "@castellan/protocol": "workspace:*",
+    "@castellan/wasm": "workspace:*"
+  },
+  "devDependencies": {
+    "@castellan/utils": "workspace:*",
+    "@playwright/test": "1.58.2",
+    "@wxt-dev/module-svelte": "^1.0.0",
+    "svelte": "^5.28.0",
+    "typescript": "^5.9.0",
+    "wxt": "^0.20.0"
+  }
+}

@@ -1,0 +1,66 @@
+---
+title: Architecture
+description: One vault, one protocol, three faces — and the codegen that keeps the two languages one system.
+---
+
+```
+apps/
+  desktop/          Tauri + SvelteKit (static) — the primary face
+  mobile/           Tauri (Android/iOS) — same UI kit, provider shells
+  extension/        WXT: Chrome MV3 + Firefox — Fob, the companion
+crates/             Rust workspace (virtual root)
+  protocol/         the message language + origin matching
+  otp/              otpauth parsing, RFC 6238 TOTP
+  ipc/              4-byte LE framing, 1 MB cap, well-known socket path
+  native-host/      castellan --native-host (a byte pump, parses nothing)
+  vault/            KDBX open/save/projection, passphrase generation
+  wasm/             wasm-bindgen face of the pure logic
+  xtask/            codegen + repo automation
+packages/           TS workspace
+  protocol/         @castellan/protocol — generated TS + the client
+  core/             transport-agnostic client + the Transport seam
+  ui/               shared Svelte components
+  wasm/             lazy wrapper around the wasm-pack output
+docs/               this site (Astro + Starlight)
+```
+
+## The one-protocol principle
+
+Every face talks to the core through the same messages. Desktop and
+mobile dispatch through a single Tauri `rpc` command; the extension
+speaks native messaging through the host; all three end in the same
+dispatcher in the app process. A feature that bypasses the protocol is a
+design error by definition — see [the protocol](/castellan/protocol/).
+
+## One autofill request, end to end
+
+1. The content script reports the page origin to the background service
+   worker.
+2. The extension pre-filters using the **WASM build** of
+   `origin_matches` — the same Rust function, compiled to a different
+   target.
+3. The background sends `get_entries { origin }` through the client.
+4. The app **re-validates the origin authoritatively**, projects
+   matching entries (metadata and flags only), and answers.
+5. The fill happens on the user's gesture. The extension holds one
+   password for the blink it takes to type it — never the vault.
+
+## The WASM boundary
+
+WASM gets **pure functions over data the extension already has**:
+origin matching, otpauth validation. Native keeps everything that touches
+the vault, the disk, the socket, or a secret. The moment TOTP seeds move
+into the WASM face to save a round-trip, the containment contract that
+bounds extension compromise dies — so the boundary stays where it is,
+and offline computation in the browser would be a designed,
+sealed-cache decision, not a convenience.
+
+## The codegen flow
+
+`crates/protocol` types carry `#[ts(export)]`; `castellan-xtask`
+regenerates `packages/protocol/src/generated` — barrel and `version.ts`
+included, derived from the Rust `PROTOCOL_VERSION` constant — and the
+output is committed. The `@castellan/protocol` typecheck depends on the
+codegen task, so a stale generation fails the build, and the two doors
+(`cargo test` through `TS_RS_EXPORT_DIR`, xtask through the same
+directory) produce identical bytes.

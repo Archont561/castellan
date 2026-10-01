@@ -1,0 +1,10 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    // typecheck consumes the wasm-pack output; building it first is the
+    // package's own job, and the task graph says so.
+    "typecheck": { "dependsOn": ["build"] },
+    "test": { "dependsOn": ["build"] }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    // The generated directory is produced by the Rust workspace's codegen
+    // task; a typecheck that skips it is typechecking half a protocol.
+    "build": { "dependsOn": ["@castellan/rust#codegen"] },
+    "typecheck": { "dependsOn": ["@castellan/rust#codegen"] },
+    "test": { "dependsOn": ["@castellan/rust#codegen"] }
+  }
+}
