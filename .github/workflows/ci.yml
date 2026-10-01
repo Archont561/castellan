@@ -3,9 +3,17 @@ name: ci
 # One job, top to bottom: the gate reads as the checks, in order. Everything
 # fans out through turbo (Rust via the @castellan/rust façade, TypeScript via
 # bun) exactly as it does locally — `bun run gates` here is `bun run gates`
-# on a contributor machine. (Single-job shape copied from geoquery's ci.yml;
-# the pixi steps are replaced by rust-toolchain.toml + bun, which is how this
-# repo pins its toolchain.)
+# on a contributor machine. (Single-job shape copied from geoquery's ci.yml.)
+#
+# Every tool the gates call comes from the committed pixi.lock (decision-8):
+# bun, rust with clippy + rustfmt, the wasm32 std, wasm-pack, cargo-deny and
+# actionlint. setup-pixi installs that environment `--locked` and activates it
+# onto $GITHUB_PATH, so each step below is the bare command a contributor
+# types, resolved against the same pinned binary — and a toolchain bump is one
+# reviewable diff on pixi.toml + pixi.lock instead of a version re-pinned here
+# as well. rust-toolchain.toml still pins the rustup installs of contributors
+# who skip pixi; conda's cargo is not a rustup proxy, so the two pins move
+# together (AGENTS.md, "Toolchain").
 
 on:
   push:
@@ -26,44 +34,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # The toolchain from rust-toolchain.toml (pinned, so a contributor's
-      # rustup cannot decide what passes here).
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          components: rustfmt, clippy
-
       # Tauri's Linux builds need the webkit stack; without it
       # `cargo check --workspace` (which covers apps/*/src-tauri) cannot run.
+      # apt, not conda: these are the system libraries the app links against
+      # on a user's machine, and pixi manages dev *tools*, not the platform.
       - name: Install Tauri system libraries
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
 
-      - name: Install wasm-pack
-        uses: taiki-e/install-action@v2
+      # The whole dev-tool environment in one step. `locked: true` makes a
+      # stale pixi.lock fail the gate instead of silently re-solving — drift
+      # is relock.yml's lane, not something CI papers over — and `cache`
+      # keys the restored environment on pixi.lock itself.
+      - uses: prefix-dev/setup-pixi@d3f436a425481402e6a95a1d1fc10331c708cd9e # v0.10.2
         with:
-          tool: wasm-pack
+          pixi-version: v0.81.0
+          locked: true
+          cache: true
+          activate-environment: true
 
-      # The advisories gate needs the binary; cargo-deny is a standalone
-      # release, not a rustup component, so CI installs it like wasm-pack.
-      - name: Install cargo-deny
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-deny
+      # conda-forge's rust ships an activation script that points cargo at
+      # conda's gcc (x86_64-conda-linux-gnu-cc), which links against conda's
+      # sysroot. The Tauri crates link against the *system* webkit/gtk
+      # installed above, built for the runner's glibc, and resolving those
+      # shared objects through the older conda sysroot fails on symbol
+      # versions. rustc and its std stay the locked conda ones; only the final
+      # link goes back to the system cc. Written after setup-pixi on purpose:
+      # this has to overwrite what the activation just exported.
+      - name: Link with the system toolchain
+        run: echo "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=cc" >> "$GITHUB_ENV"
 
-      # The workflow linter — a Go release binary, so neither rustup nor bun
-      # provides it; the project's own download script is the documented
-      # install. (Local: `bun run lint:workflows`, see AGENTS.md.)
-      - name: Install actionlint
-        run: bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
-
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.3.11
-
-      # Three caches, one per thing that owns build output: cargo (registry +
-      # target/), and turbo's task cache. Keyed on the lockfiles that decide
-      # when they are stale.
+      # Two caches here, one per thing that owns build output: cargo
+      # (registry + target/) and turbo's task cache, keyed on the lockfiles
+      # that decide when they are stale. The third — the dev-tool environment
+      # — is setup-pixi's own, above.
       - name: Cache cargo
         uses: actions/cache@v4
         with:
@@ -97,7 +102,7 @@ jobs:
         run: cargo fmt --all --check
 
       # The workflows are code too: the same `bun run lint:workflows` a
-      # contributor runs, on the binaries the step above installed.
+      # contributor runs, on the actionlint the lockfile pins.
       - name: Lint workflows
         run: bun run lint:workflows
 
