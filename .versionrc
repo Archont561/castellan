@@ -1,0 +1,26 @@
+# convco's configuration, read by the `commit-msg` hook (lefthook.yml) and
+# by `bun run lint:commits`.
+#
+# The changelog is generated from commit history rather than edited, so it
+# can only say what was actually shipped. convco's default is Conventional
+# Commits 1.0.0 with no types, which accepts `feat: add the vault` and
+# nothing else; the list below is exactly the set lefthook's grep fallback
+# accepts, so the authoritative check (convco, when installed) and the
+# fallback can never disagree about what a commit message may look like.
+#
+# `revert` is deliberately absent from both: convco 0.7.2 refuses the type
+# outright even with a "This reverts commit …" body (verified empirically),
+# so accepting it in the grep would make the fallback more lenient than the
+# authority it defers to. Undo a change as the type of the change it undoes
+# (`fix:`, `feat:`), or with a `BREAKING CHANGE:` footer when it breaks.
+[types]
+feat = { desc = "a new capability" }
+fix = { desc = "a bug fix" }
+perf = { desc = "a performance change" }
+refactor = { desc = "no behaviour change, different structure" }
+docs = { desc = "documentation only" }
+test = { desc = "tests only" }
+style = { desc = "formatting, naming, no meaning change" }
+build = { desc = "the build, the toolchain, or a dependency" }
+ci = { desc = "CI configuration" }
+chore = { desc = "housekeeping" }

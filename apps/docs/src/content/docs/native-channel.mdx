@@ -1,0 +1,42 @@
+---
+title: The native channel
+description: How the browser reaches the app with no localhost server — framing, the byte-pump host, manifests, and the association handshake.
+---
+
+No localhost TCP exists anywhere in Castellan. The KeePassHttp design —
+an HTTP server on a port, a proxy binary, any local process able to
+query it — is the catalog of sins this channel replaces.
+
+## The components
+
+- **The host is the app binary**: `castellan --native-host`, spawned per
+  browser connection, ~120 lines. Two pump threads move frames between
+  the browser's stdio and the app's socket. It parses nothing — the
+  framing is identical on both sides, so it is a byte pump. Version
+  drift between host and app is structurally impossible.
+- **The IPC server** lives in the desktop app: a user-scoped Unix domain
+  socket (`$XDG_RUNTIME_DIR/castellan/castellan.sock`, 0700 fallback
+  under `/tmp/castellan-<uid>/`) or the Windows named pipe
+  `\\.\pipe\castellan`. Same-user enforcement via peer credentials;
+  sessions multiplex by request id.
+- **The manifests** are written by the app, per browser: the HKCU
+  registry on Windows, per-browser `NativeMessagingHosts/` directories
+  on macOS and Linux, every extension ID (store and dev) in
+  `allowed_origins`. One settings button writes them all; a repair
+  button rewrites them — deleting an entire category of "extension
+  cannot connect" forum threads.
+
+## The association handshake
+
+The extension generates an Ed25519 keypair; the app shows *"Chrome wants
+to connect"*; the public key is stored, and every subsequent connection
+proves possession with a nonce challenge. Unassociated extensions get
+silence, not an error banner.
+
+## Lifecycle, and the MV3 wrinkle
+
+Either side's EOF closes the connection and the host exits. Browsers
+restart MV3 service workers at will, so reconnection is the transport's
+job and invisible to client code. Safari is the one exception: its
+containing app routes through `SafariWebExtensionHandler` + XPC — same
+protocol, different transport.

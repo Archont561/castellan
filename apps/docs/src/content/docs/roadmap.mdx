@@ -1,0 +1,44 @@
+---
+title: Roadmap
+description: From a daily-driver v0.1 to the 1.0 — milestones, exit tests, and the do-not-cut list.
+---
+
+The roadmap lives as real backlog data in [`backlog/`](https://github.com/Archont561/castellan/tree/main/backlog)
+(37 tasks, 7 decision records, 11 planning docs, driven by the
+[backlog.md](https://backlog.md) tool). This page is the readable summary.
+
+## The milestones
+
+| Milestone | What ships | Exit test |
+| --- | --- | --- |
+| **m-0 — foundation** *(done)* | monorepo, protocol + codegen, otp/ipc/native-host/wasm/vault crates | the gates: green CI, codegen verified |
+| **m-1 — v0.1, a daily driver** | unlock UX, KDBX save with copy-aside, IPC socket server, extension autofill + save, TOTP UI with QR import, search + palette, auto-lock tiers, tray, importers | **the dogfood gate**: the author uses Castellan as their only password manager for two weeks |
+| **m-2 — v0.2, hygiene + mobile alpha** | recovery codes, capture heuristics, audit dashboard, HIBP k-anonymity, HMAC-verified backups, Android alpha with biometric unlock, authenticator imports | a stranger's vault imports, audits clean, restores from backup, on an Android phone |
+| **m-3 — v0.3, the device mesh** | LocalSend interop, QR + PAKE pairing, LAN delta sync with conflict history, entry beam | two devices sync a day of edits over LAN, against a packet capture |
+| **m-4 — v0.4, the soft security key** | extension passkey provider, Android 14 Credential Manager, iOS 17 AutoFill + ProvidesPasskeys, the biometric matrix | passkeys on GitHub/npm/Facebook from desktop and one mobile platform |
+| **m-5 — v1.0** | SSH agent, CLI + env injection + git credential helper, emergency kit with optional Shamir 3-of-5, i18n (Polish first-class), external crypto review, reproducible builds | published threat model, byte-identical release builds, review findings triaged |
+
+## The cut policy
+
+v0.1 may ship without: search speed (slow-but-correct is fine), tray
+niceties, multi-step login autofill. v0.1 may **not** ship without: lock
+tiers and clipboard hygiene, copy-aside saves, and the connected-browsers
+panel — a password manager without those is a liability.
+
+**The do-not-cut list, any version:**
+
+1. No secrets in list answers — a protocol invariant.
+2. Origin and RP-ID enforcement in the app, never only in the extension.
+3. The copy-aside save rule.
+4. No localhost TCP for browser integration.
+5. The sync mesh never gains a cloud relay. Revisiting this is a new
+   decision record, not a task.
+
+## The decisions behind it
+
+Seven decision records with their context and consequences live in
+`backlog/decisions/`: one protocol with derived TypeScript, the
+native-messaging host *is* the app binary, KDBX with copy-aside saves,
+SvelteKit static inside Tauri, bun-only with a virtual Rust root, soft
+passkeys first, and the Castellan/Fob naming (collision-checked against
+the password-manager landscape).

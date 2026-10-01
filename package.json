@@ -1,0 +1,57 @@
+{
+  "name": "castellan",
+  "private": true,
+  "version": "0.1.0",
+  "license": "MIT OR Apache-2.0",
+  "description": "Local-first secrets manager: KeePass-compatible vault, authenticator and soft security key, syncing between your own devices over the LAN",
+  "packageManager": "bun@1.3.11",
+  "workspaces": [
+    "packages/*",
+    "apps/*",
+    "crates"
+  ],
+  "scripts": {
+    "lint": "biome check .",
+    "fmt": "biome check --write .",
+    "all:build": "turbo run build",
+    "all:test": "turbo run test",
+    "all:typecheck": "turbo run typecheck",
+    "all:lint": "turbo run lint",
+    "all:cov": "turbo run cov",
+    "all:fmt": "turbo run fmt",
+    "all:advisories": "turbo run advisories",
+    "gates": "turbo run lint typecheck test",
+    "codegen": "cargo run -p castellan-xtask -- codegen",
+    "wasm": "wasm-pack build crates/wasm --target bundler --out-dir ../../packages/wasm/src/pkg --scope castellan",
+    "dev:desktop": "bun run --cwd apps/desktop tauri dev",
+    "dev:mobile": "bun run --cwd apps/mobile tauri dev",
+    "dev:ext": "bun run --cwd apps/extension dev",
+    "dev:docs": "bun --bun run --cwd apps/docs dev",
+    "dev:storybook": "bun run --cwd packages/ui storybook",
+    "docs:build": "bun --bun run --cwd apps/docs build",
+    "backlog": "backlog",
+    "okf:check": "python3 .knowledge/tools/validate_okf.py",
+    "hooks:install": "lefthook install",
+    "lint:workflows": "actionlint .github/workflows/*.yml",
+    "lint:commits": "convco check",
+    "all:e2e": "turbo run e2e --concurrency=1",
+    "all:storybook": "turbo run build:storybook"
+  },
+  "prepare": "sh -c 'if [ -d .git ]; then lefthook install; fi'",
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.14",
+    "@playwright/browser-chromium": "1.58.2",
+    "@playwright/cli": "^0.1.22",
+    "@types/bun": "^1.3.11",
+    "backlog.md": "^1.53.0",
+    "bunup": "^0.16.32",
+    "fast-check": "^4.10.2",
+    "lefthook": "^2.1.16",
+    "skills": "^1.7.0",
+    "turbo": "^2.11.5",
+    "typescript": "^5.9.0"
+  },
+  "trustedDependencies": [
+    "@playwright/browser-chromium"
+  ]
+}

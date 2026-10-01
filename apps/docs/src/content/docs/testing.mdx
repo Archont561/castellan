@@ -1,0 +1,209 @@
+---
+title: Testing
+description: Example tests, fixtures and properties on both sides — rstest/proptest in Rust, bun test/fast-check/createFixture in TypeScript — plus browser e2e, component tests and Storybook under one pinned Playwright.
+---
+
+Tests live in a `tests/` directory next to the code they prove — Rust
+crates as integration tests in `crates/<name>/tests/*.rs`, exercising the
+public API only (the sample-vault fixture is a real save → open round
+trip; the two exceptions that stay inline are derive-generated ts-rs
+export checks and a bin crate's unit tests — a bin exports nothing an
+integration test could import); TypeScript as `*.test.ts` files in the
+package's `test/` — and come in three shapes. The repository runs them
+all on every push, with `clippy -D warnings` and `missing_docs` on top.
+
+The two languages deliberately share one testing vocabulary: what a
+`#[fixture]` is to a Rust suite, `createFixture` is to a bun suite, and
+what proptest is to a crate, fast-check is to a package. A wire contract
+like "every message survives serialization" is written once per language,
+in the same shape, so a reader who knows one side already knows the other.
+
+| Rust | TypeScript | What it proves |
+| --- | --- | --- |
+| `#[test]` | `test()` from `bun:test` | one specific, known behavior |
+| `#[fixture]` | `createFixture` from `@castellan/utils/fixtures` | shared setup, torn down after |
+| `#[case]` matrices | example tests over explicit lists | many discrete shapes, one function |
+| proptest | fast-check (`fc.assert` / `fc.property`) | "for any X" claims, shrunk on failure |
+
+## The three shapes
+
+**Plain example tests** pin specific, known behavior: an RFC vector, a
+hand-built vault, an oversize frame. When the behavior is one fact, one
+test says it.
+
+**rstest** brings the pytest shapes to Rust:
+
+- `#[fixture]` for shared setup — the sample vault every vault test
+  wants, the RFC 6238 seed every OTP test wants. A fresh instance per
+  test, so a test that mutates its vault cannot leak state.
+- `#[case]` matrices for behavior with many discrete shapes — origin
+  matching (exact, child-of, parent-of, sibling, ports, URL shapes),
+  issuer precedence, digit counts, passphrase shapes. One function,
+  every case in one place, a failure names its case.
+
+**proptest** is the property engine (Hypothesis's model): generated
+inputs, shrunk to the smallest failing case when something breaks.
+
+- *Round-trips*: whatever a provider's otpauth URI carries, `parse`
+  recovers it. Whatever bytes the frame channel carries, encode/decode
+  returns them, and streams of frames decode back to back.
+- *Invariants*: the code is exactly `digits` long for any secret and
+  counter; `code_now` agrees with `code_at` and reports the exact
+  distance to the next step; passphrase words always come from the list;
+  a host matches itself however the caller wrote it, a child matches its
+  parent but never the reverse, siblings never match.
+
+## Choosing a shape
+
+A new **discrete example** gets a `#[case]`. A new **"for any X" claim**
+gets a property. When proptest finds a real bug, the seed it saved under
+`proptest-regressions/` is committed so the case replays for everyone;
+when the input was out of domain, fix the strategy and delete the seed.
+
+:::note[A property test caught a real gap]
+The first framing property was written against arbitrary bytes — and
+immediately found that `decode_frame` documented a non-UTF-8 rejection
+it had never implemented. The code now enforces its own documentation,
+and the property generates the text payloads the channel actually
+carries.
+:::
+
+## The TypeScript side
+
+The packages run `bun test` (the runner is the package manager — no
+second test tool to install), with [fast-check] as the property engine
+and the fixture helper from `@castellan/utils/fixtures`. Both are
+devDependencies of the root, so no package wires its own.
+
+**Example tests** use `describe`/`test` from `bun:test` — one known
+behavior per test, same discipline as `#[test]`.
+
+**`createFixture(setup, teardown?, scope)`** is `#[fixture]`'s mirror:
+register it at suite scope, read it inside tests.
+
+```ts
+import { createFixture } from "@castellan/utils/fixtures";
+
+// a fresh value per test (beforeEach/afterEach) — the default
+const transport = createFixture(() => new ScriptedTransport());
+
+// one value for the whole file (beforeAll/afterAll) — for expensive,
+// immutable setup like a built WASM artifact
+const wasm = createFixture(buildArtifact, undefined, "file");
+
+test("speaks the protocol version", () => {
+  expect(wasm().protocol_version()).toBe(1);
+});
+```
+
+Test scope is the default because isolation is the safe choice; file
+scope is a deliberate trade — every test shares one value, mutations
+leak between tests, and the suite says so out loud when it picks it. The
+getter throws if read before setup ran (a fixture wired into the wrong
+scope), instead of handing every assertion an `undefined`. Fixtures are
+per-`createFixture`-call: two calls are two independent lifecycles, even
+in one file.
+
+**fast-check properties** wrap `fc.assert(fc.property(...))` in a
+`test()`, with an arbitrary per field:
+
+```ts
+test("Event survives a JSON round-trip unchanged", () => {
+  fc.assert(
+    fc.property(arbEvent, (event) => {
+      expect(JSON.parse(JSON.stringify(event))).toEqual(event);
+    }),
+  );
+});
+```
+
+- `fc.asyncProperty` for properties whose body awaits — the client's
+  request-id property fires up to 50 concurrent calls before asserting.
+- Expensive properties set `numRuns` explicitly (50–200); cheap ones
+  take fast-check's default 100.
+- Reproducibility: fast-check prints the seed of a failing run; re-run
+  with `{ seed: ... }` passed to `fc.assert`. (`bun test --seed` seeds
+  the *runner*, not fast-check's generator — it does not reach it.)
+- Every arbitrary is typed as the generated type it builds, so a drift
+  in a ts-rs export breaks compilation of the test, not a release.
+
+The protocol package's round-trip suite is the TypeScript mirror of the
+crates' serde round-trips: every wire type, arbitrary values, must
+survive `JSON.parse(JSON.stringify(v))` unchanged — the property that
+catches a `bigint` id or a field that silently vanishes before it
+catches a user's fill dialog. The WASM package's artifact fixture is
+`createFixture`'s flagship use: one manual instantiation per file,
+because wasm-bindgen's glue caches assume a single instance per module
+lifetime.
+
+[fast-check]: https://fast-check.dev/
+
+## Where the hard tests are specified
+
+The backlog specifies its heaviest tests as properties: the KDBX
+round-trip harness (open, save, reopen, compare every parsed field, over
+a corpus of KeePassXC/Strongbox/KeePassDX-authored databases — task 8)
+and sync idempotence (replaying a sync message produces no changes —
+task 27). Those land in the same shape the existing properties use.
+
+## Browser testing: one Playwright, one chromium
+
+Above the unit/property layer sits the browser layer, and all of it is
+one Playwright installation, pinned to a single version (1.58.2 — the
+last line of `@playwright/experimental-ct-svelte`, which the component
+tests ride; a version mismatch between `@playwright/test` and the
+browser package refuses to launch, so the pins move together or not at
+all). The chromium binary is not installed by hand anywhere: the root
+`@playwright/browser-chromium` devDependency downloads it during
+`bun install` (bun runs its postinstall because the package is in
+`trustedDependencies`), so a fresh clone is fully testable with no
+manual step.
+
+Three consumers share that one browser:
+
+- **App e2e** (`bun run all:e2e`, serial by design — two dev servers and
+  a browser build do not deserve to fight for RAM): desktop and mobile
+  each boot their SvelteKit dev server (`--strictPort`, 5173/5174 so the
+  faces can run back to back) and assert the shell renders *and* reports
+  the missing Tauri backend honestly — in a plain browser there is no
+  `invoke`, and the contract is that the UI says so instead of spinning.
+- **Extension e2e** loads the *built* MV3 into a real Chromium via a
+  persistent context (`channel: "chromium"` — the default headless shell
+  cannot load extensions at all), waits for the background service
+  worker to register, and asserts the popup reports the absent native
+  host. These tests have already caught two shipped bugs the compilers
+  cannot see: a popup bundle that quietly contained Svelte's *server*
+  runtime (where `mount()` is a throwing stub), and literal `false`
+  leaking into the rendered text — Svelte 5 stringifies `false` in text
+  position, so `cond && "text"` needs to be an `{#if}`.
+- **Component tests** (`packages/ui`, `bun run test` there, part of
+  `bun run all:test`): each ui component mounted in the real browser
+  through the Playwright component-testing API. The one rule worth
+  knowing: `mount()` resolves to the component's **root element**, not a
+  wrapper — assert and click the returned locator directly, and query
+  only its parts as descendants.
+
+The same components carry **Storybook stories** — `.stories.svelte`
+files next to each component, written with `defineMeta` from
+`@storybook/addon-svelte-csf` — served by `bun run dev:storybook` and
+built by `bun run all:storybook` (what CI runs). The stories double as
+type-checked code: svelte-check covers them like any other file.
+
+### Agent-driven exploration
+
+For interactive work there is `playwright-cli` (`@playwright/cli`, with
+its agent skill under `.agents/skills/playwright-cli`): it opens a page
+and writes **accessibility snapshots to disk** (`.playwright-cli/`,
+gitignored) instead of streaming page trees into context —
+
+```console
+$ bunx playwright-cli install-browser chromium   # once per machine
+$ bunx playwright-cli open --browser chromium http://localhost:6006
+$ bunx playwright-cli snapshot                   # YAML with element refs
+$ bunx playwright-cli click e15                  # act on a ref
+$ bunx playwright-cli screenshot --filename=shot.png
+```
+
+It ships its own Playwright, so its browser comes from
+`install-browser`, not the repo's pinned one — the committed, CI-facing
+suites never depend on it.

@@ -1,0 +1,14 @@
+export type { Capability } from "./Capability";
+export type { VaultStatus } from "./VaultStatus";
+export type { Hello } from "./Hello";
+export type { EntrySummary } from "./EntrySummary";
+export type { NewEntry } from "./NewEntry";
+export type { RpcMethod } from "./RpcMethod";
+export type { RpcRequest } from "./RpcRequest";
+export type { RpcError } from "./RpcError";
+export type { RpcResult } from "./RpcResult";
+export type { RpcResponse } from "./RpcResponse";
+export type { Event } from "./Event";
+export type { ClientMessage } from "./ClientMessage";
+export type { HostMessage } from "./HostMessage";
+export { PROTOCOL_VERSION } from "./version";

@@ -1,0 +1,20 @@
+[package]
+name = "castellan-ipc"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+description = "The one native channel: message framing and the well-known socket address, shared by the app and the native-messaging host"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+
+
+[dev-dependencies]
+proptest = { workspace = true }

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Same mark, light ink for dark headers. -->
+  <path fill="#e5e7eb" fill-rule="evenodd"
+    d="M18 58V24h5v-9h6v9h6v-9h6v9h5v34H18Zm17-28a6 6 0 1 1-12 0 6 6 0 1 1 12 0Zm-8 3h4v8h-4Z"/>
+</svg>

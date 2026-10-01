@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  // For the faces (desktop, mobile, extension). They do NOT extend this file
+  // directly: each extends an ARRAY — its framework-generated config first,
+  // this base second —
+  //
+  //   "extends": ["./.svelte-kit/tsconfig.json", "@castellan/utils/tsconfig/app.json"]
+  //
+  // so the generated config keeps owning what the framework owns (paths,
+  // jsx, ambient types like vite/client) while this base, coming later,
+  // wins on the strictness floor the generated configs don't set. DOM is
+  // the one environment assumption every face shares.
+  "extends": "./base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"]
+  }
+}

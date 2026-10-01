@@ -1,0 +1,146 @@
+# Castellan — the Cargo workspace root.
+#
+# A virtual manifest: [workspace] only. geoquery's root is also a package, but
+# only because `pixi publish` builds it with `cargo install --path .`, and
+# `cargo install` cannot install from a virtual manifest (see that repo's
+# header comment). Nothing here packages a Rust artifact from the root, so the
+# root stays virtual and every member owns its own manifest.
+#
+# Members are a glob plus two names. The glob covers the libraries under
+# `crates/`; the two names are the Tauri app crates, which live beside their
+# frontends in `apps/*/src-tauri` rather than under `crates/`. An app is not a
+# library other crates depend on, and its manifest belongs next to its
+# `tauri.conf.json`, which is where a reader looks for it. The cost is the
+# lesson geoquery already paid for: cargo does not filter glob matches on
+# manifest existence, so a directory under `crates/` without a `Cargo.toml`
+# would break the workspace — put non-crates under `apps/` or give the
+# directory a manifest.
+#
+# Turbo sees this whole workspace as ONE node in the JS task graph, through the
+# façade in `crates/package.json` (name: @castellan/rust). `bun run test` runs
+# `turbo run test`, which fans out to every TS package and then runs
+# `cargo test --workspace` once, not once per package. The façade pattern and
+# the `cd ..` in its scripts are copied from geoquery's `@geoquery/rust`.
+
+[workspace]
+resolver = "2"
+members = [
+    "crates/*",
+    "apps/desktop/src-tauri",
+    "apps/mobile/src-tauri",
+]
+
+# ── Shared package metadata ──────────────────────────────────────────────────
+# Every member inherits from here rather than restating it, so a bump is one
+# edit instead of nine. `scripts` drift has no gate here yet: when the first
+# package is published, add the version-check that geoquery's `scripts/version.ts`
+# performs — nothing makes nine manifests agree on their own.
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+# The toolchain is pinned in rust-toolchain.toml; this is the floor the
+# dependency graph needs (edition 2024 ⇒ cargo ≥ 1.85). The two numbers are
+# the same number until a dependency forces them apart, and then this one is
+# the MSRV the README promises.
+rust-version = "1.85"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/Archont561/castellan"
+homepage = "https://github.com/Archont561/castellan"
+authors = ["Archont561 <142521648+Archont561@users.noreply.github.com>"]
+
+[workspace.dependencies]
+# ── Internal crates ───────────────────────────────────────────────────────────
+# Declared here so a member says `castellan-protocol.workspace = true` without
+# inventing a path, and so the graph has one place to read. Nothing internal is
+# published; when one is, add a `version` beside the `path` (as geoquery does
+# for geoquery-core) so cargo rewrites it to the registry version at package
+# time.
+castellan-protocol = { path = "crates/protocol" }
+castellan-otp = { path = "crates/otp" }
+castellan-vault = { path = "crates/vault" }
+castellan-ipc = { path = "crates/ipc" }
+castellan-wasm = { path = "crates/wasm" }
+
+# ── Serialization and the language boundary ───────────────────────────────────
+# ts-rs is the reason `packages/protocol/src/generated` exists: the TypeScript
+# surface is derived from these types by `castellan-xtask`, never written by
+# hand. A second hand-written copy of a message shape is a second thing to keep
+# correct, and the copy is the one every face of the product speaks.
+serde = { version = ">=1.0.229,<2", features = ["derive"] }
+serde_json = ">=1.0.151,<2"
+ts-rs = ">=12.0,<13"
+thiserror = ">=2.0,<3"
+
+# ── Vault crypto ──────────────────────────────────────────────────────────────
+# keepass carries the KDBX compatibility promise (read: solid, write:
+# experimental — the vault crate auto-backs-up before every save for exactly
+# that reason). argon2/zeroize/secrecy are the memory hygiene set: keys are
+# derived with argon2, held in secrecy wrappers, and wiped with zeroize on
+# drop. getrandom feeds the passphrase generator; data-encoding is the base32
+# codec every otpauth seed arrives in.
+keepass = ">=0.15,<1"
+argon2 = ">=0.6,<0.7"
+zeroize = ">=1.9,<2"
+secrecy = ">=0.10,<0.11"
+getrandom = ">=0.4,<0.5"
+data-encoding = ">=2.11,<3"
+
+# ── TOTP (RFC 6238) ───────────────────────────────────────────────────────────
+# SHA-1 only for now: it is what the overwhelming majority of services'
+# otpauth URIs specify, and the otp crate refuses `algorithm=SHA256` with a
+# clear error rather than computing the wrong code. Add sha2 when a real user
+# hits one.
+hmac = ">=0.13,<0.14"
+sha1 = ">=0.11,<0.12"
+
+# ── WASM face of the shared logic ─────────────────────────────────────────────
+# The extension runs the same `castellan-otp` parsing and `castellan-protocol`
+# matching that the desktop app links natively, through this binding layer.
+# `packages/wasm` is the npm wrapper around the wasm-pack output.
+wasm-bindgen = ">=0.2.129,<0.3"
+serde-wasm-bindgen = ">=0.6.5,<0.7"
+
+# ── Apps ──────────────────────────────────────────────────────────────────────
+tauri = ">=2,<3"
+tauri-build = ">=2,<3"
+
+# ── Tooling ───────────────────────────────────────────────────────────────────
+anyhow = ">=1.0,<2"
+# clap fronts castellan-xtask's subcommands (the pixi-sandbox pattern: one
+# typed program for repository automation instead of per-command scripts —
+# a new subcommand is a new match arm, not a new task line or a new shell
+# file). Derive-only: the `env` feature would let flags arrive from the
+# environment, and nothing here should have a second way to be told things.
+clap = { version = ">=4.5,<5", features = ["derive"] }
+# toml is how xtask reads the workspace manifest's [workspace.package]
+# version — parsed, not grepped, so a dependency pin or a member manifest
+# can never be mistaken for the declared version.
+toml = ">=1.1,<2"
+
+# ── Test tooling (dev-only) ───────────────────────────────────────────────────
+# rstest brings pytest-shaped tests to Rust: `#[fixture]` injection (the
+# sample vault every vault test wants) and `#[case]` matrices (origin
+# matching, issuer precedence, RFC vectors) as one function instead of one
+# function per shape. proptest is the property-test engine (Hypothesis's
+# model): generated inputs, shrunk to the smallest failing case — for the
+# invariants the backlog specifies as property tests: frame round-trips
+# (task-4), the KDBX round-trip harness (task-8), sync idempotence
+# (task-27). Nothing outside `#[cfg(test)]` links either.
+rstest = ">=0.27,<0.28"
+proptest = ">=1.11,<2"
+
+# ── Lints ─────────────────────────────────────────────────────────────────────
+# One policy for every member. `unsafe_code = "forbid"` is the rule a secrets
+# manager owes its readers: the day a crate genuinely needs unsafe (a raw
+# socket option, a keychain FFI), it will be a workspace-level decision made
+# by removing this line in a reviewable diff, not an accident in a feature
+# branch. Copied from geoquery, which copied it from the same instinct.
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+missing_debug_implementations = "warn"
+unreachable_pub = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
