@@ -1,24 +1,34 @@
 /**
- * The shared UnoCSS config, proven without a browser.
+ * The shared UnoCSS foundation, proven without a browser.
  *
  * Two things here are load-bearing and silently breakable. The first is the
  * extraction pipeline: @castellan/ui is consumed as source, so if the
  * include pattern stops matching its files, every shared component still
  * compiles, still renders, still passes its component tests inside the
  * library's own harness — and arrives in the apps with class attributes and
- * no CSS. The second is that an unmatched utility inside a shortcut is a
- * warning UnoCSS prints and carries on from (it cost this suite's author one
- * silently-dropped `transition-property`), so the component looks are
- * asserted by the declarations they produce, not by the class names.
+ * no CSS. The second is the seam this file opens for `@castellan/ui/uno`:
+ * the component shortcuts are layered on from there, and they expand into
+ * utilities only this foundation defines, so "the extra preset is applied"
+ * and "the foundation is still under it" are both asserted below.
+ *
+ * The looks themselves are not asserted here — they are not defined here.
+ * `packages/ui/tests/styling.test.ts` pins them in a real browser, which is
+ * the only place an unmatched utility inside a shortcut (a warning UnoCSS
+ * carries on from) actually shows up.
  */
 import { describe, expect, test } from "bun:test";
+import type { Preset } from "unocss";
 import { createGenerator } from "unocss";
 
 import { unoPreset } from "@/src/uno";
 
 /** The declarations UnoCSS generates for a space-separated class list. */
-async function declarationsFor(classes: string, shell = true): Promise<string> {
-  const uno = await createGenerator(unoPreset({ shell }));
+async function declarationsFor(
+  classes: string,
+  shell = true,
+  presets: Preset[] = []
+): Promise<string> {
+  const uno = await createGenerator(unoPreset({ shell, presets }));
   const { css } = await uno.generate(classes, { preflights: false });
   return css;
 }
@@ -51,26 +61,7 @@ describe("the extraction pipeline", () => {
   });
 });
 
-describe("the component looks", () => {
-  test("c-entry-row is the clickable row, hover tint included", async () => {
-    const css = await declarationsFor("c-entry-row");
-
-    expect(css).toContain("grid-template-columns:1fr auto auto");
-    // The button reset: a row that still inherits the app's typography.
-    expect(css).toContain("font:inherit");
-    expect(css).toContain("color-mix(in oklab, currentColor 8%, transparent)");
-  });
-
-  test("c-ring-progress transitions the dash offset and nothing else", async () => {
-    const css = await declarationsFor("c-ring-progress");
-
-    // The regression this test exists for: without an explicit
-    // transition-property the ring animates `all` at one second.
-    expect(css).toContain("transition-property:stroke-dashoffset");
-    expect(css).toContain("transition-duration:1000ms");
-    expect(css).toContain("stroke-width:2.5");
-  });
-
+describe("the foundation", () => {
   test("the tints are oklab mixes of the current text colour", async () => {
     const css = await declarationsFor("text-tint-60 border-tint-30 stroke-tint-20 bg-tint-8");
 
@@ -80,10 +71,30 @@ describe("the component looks", () => {
   });
 
   test("tokens resolve through CSS variables, so a face can re-theme a subtree", async () => {
-    const css = await declarationsFor("c-action text-muted");
+    const css = await declarationsFor("bg-accent text-muted");
 
     expect(css).toContain("background-color:var(--accent)");
     expect(css).toContain("color:var(--muted)");
+  });
+
+  test("carries no component shortcuts of its own", async () => {
+    // They live in `@castellan/ui/uno`, with the components they describe,
+    // because the extension popup depends on this package and not on the
+    // component library. A shortcut that reappears here is a design system
+    // the popup pays for and cannot use.
+    expect(await declarationsFor("c-entry-row c-action c-ring-progress")).toBe("");
+  });
+
+  test("layers a consumer's presets on top, with the foundation under them", async () => {
+    // How `presetUi()` arrives. The shortcut is resolved by the extra
+    // preset; the tint it expands to is resolved by the foundation — which
+    // is the half of the contract that would break silently.
+    const css = await declarationsFor("c-probe", true, [
+      { name: "probe", shortcuts: { "c-probe": "bg-tint-8 text-accent" } }
+    ]);
+
+    expect(css).toContain("color-mix(in oklab, currentColor 8%, transparent)");
+    expect(css).toContain("color:var(--accent)");
   });
 });
 

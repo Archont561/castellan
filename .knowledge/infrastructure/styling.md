@@ -1,7 +1,7 @@
 ---
 type: Reference
 title: "Castellan — styling"
-description: "One shared UnoCSS config behind four consumers: tokens, component shortcuts, and the extraction pipeline that reaches the shared package."
+description: "UnoCSS in two halves: the foundation in @castellan/utils, the component looks in @castellan/ui, and the extraction pipeline that reaches the shared package."
 tags:
   - styling
   - unocss
@@ -11,7 +11,7 @@ generated:
   by: agent/castellan-kb
   at: "2026-10-02T11:30:00Z"
 created: "2026-10-02T11:30:00Z"
-updated: "2026-10-02T11:30:00Z"
+updated: "2026-10-02T13:10:00Z"
 id: infrastructure/styling
 category: infrastructure
 refs:
@@ -22,10 +22,24 @@ refs:
 # Styling
 
 Atomic utilities from **UnoCSS**, generated per consumer from **one shared
-config** — `unoPreset()` in `@castellan/utils/uno`, next to the bunup and
-playwright presets for the same reason. No component framework ships CSS
-into the bundle; what a face downloads is the utilities its own source
-actually uses.
+config in two halves**:
+
+- **The foundation** — `unoPreset()` / `presetCastellan()` in
+  `@castellan/utils/uno`, next to the bunup and playwright presets for the
+  same reason. Tokens, the currentColor tints, the optional page shell, the
+  extraction pipeline. Everything that renders needs it.
+- **The look** — `presetUi()` in `@castellan/ui/uno`: the `c-*` shortcuts,
+  living with the components they describe.
+
+The split follows the dependency graph, not taste. The extension popup
+depends on `@castellan/utils` and *not* on the component library, so
+shortcuts in the foundation would be a design system the popup pays for and
+cannot use; shortcuts in `@castellan/ui` are opt-in by the same import that
+brings in the components. A shortcut and the markup it styles also change
+together, and now they can change in one package.
+
+No component framework ships CSS into the bundle; what a face downloads is
+the utilities its own source actually uses.
 
 ## The shape
 
@@ -34,11 +48,15 @@ actually uses.
 | Tokens (`--bg`, `--fg`, `--accent`, `--muted`, `--surface`, `--border`, `--danger`, `--ok`, `--font-sans`) | preflight in the shared preset | they used to be a `:root` block duplicated in two `app.css` files; one copy is one place to edit |
 | Theme colours | `var(--token)`, not inlined hex | overriding a variable on a subtree re-themes every utility built from it — the thing the original `app.css` comment promised and inlined colours cannot do. The cost: `/50` opacity shorthand does not work on token colours |
 | `currentColor` tints | custom rules `bg-/text-/border-/stroke-tint-<n>` | every hairline and secondary label was already a hand-written `color-mix(in oklab, currentColor n%, transparent)`; as a rule the percentages cannot drift between components |
-| Component looks | shortcuts: `c-entry-row`, `c-badge`, `c-field`, `c-action`, `c-section-title`, `c-ring-track`, `c-ring-progress` | the faces share a *look* |
+| Component looks | shortcuts in `packages/ui/uno.ts`: `c-entry-row`, `c-badge`, `c-field`, `c-action`, `c-section-title`, `c-ring-track`, `c-ring-progress` | the faces share a *look*, and it belongs with the components. The file sits at the package *root*: `src/**` is in the extraction pipeline, so a shortcut table under `src/` would be scanned as markup and every utility it names would ship as a standalone rule |
 | Metrics (padding, width, radius) | utilities in the markup | the faces legitimately disagree about *size* — a desktop row is denser than a touch target, the mobile action is full-width with a 10px radius |
 
-A consumer's `uno.config.ts` is two lines: `export default unoPreset()`.
-The only option is `shell`.
+A consumer's `uno.config.ts` is one expression:
+`export default unoPreset({ presets: [presetUi()] })` in the desktop and
+mobile faces and in this library's own harnesses,
+`export default unoPreset({ shell: false })` in the extension popup. Two
+options: `shell`, and `presets` — anything layered over the foundation,
+last wins.
 
 ## `shell`: who owns the page
 
@@ -67,8 +85,12 @@ because it is partial: the components keep compiling, keep passing their
 component tests, and keep looking right in Storybook (which runs its own
 UnoCSS pass over the same sources) — and arrive in the apps with class
 attributes and no CSS. `packages/utils/test/uno.test.ts` pins the pipeline
-patterns and the generated declarations so the regression is a failing unit
-test rather than a design review.
+patterns, and the seam the `presets` option opens (the extra preset applies,
+and the foundation is still under it), so the regression is a failing unit
+test rather than a design review. The looks themselves are pinned one layer
+up, in `packages/ui/tests/styling.test.ts`, which mounts the components and
+reads computed styles back out of a real browser — the only place where a
+shortcut that silently dropped a utility actually shows.
 
 Two smaller traps found while building it:
 

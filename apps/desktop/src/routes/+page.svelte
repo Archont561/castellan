@@ -26,9 +26,10 @@ async function roll(): Promise<void> {
 </script>
 
 <!--
-  Styling is UnoCSS from the shared preset (uno.config.ts →
-  @castellan/utils/uno): the house looks are shortcuts (`c-section-title`,
-  `c-field`, `c-action`), the desk-sized metrics are utilities right here —
+  Styling is UnoCSS from the shared config (uno.config.ts → the foundation
+  in @castellan/utils/uno plus the looks in @castellan/ui/uno): the house
+  looks are shortcuts (`c-section-title`, `c-field`, `c-action`), the
+  desk-sized metrics are utilities right here —
   the mobile face renders the same markup at its own sizes. Bare classes
   like `error` are e2e hooks and carry no CSS.
 -->

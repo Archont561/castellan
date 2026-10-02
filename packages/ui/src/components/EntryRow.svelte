@@ -4,9 +4,9 @@
   callback, and the components stay usable in the desktop grid and the mobile
   list alike.
 
-  Styling is UnoCSS from the workspace-shared preset
-  (`@castellan/utils/uno`): the row's look is the `c-entry-row` shortcut, the
-  one-off metrics are utilities. The leading bare class on each element
+  Styling is UnoCSS: the row's look is the `c-entry-row` shortcut from this
+  package's own preset (`../../uno.ts`, layered on the foundation in
+  `@castellan/utils/uno`), the one-off metrics are utilities. The leading bare class on each element
   (`title`, `username`, `badge`…) carries no CSS — it is the stable hook the
   component tests and the faces' e2e suites query by, kept deliberately
   separate from the utilities, which are free to change with the design.

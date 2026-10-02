@@ -4,8 +4,9 @@
   it), and ticks locally between protocol answers.
 
   The ring's two circles are the `c-ring-track` / `c-ring-progress`
-  shortcuts from the shared UnoCSS preset; `track` and `progress` stay on
-  the elements as test hooks (see EntryRow's header for the convention).
+  shortcuts from this package's UnoCSS preset (`../../uno.ts`); `track` and
+  `progress` stay on the elements as test hooks (see EntryRow's header for
+  the convention).
 -->
 <script lang="ts">
 interface Props {

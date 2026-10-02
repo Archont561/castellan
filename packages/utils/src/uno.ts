@@ -1,15 +1,24 @@
 /**
- * The shared UnoCSS configuration: one source of truth for four consumers
+ * The shared UnoCSS *foundation*: one source of truth for four consumers
  * (desktop, mobile, the extension popup, and the component library's own
  * Storybook/component-test harnesses), next to `libPreset` and `e2ePreset`
  * for the same reason — the choices that must not drift between faces live
  * in one place, and each consumer's `uno.config.ts` is two lines.
  *
- * Why a preset rather than utilities-as-written: the faces share a *look*
+ * What is here is what *everything* that renders needs: the tokens, the
+ * currentColor tints, the optional page shell, and the extraction pipeline.
+ * What is deliberately *not* here is the component looks — the `c-*`
+ * shortcuts live in `@castellan/ui/uno`, with the components they describe,
+ * and arrive through the `presets` option below. The split follows the
+ * dependency graph rather than taste: the extension popup depends on this
+ * package and not on the component library, so a shortcut table here would
+ * be a design system the popup can neither use nor avoid paying for.
+ *
+ * Why presets rather than utilities-as-written: the faces share a *look*
  * and disagree about *metrics* (a desktop row is denser than a touch
- * target), so the look is a shortcut here and the sizing stays in the
- * markup. A component that wants `c-action` gets the castellan button in
- * every face; a face that wants it full-width says so itself.
+ * target), so the look is a shortcut in `@castellan/ui/uno` and the sizing
+ * stays in the markup. A component that wants `c-action` gets the castellan
+ * button in every face; a face that wants it full-width says so itself.
  *
  * The tokens stay CSS custom properties even though UnoCSS could inline the
  * hex values: `app.css` used to carry them with the comment "faces theme by
@@ -66,12 +75,21 @@ export interface UnoPresetOptions {
    * full-bleed background is a popup that fights the browser's chrome.
    */
   shell?: boolean;
+  /**
+   * Presets layered on top of the foundation — in practice
+   * `presetUi()` from `@castellan/ui/uno`, for the consumers that render
+   * castellan components. Last wins, so a consumer can also override a
+   * token or a rule here without forking this file.
+   *
+   * Only `unoPreset` reads this; `presetCastellan` is the foundation alone.
+   */
+  presets?: Preset[];
 }
 
 /**
- * The castellan preset: tokens, the currentColor tints, and the handful of
- * recurring component looks. Exported separately from `unoPreset` so a
- * consumer with its own base preset can still get the house style.
+ * The castellan foundation: the tokens, the currentColor tints, and the page
+ * shell. Exported separately from `unoPreset` so a consumer with its own
+ * base preset can still get the house palette.
  */
 export function presetCastellan(options: UnoPresetOptions = {}): Preset {
   const { shell = true } = options;
@@ -91,37 +109,6 @@ export function presetCastellan(options: UnoPresetOptions = {}): Preset {
       // what keeps a <button> from falling back to the UA's 13px Arial.
       ["font-inherit", { font: "inherit" }]
     ],
-    shortcuts: {
-      // A vault row: the grid is the contract (title grows, badges do not),
-      // and the button reset is what makes a whole row clickable without
-      // looking like a button.
-      "c-entry-row":
-        "grid grid-cols-[1fr_auto_auto] items-baseline gap-3 w-full px-[0.8rem] py-[0.6rem] text-left text-inherit font-inherit bg-transparent b-0 rounded-8px cursor-pointer hover:bg-tint-8",
-      // A capability dot ("2FA", the passkey glyph): sized in `em` on
-      // purpose, so it shrinks with whatever row it lands in.
-      "c-badge": "text-[0.7em] px-[0.4rem] py-[0.1rem] rounded-full b-1 b-solid border-tint-30",
-      // The sunken surface: generated passphrases, codes, anything the user
-      // reads back rather than types.
-      "c-field": "block bg-surface b-1 b-solid border-border rounded-8px",
-      // The one affirmative button. Metrics stay with the face — padding,
-      // width, and the corner radius, which really is a metric here: the
-      // desktop button is 8px and the thumb-sized mobile one is 10px. A
-      // radius in the shortcut would collide with the face's own
-      // `rounded-*` and leave the winner to CSS source order.
-      "c-action": "bg-accent text-bg font-600 b-1 b-solid border-border cursor-pointer",
-      // Section headings: the quiet uppercase label above a list.
-      "c-section-title": "text-muted uppercase tracking-[0.08em]",
-      // The TOTP countdown: a track and the arc that empties against it.
-      // `-rotate-90` moves 12 o'clock to the start of the arc.
-      "c-ring-track": "fill-none stroke-tint-20 [stroke-width:2.5]",
-      // `[transition-property:…]`, not `transition-[…]`: presetWind3 has no
-      // arbitrary-value form of the transition shorthand, and an unmatched
-      // utility inside a shortcut is a *warning*, not an error — the ring
-      // would have silently transitioned `all` properties at 1s instead of
-      // just the dash offset.
-      "c-ring-progress":
-        "fill-none stroke-current origin-center -rotate-90 [stroke-width:2.5] [transition-property:stroke-dashoffset] duration-1000 ease-linear"
-    },
     preflights: [
       {
         // Tokens always: a consumer that opts out of the shell still builds
@@ -150,11 +137,12 @@ button {
 
 /**
  * The full shared config. A consumer's `uno.config.ts` is
- * `defineConfig(unoPreset())` and nothing else.
+ * `export default unoPreset()` and nothing else — plus
+ * `{ presets: [presetUi()] }` wherever castellan components render.
  */
 export function unoPreset(options: UnoPresetOptions = {}): UserConfig {
   return defineConfig({
-    presets: [presetWind3(), presetCastellan(options)],
+    presets: [presetWind3(), presetCastellan(options), ...(options.presets ?? [])],
     // Prose, not markup. The extractor tokenises whole files, comments
     // included, so the words "ring" (TotpRing documents itself) and "grid"
     // ("the desktop grid") each matched a real presetWind3 utility and

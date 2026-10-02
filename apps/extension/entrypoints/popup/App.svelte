@@ -11,10 +11,11 @@ onMount(async () => {
 </script>
 
 <!--
-  The popup uses the same shared UnoCSS config as the apps, with
-  `shell: false` (uno.config.ts): tokens and component looks, but no
-  `html`/`body` painting — the browser owns this surface and sizes it from
-  the content. The status colour is a data-attribute variant rather than a
+  The popup uses the same shared UnoCSS foundation as the apps, with
+  `shell: false` (uno.config.ts): tokens and tints, but no `html`/`body`
+  painting — the browser owns this surface and sizes it from the content.
+  No `@castellan/ui` preset either: the popup renders none of the shared
+  components, so it ships none of their looks. The status colour is a data-attribute variant rather than a
   CSS rule on `[data-state]`, so the state → colour mapping is visible in
   the markup that sets the state. `status`/`muted` stay as e2e hooks.
 -->

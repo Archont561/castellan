@@ -13,6 +13,8 @@
     "src/**/*.svelte",
     "tests/**/*.ts",
     ".storybook/**/*.ts",
+    "uno.ts",
+    "uno.config.ts",
     "playwright.config.ts",
     "vite.config.ts"
   ]
