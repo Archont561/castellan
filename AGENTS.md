@@ -202,6 +202,34 @@ no per-script wrappers, so a new script never needs a pixi line (the
   lint:workflows`, `pixi run bun run lint:commits`), or install release
   binaries like cargo-deny's.
 
+## Reading a failed CI run
+
+Neither `gh run view --log` nor `gh api .../actions/jobs/<id>/logs` works
+from a sandboxed agent: `gh` follows the redirect to
+`productionresultssa*.blob.core.windows.net` itself and dies with `EOF`,
+and the check-run annotations carry nothing but `Process completed with
+exit code N`. **Do not answer this by pushing a throwaway diagnostic
+workflow that re-runs the failing command and echoes `::error::`.** It
+costs a five-minute round trip per question, truncates at the annotation
+size limit, and the real log was reachable the whole time.
+
+`gh` prints the signed blob URL inside its own error message. Take it and
+retrieve it with a plain HTTP fetch — an agent's web-fetch tool resolves
+outside the sandbox, where the blob store is reachable:
+
+```console
+$ JOB=$(gh run view <run-id> --json jobs --jq '.jobs[0].databaseId')
+$ gh api -i "repos/Archont561/castellan/actions/jobs/$JOB/logs" 2>&1 \
+    | grep -o 'https://[^"]*job-logs.txt[^"]*'
+```
+
+Fetching that URL returns the complete, uncut job log — every step in
+order, timestamped. Two caveats: the signature expires roughly ten minutes
+after it is minted, so fetch promptly and re-mint rather than reusing a
+stale URL; and the log arrives in chunks, so page to the **end** — a gate
+failure is almost always in the last chunk, because every later step was
+skipped.
+
 ## Planning and knowledge — two systems, one boundary
 
 - **`backlog/`** is delivery state, in the [backlog.md](https://backlog.md)
