@@ -20,7 +20,8 @@
   "dependencies": {
     "@castellan/core": "workspace:*",
     "@castellan/protocol": "workspace:*",
-    "@castellan/wasm": "workspace:*"
+    "@castellan/wasm": "workspace:*",
+    "@floating-ui/dom": "^1.8.0"
   },
   "devDependencies": {
     "@castellan/utils": "workspace:*",

@@ -49,7 +49,9 @@ single-job CI, dual MIT/Apache-2.0.
   docs.yml when the site goes public.
 - **skills** (devDependency): the agent-skills CLI. `bun x skills add
   <source>` vendors into `.agents/skills/` + `skills-lock.json`; the repo
-  commits the capability, no skills yet.
+  commits the capability and its pinned skills. UI work has Anthropic's
+  `frontend-design` and `webapp-testing` skills beside the existing backlog,
+  session, refactor, TDD, Playwright and writing-for-agents skills.
 - **The offline airlock**: `publish-sandbox.yml` packs the locked environment
   and the 489 vendored crates onto the orphan branch
   `sandbox/developer-<platform>`; `scripts/restore.sh` (generated, regenerable)
