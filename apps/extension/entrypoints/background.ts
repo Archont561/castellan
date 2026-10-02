@@ -11,7 +11,8 @@
  * this file adds is a wake-up alarm so a TOTP countdown in the popup does
  * not go stale between requests.
  */
-import { CastellanClient } from "@castellan/core";
+import { WebExtensionClient } from "@/src/generated/client";
+import { isPingBackground, type PingBackgroundResponse } from "@/src/messages";
 import { nativeMessagingTransport } from "@/src/transport";
 
 export default defineBackground(() => {
@@ -20,17 +21,16 @@ export default defineBackground(() => {
   // the port events are checked, no casts. The getter keeps the transport
   // testable — the transport takes a NativeMessaging it can be fed a fake
   // of, not the global itself.
-  const client = new CastellanClient(nativeMessagingTransport(() => browser.runtime));
+  const client = new WebExtensionClient(nativeMessagingTransport(() => browser.runtime));
 
-  // The popup asks; the background answers. Typed message passing (WXT's
-  // defineExtensionMessaging) lands with the first real popup feature.
+  // The popup asks; the background answers through the extension-local
+  // contract in src/messages.ts. Browser APIs deliver `unknown`, so the
+  // runtime guard and response type meet here at the trust boundary.
   browser.runtime.onMessage.addListener((message: unknown) => {
-    if (message === "castellan:ping") {
-      return client
-        .ping()
-        .then(() => ({ ok: true as const }))
-        .catch((cause: unknown) => ({ ok: false as const, cause: String(cause) }));
-    }
-    return undefined;
+    if (!isPingBackground(message)) return undefined;
+    return client
+      .ping()
+      .then((): PingBackgroundResponse => ({ ok: true }))
+      .catch((cause: unknown): PingBackgroundResponse => ({ ok: false, cause: String(cause) }));
   });
 });

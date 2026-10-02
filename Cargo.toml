@@ -56,6 +56,7 @@ authors = ["Archont561 <142521648+Archont561@users.noreply.github.com>"]
 # for geoquery-core) so cargo rewrites it to the registry version at package
 # time.
 castellan-protocol = { path = "crates/protocol" }
+castellan-dispatch = { path = "crates/dispatch" }
 castellan-otp = { path = "crates/otp" }
 castellan-vault = { path = "crates/vault" }
 castellan-ipc = { path = "crates/ipc" }

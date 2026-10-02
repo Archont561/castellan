@@ -3,7 +3,7 @@ id: doc-1
 title: "Castellan Protocol Specification"
 type: specification
 created_date: '2026-10-01 21:00'
-updated_date: '2026-10-01 21:00'
+updated_date: '2026-10-02 15:00'
 tags:
   - protocol
   - specification
@@ -27,8 +27,10 @@ it.
 
 `RpcRequest = { id: u64 } & RpcMethod` (flattened). Methods are internally
 tagged snake_case: `get_entries`, `get_totp`, `generate_passphrase`,
-`save_entry`, `lock_database`, `ping`. Adding a method is four edits
-(variant, result, client method, dispatch arm) and the compiler audits them.
+`save_entry`, `lock_database`, `ping`. Each is declared once in the protocol's
+`rpc_contract!` invocation with request fields, success fields, and the client
+faces allowed to call it. The macro emits paired Rust variants and operation
+metadata; xtask derives the wire DTOs and scoped clients from that metadata.
 
 Rules that keep the protocol safe to expose:
 
@@ -40,13 +42,22 @@ Rules that keep the protocol safe to expose:
    lives in the trusted process, never only in the extension.
 3. **`lock_database` never fails.** Locking is a right, not a privilege.
 
+The current client scopes demonstrate the contract: shared read/TOTP/lock/ping
+operations reach all three faces; passphrase generation belongs to desktop and
+mobile entry editors; captured-entry saving belongs to the web extension.
+All native transports terminate in `castellan-dispatch`; app shells contain no
+operation match of their own.
+
 ## §3 Results and errors
 
 `RpcResponse = { id, result?, error? }` — flat, exactly one payload set.
-`RpcResult` is tagged by kind (`ok`, `entries`, `totp` + `seconds_remaining`,
-`passphrase`, `saved`). Error codes are stable strings: today `vault_locked`,
-`no_such_entry`, `not_implemented`, `disconnected` (transport-side). The UI
-switches on codes; the message is for humans.
+Every `RpcResult` uses the request's operation tag (`get_entries`, `get_totp`,
+`generate_passphrase`, `save_entry`, `lock_database`, `ping`). That correlation
+lets generated TypeScript derive `ResultFor<M>` with `Extract` and makes a
+wrong success variant a client error rather than an empty UI value. Error
+codes are stable strings: today `vault_locked`, `no_such_entry`,
+`not_implemented`, `disconnected` (transport-side). The UI switches on codes;
+the message is for humans.
 
 ## §4 Origin matching (normative)
 
@@ -58,7 +69,7 @@ the extension pre-filters with the WASM build of the same function.
 
 ## §5 Versioning and capabilities
 
-`PROTOCOL_VERSION` (currently 1) is generated into TypeScript as well as
+`PROTOCOL_VERSION` (currently 2) is generated into TypeScript as well as
 compiled into Rust — one number, two doors. Connections begin with
 `ClientMessage::Hello`; the app answers `HostMessage::Hello` with its
 version, vault status and capability list (`Capability`: autofill, totp,

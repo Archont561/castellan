@@ -10,7 +10,17 @@
     "test": { "cache": false },
     "lint": { "cache": false },
     "typecheck": { "cache": false },
-    "codegen": { "cache": false, "outputs": ["../packages/protocol/src/generated/**"] },
+    "codegen": {
+      "cache": false,
+      "outputs": [
+        "../packages/protocol/src/generated/**",
+        "../packages/wasm/src/generated/**",
+        "../apps/desktop/src/generated/**",
+        "../apps/mobile/src/generated/**",
+        "../apps/extension/src/generated/**",
+        "../apps/extension/native-hosts/generated/**"
+      ]
+    },
     "cov": { "cache": false },
     "fmt": { "cache": false },
     "advisories": { "cache": false }

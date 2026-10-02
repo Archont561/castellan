@@ -1,12 +1,13 @@
 <script lang="ts">
 import { PROTOCOL_VERSION } from "@castellan/protocol";
 import { onMount } from "svelte";
+import { pingBackground } from "@/src/messages";
 
 let state = $state<"checking" | "up" | "down">("checking");
 
 onMount(async () => {
-  const answer = await browser.runtime.sendMessage("castellan:ping");
-  state = answer?.ok ? "up" : "down";
+  const answer = await pingBackground(browser.runtime);
+  state = answer.ok ? "up" : "down";
 });
 </script>
 

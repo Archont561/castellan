@@ -17,15 +17,16 @@ against ahead of the app.
 
 | Crate | What it is |
 | --- | --- |
-| `protocol/` | the message language: RPC, events, capability negotiation, origin matching. ts-rs derives `packages/protocol/src/generated` from here |
+| `protocol/` | the RPC contract macro, events, capability negotiation and origin matching. It drives generated wire types and face-scoped clients |
+| `dispatch/` | the one transport-independent RPC dispatcher; desktop, mobile, native messaging and the future CLI terminate here |
 | `otp/` | otpauth parsing + RFC 6238 TOTP (SHA-1; other algorithms refused with clear errors, not wrong codes) |
 | `vault/` | KDBX core: open, entry projection, passphrase generation. Save = copy-aside-then-write, because keepass-rs writing is experimental |
 | `ipc/` | the one native channel: 4-byte LE framing (Chromium's native-messaging wire format, byte for byte) + the well-known socket path. std-only |
 | `native-host/` | the process each browser spawns: a byte pump between the browser's stdio and the app's socket. Parses nothing, so it can never be the wrong version |
 | `wasm/` | the WASM face of shared logic (`castellan-otp` + `protocol::matching`) — what the extension runs, the apps link natively |
-| `xtask/` | code generation: derives the TypeScript bindings and the barrel from `protocol` |
-| `apps/desktop/src-tauri` | the desktop app crate: the `rpc` command + dispatcher |
-| `apps/mobile/src-tauri` | the mobile app crate: the same dispatcher (consolidates into a shared crate when they grow apart) |
+| `xtask/` | code generation: derives TypeScript bindings plus desktop/mobile/web-extension clients from `protocol` |
+| `apps/desktop/src-tauri` | the desktop app crate: a Tauri `rpc` adapter into `castellan-dispatch` |
+| `apps/mobile/src-tauri` | the mobile app crate: the same thin adapter plus platform lifecycle/plugins |
 
 Each crate keeps its tests in its own `tests/` directory — integration
 tests over the public API, one file per theme (`framing.rs`,

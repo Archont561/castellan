@@ -5,6 +5,7 @@ export type { EntrySummary } from "./EntrySummary";
 export type { NewEntry } from "./NewEntry";
 export type { RpcMethod } from "./RpcMethod";
 export type { RpcRequest } from "./RpcRequest";
+export type { RpcErrorCode } from "./RpcErrorCode";
 export type { RpcError } from "./RpcError";
 export type { RpcResult } from "./RpcResult";
 export type { RpcResponse } from "./RpcResponse";

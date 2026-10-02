@@ -4,11 +4,10 @@ import type { NewEntry } from "./NewEntry";
 /**
  * One RPC call, tagged by method name.
  *
- * Internally tagged (`{"method": "get_entries", ...}`) so a method is
- * readable on the wire and a typo is a parse error, not a silent dispatch
- * miss. The tag strings stay snake_case on the wire even though the variants
- * are Rust-idiomatic — rename attributes are part of the derived TypeScript,
- * not a second hand-maintained mapping.
+ * Internally tagged (`{"method": "get_entries", ...}`) so a
+ * method is readable on the wire and a typo is a parse error, not a
+ * silent dispatch miss. The tag strings stay snake_case on the wire
+ * and in the generated TypeScript.
  */
 export type RpcMethod = { "method": "get_entries", 
 /**
@@ -30,4 +29,4 @@ separator: string, } | { "method": "save_entry",
 /**
  * The captured entry.
  */
-entry: NewEntry, } | { "method": "lock_database" } | { "method": "ping" };
+entry: NewEntry, } | { "method": "lock_database", } | { "method": "ping", };

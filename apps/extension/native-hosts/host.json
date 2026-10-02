@@ -1,0 +1,7 @@
+{
+  "name": "app.castellan.host",
+  "description": "Castellan vault access for the Fob extension",
+  "path": "{path}",
+  "chromiumExtensionIds": ["EXTENSION_ID_DEV", "EXTENSION_ID_STORE"],
+  "firefoxExtensionIds": ["fob-dev@castellan.app", "FIREFOX_EXTENSION_ID_STORE"]
+}

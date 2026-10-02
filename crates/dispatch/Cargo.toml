@@ -1,0 +1,21 @@
+# The transport-independent application dispatcher. Desktop, mobile, native
+# messaging and the future CLI all terminate here; adapters only move the
+# shared protocol envelope across their platform boundary.
+[package]
+name = "castellan-dispatch"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+description = "The shared Castellan RPC dispatcher"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+castellan-protocol = { workspace = true }
+castellan-vault = { workspace = true }

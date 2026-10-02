@@ -1,26 +1,32 @@
 /**
- * The client's invariants, proven the way the Rust side proves its crates:
- * properties over arbitrary inputs (fast-check here, proptest there), not
- * just examples. The Rust↔TypeScript symmetry is deliberate — the same
- * class of bug (a reused request id, a swallowed error code, a payload
- * field that stops traveling) should be catchable on whichever side it
- * regresses.
- *
- * Every property runs against the same scripted transport: no app, no
- * browser, no Tauri — the package's whole reason to exist is that these
- * guarantees hold for every face at once.
+ * The shared client's invariants, proven over arbitrary inputs. Generated
+ * face methods are thin calls into this base, so request ids, errors and flat
+ * payloads need one property suite rather than one suite per app.
  */
 
 import { describe, expect, test } from "bun:test";
 import type { RpcRequest, RpcResponse } from "@castellan/protocol";
 import fc from "fast-check";
 
-import { CastellanClient, CastellanError } from "@/src/client";
+import { CastellanError, RpcClient } from "@/src/client";
 import type { Transport } from "@/src/transport";
 
-/** A transport that answers from a script and records what it was asked —
- * the property-testing twin of the scripted transport in client.test.ts,
- * pared down to what the properties need. */
+class TestClient extends RpcClient {
+  async ping(): Promise<void> {
+    await this.call({ method: "ping" }, "ping");
+  }
+
+  async getEntries(origin: string): Promise<unknown[]> {
+    const result = await this.call({ method: "get_entries", origin }, "get_entries");
+    return result.entries;
+  }
+
+  async getTotp(entryId: string): Promise<{ code: string; secondsRemaining: number }> {
+    const result = await this.call({ method: "get_totp", entry_id: entryId }, "get_totp");
+    return { code: result.code, secondsRemaining: result.seconds_remaining };
+  }
+}
+
 class ScriptedTransport implements Transport {
   readonly sent: RpcRequest[] = [];
   readonly #answer: (req: RpcRequest) => RpcResponse;
@@ -43,21 +49,20 @@ class ScriptedTransport implements Transport {
   }
 }
 
-const ok = (req: RpcRequest): RpcResponse => ({ id: req.id, result: { type: "ok" }, error: null });
+const success = (req: RpcRequest): RpcResponse => {
+  if (req.method === "get_entries") {
+    return { id: req.id, result: { type: "get_entries", entries: [] }, error: null };
+  }
+  return { id: req.id, result: { type: "ping" }, error: null };
+};
 
-describe("CastellanClient (properties)", () => {
+describe("RpcClient (properties)", () => {
   test("assigns every request a distinct, dense id", async () => {
-    // The ids are the pairing key a multiplexing transport relies on
-    // (native messaging shares one stream between every caller), so the
-    // property is stronger than "different": ids must be exactly
-    // 1..N with no hole and no reuse, however the calls interleave.
-    // `asyncProperty` because the calls are awaited; 50 runs keep the
-    // up-to-50-request bursts from making the suite slow.
     await fc.assert(
       fc.asyncProperty(fc.nat(49), async (spread) => {
         const calls = spread + 1;
-        const transport = new ScriptedTransport(ok);
-        const client = new CastellanClient(transport);
+        const transport = new ScriptedTransport(success);
+        const client = new TestClient(transport);
 
         await Promise.all(Array.from({ length: calls }, () => client.ping()));
 
@@ -69,12 +74,10 @@ describe("CastellanClient (properties)", () => {
   });
 
   test("an error on the wire keeps its stable code and message", async () => {
-    // The UI switches on `code`; whatever string the app sent is what the
-    // face must receive, byte for byte, message included.
     await fc.assert(
       fc.asyncProperty(
         fc.record({
-          code: fc.string({ minLength: 1, maxLength: 32 }),
+          code: fc.constantFrom("vault_locked", "no_such_entry", "not_implemented"),
           message: fc.string({ maxLength: 64 })
         }),
         async (failure) => {
@@ -83,7 +86,7 @@ describe("CastellanClient (properties)", () => {
             result: null,
             error: failure
           }));
-          const client = new CastellanClient(transport);
+          const client = new TestClient(transport);
 
           const failing = client.getTotp("some-entry");
 
@@ -94,33 +97,25 @@ describe("CastellanClient (properties)", () => {
     );
   });
 
-  test("spreads the method flat onto the request, whatever the origin", () => {
-    // The wire shape is `{ id, ...method }` — serde's `flatten` on the Rust
-    // side. The property pins it for arbitrary origins: the origin a page
-    // hands the extension arrives verbatim, not escaped, trimmed or
-    // re-encoded on the way into the request.
-    fc.assert(
-      fc.property(fc.string({ maxLength: 64 }), (origin) => {
-        const transport = new ScriptedTransport(ok);
-        const client = new CastellanClient(transport);
+  test("spreads the method flat onto the request, whatever the origin", async () => {
+    await fc.assert(
+      fc.asyncProperty(fc.string({ maxLength: 64 }), async (origin) => {
+        const transport = new ScriptedTransport(success);
+        const client = new TestClient(transport);
 
-        void client.getEntries(origin);
+        await client.getEntries(origin);
 
         expect(transport.sent[0]).toEqual({ id: 1, method: "get_entries", origin });
       })
     );
   });
 
-  test("id sequences are per client — a second client starts over", async () => {
-    // A transport multiplexing several clients (the extension's port is
-    // one such) cannot assume ids are globally unique: each client owns
-    // its own counter. This property pins that contract so a future
-    // "clever" shared counter cannot sneak in silently.
+  test("id sequences are per client—a second client starts over", async () => {
     await fc.assert(
       fc.asyncProperty(fc.nat(20), async (firstBurst) => {
-        const transport = new ScriptedTransport(ok);
-        const first = new CastellanClient(transport);
-        const second = new CastellanClient(transport);
+        const transport = new ScriptedTransport(success);
+        const first = new TestClient(transport);
+        const second = new TestClient(transport);
 
         await Promise.all(Array.from({ length: firstBurst }, () => first.ping()));
         await second.ping();

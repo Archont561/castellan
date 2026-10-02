@@ -2,9 +2,8 @@
   "$schema": "https://turborepo.com/schema.json",
   "extends": ["//"],
   "tasks": {
-    // typecheck consumes the wasm-pack output; building it first is the
-    // package's own job, and the task graph says so.
-    "typecheck": { "dependsOn": ["build"] },
+    // Declarations are committed, so typecheck does not rebuild WASM. The
+    // artifact suite instantiates the real module and therefore builds first.
     "test": { "dependsOn": ["build"] }
   }
 }

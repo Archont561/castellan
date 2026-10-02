@@ -11,7 +11,7 @@ generated:
   by: agent/castellan-kb
   at: "2026-10-01T22:00:00Z"
 created: "2026-10-01T22:00:00Z"
-updated: "2026-10-01T22:00:00Z"
+updated: "2026-10-02T14:53:38Z"
 id: project/architecture
 category: project
 refs:
@@ -27,7 +27,8 @@ apps/
   mobile/           Tauri (Android/iOS) — same UI kit, provider shells
   extension/        WXT: Chrome MV3 + Firefox — Fob
 crates/             Rust workspace (virtual root)
-  protocol/         the message language + origin matching
+  protocol/         RPC contract + messages + origin matching
+  dispatch/         one operation dispatcher for every native transport
   otp/              otpauth parsing, RFC 6238
   ipc/              4-byte LE framing, 1 MB cap, socket paths
   native-host/      castellan --native-host (byte pump)
@@ -35,19 +36,20 @@ crates/             Rust workspace (virtual root)
   wasm/             wasm-bindgen face of pure logic
   xtask/            codegen + repo automation
 packages/           TS workspace
-  protocol/         @castellan/protocol — generated TS + client
-  core/             @castellan/core — client + session state
-  ui/               @castellan/ui — shared Svelte components
+  protocol/         @castellan/protocol — generated TS wire types
+  core/             @castellan/core — shared client mechanics
+  tauri/            @castellan/tauri — desktop/mobile invoke adapter
+  ui/               @castellan/ui — shared components + native surface
   wasm/             @castellan/wasm — lazy wasm wrapper
 ```
 
 ## The one-protocol principle
 
 Every face talks to the core through the same messages
-([codegen](../infrastructure/codegen.md) derives the TS). The desktop uses
-Tauri `invoke("rpc")`; the extension uses native messaging through the host;
-all three end in the same dispatcher. A feature that bypasses the protocol
-is a design error by definition.
+([codegen](../infrastructure/codegen.md) derives the TS and scoped clients).
+Desktop/mobile Tauri commands and the extension's native channel all terminate
+in `castellan-dispatch`; app shells do not match operations. A feature that
+bypasses the protocol is a design error by definition.
 
 ## Data flow: one autofill request
 

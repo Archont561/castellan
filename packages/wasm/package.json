@@ -11,14 +11,15 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "//": "build runs wasm-pack against crates/wasm and writes its output into src/pkg; typecheck needs that output to exist.",
-    "build:wasm": "wasm-pack build ../../crates/wasm --target bundler --out-dir ../../packages/wasm/src/pkg --scope castellan",
+    "//": "build runs wasm-pack against crates/wasm; declarations are committed, while artifact tests need the runtime output.",
+    "build:wasm": "sh -c 'wasm-pack build ../../crates/wasm --target bundler --out-dir ../../packages/wasm/src/pkg --scope castellan; status=$?; rm -f src/pkg/.gitignore; exit $status'",
     "build": "bun run build:wasm",
     "typecheck": "tsc --noEmit --project tsconfig.json",
     "test": "bun test",
     "lint": "biome check src"
   },
   "devDependencies": {
+    "@castellan/protocol": "workspace:*",
     "@castellan/utils": "workspace:*",
     "typescript": "^5.9.0"
   }

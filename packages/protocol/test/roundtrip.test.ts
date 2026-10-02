@@ -27,6 +27,7 @@ import type {
   HostMessage,
   NewEntry,
   RpcError,
+  RpcErrorCode,
   RpcMethod,
   RpcRequest,
   RpcResponse,
@@ -56,8 +57,14 @@ const arbNewEntry: fc.Arbitrary<NewEntry> = fc.record({
   otpauth: nullableText
 });
 
+const arbRpcErrorCode: fc.Arbitrary<RpcErrorCode> = fc.constantFrom(
+  "vault_locked",
+  "no_such_entry",
+  "not_implemented"
+);
+
 const arbRpcError: fc.Arbitrary<RpcError> = fc.record({
-  code: text,
+  code: arbRpcErrorCode,
   message: text
 });
 
@@ -70,46 +77,67 @@ const arbEvent: fc.Arbitrary<Event> = fc.oneof(
 const arbHello: fc.Arbitrary<Hello> = fc.record({
   protocol_version: fc.nat(),
   app_version: text,
-  vault: fc.constantFrom("Unlocked", "Locked", "NoDatabase"),
+  vault: fc.constantFrom("unlocked", "locked", "no_database"),
   capabilities: fc.uniqueArray(
-    fc.constantFrom("Autofill", "Totp", "Passkeys", "RecoveryCodes", "Beam")
+    fc.constantFrom("autofill", "totp", "passkeys", "recovery_codes", "beam")
   )
 });
 
-// RpcMethod and RpcRequest are one shape twice: the request is the method
-// spread flat next to the id (`{ id, ...method }` — serde's `flatten`), so
-// the request arbitraries below repeat the method fields per variant
-// instead of nesting. That flatness is the wire contract; these records
-// keep it from drifting.
-const arbRpcMethod: fc.Arbitrary<RpcMethod> = fc.oneof(
-  fc.record({ method: fc.constant("get_entries"), origin: text }),
-  fc.record({ method: fc.constant("get_totp"), entry_id: text }),
-  fc.record({ method: fc.constant("generate_passphrase"), words: fc.nat(64), separator: text }),
-  fc.record({ method: fc.constant("save_entry"), entry: arbNewEntry }),
-  fc.record({ method: fc.constant("lock_database") }),
-  fc.record({ method: fc.constant("ping") })
-);
+/** Build a union arbitrary without losing its member type through
+ * `Object.values`. The explicit empty check also documents the invariant the
+ * mapped registries below rely on: an RPC contract has at least one member. */
+function oneOf<T>(arbitraries: readonly fc.Arbitrary<T>[]): fc.Arbitrary<T> {
+  const [first, ...rest] = arbitraries;
+  if (first === undefined) throw new Error("cannot build an empty arbitrary union");
+  return fc.oneof(first, ...rest);
+}
 
-const arbRpcRequest: fc.Arbitrary<RpcRequest> = fc.oneof(
-  fc.record({ id: fc.nat(), method: fc.constant("get_entries"), origin: text }),
-  fc.record({ id: fc.nat(), method: fc.constant("get_totp"), entry_id: text }),
-  fc.record({
-    id: fc.nat(),
+type MethodArbitraries = {
+  [Method in RpcMethod["method"]]: fc.Arbitrary<Extract<RpcMethod, { method: Method }>>;
+};
+
+// `satisfies MethodArbitraries` is the coverage gate: adding an operation to
+// the Rust macro adds a generated discriminant and makes this object fail to
+// compile until that operation receives an arbitrary.
+const methodArbitraries = {
+  get_entries: fc.record({ method: fc.constant("get_entries"), origin: text }),
+  get_totp: fc.record({ method: fc.constant("get_totp"), entry_id: text }),
+  generate_passphrase: fc.record({
     method: fc.constant("generate_passphrase"),
     words: fc.nat(64),
     separator: text
   }),
-  fc.record({ id: fc.nat(), method: fc.constant("save_entry"), entry: arbNewEntry }),
-  fc.record({ id: fc.nat(), method: fc.constant("lock_database") }),
-  fc.record({ id: fc.nat(), method: fc.constant("ping") })
+  save_entry: fc.record({ method: fc.constant("save_entry"), entry: arbNewEntry }),
+  lock_database: fc.record({ method: fc.constant("lock_database") }),
+  ping: fc.record({ method: fc.constant("ping") })
+} satisfies MethodArbitraries;
+
+const arbRpcMethod: fc.Arbitrary<RpcMethod> = oneOf(
+  Object.values(methodArbitraries) as fc.Arbitrary<RpcMethod>[]
 );
 
-const arbRpcResult: fc.Arbitrary<RpcResult> = fc.oneof(
-  fc.record({ type: fc.constant("ok") }),
-  fc.record({ type: fc.constant("entries"), entries: fc.array(arbEntrySummary) }),
-  fc.record({ type: fc.constant("totp"), code: text, seconds_remaining: fc.nat() }),
-  fc.record({ type: fc.constant("passphrase"), value: text }),
-  fc.record({ type: fc.constant("saved"), id: text })
+// RpcRequest is exactly `{ id, ...method }` because Rust uses serde flatten.
+// Deriving it here avoids a second operation registry while preserving that
+// flat wire contract in every generated case.
+const arbRpcRequest: fc.Arbitrary<RpcRequest> = fc
+  .tuple(fc.nat(), arbRpcMethod)
+  .map(([id, method]) => ({ id, ...method }));
+
+type ResultArbitraries = {
+  [Type in RpcResult["type"]]: fc.Arbitrary<Extract<RpcResult, { type: Type }>>;
+};
+
+const resultArbitraries = {
+  get_entries: fc.record({ type: fc.constant("get_entries"), entries: fc.array(arbEntrySummary) }),
+  get_totp: fc.record({ type: fc.constant("get_totp"), code: text, seconds_remaining: fc.nat() }),
+  generate_passphrase: fc.record({ type: fc.constant("generate_passphrase"), value: text }),
+  save_entry: fc.record({ type: fc.constant("save_entry"), id: text }),
+  lock_database: fc.record({ type: fc.constant("lock_database") }),
+  ping: fc.record({ type: fc.constant("ping") })
+} satisfies ResultArbitraries;
+
+const arbRpcResult: fc.Arbitrary<RpcResult> = oneOf(
+  Object.values(resultArbitraries) as fc.Arbitrary<RpcResult>[]
 );
 
 const arbRpcResponse: fc.Arbitrary<RpcResponse> = fc.record({
@@ -135,6 +163,7 @@ const arbHostMessage: fc.Arbitrary<HostMessage> = fc.oneof(
 const wireTypes: ReadonlyArray<[name: string, arb: fc.Arbitrary<unknown>]> = [
   ["EntrySummary", arbEntrySummary],
   ["NewEntry", arbNewEntry],
+  ["RpcErrorCode", arbRpcErrorCode],
   ["RpcError", arbRpcError],
   ["Event", arbEvent],
   ["Hello", arbHello],

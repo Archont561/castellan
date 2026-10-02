@@ -16,24 +16,32 @@ packages/   protocol (generated), core (client), ui (Svelte), wasm (wrapper),
 
 ## The invariants — check these before trusting a change
 
-1. **One protocol.** Every message any face sends is a type in
-   `crates/protocol`. TypeScript types in `packages/protocol/src/generated`
-   are *generated* — `cargo run -p castellan-xtask -- codegen` — and
-   committed. Never hand-edit a file in there; edit the Rust, regenerate.
+1. **One RPC contract.** Every operation is one entry in the
+   `rpc_contract!` invocation in `crates/protocol`. That macro emits the Rust
+   request/result types and face membership; xtask emits both
+   `packages/protocol/src/generated` and the scoped clients under each app's
+   `src/generated`. All are committed. Never hand-edit generated files—edit
+   the contract, implement one arm in `crates/dispatch`, then run
+   `bun run codegen`.
 2. **One logic, two targets.** Shared behavior (otpauth parsing, origin
    matching) lives in Rust crates and reaches the extension through
    `crates/wasm` → `packages/wasm`. If you are about to re-implement either
    in TypeScript, stop: the whole point is that the app and the extension
    cannot disagree.
-3. **The client is transport-agnostic.** `packages/core` builds requests and
-   narrows results; transports (Tauri invoke, native messaging) live in the
-   apps. Don't add a dependency to `@castellan/core` to serve one face.
-4. **Secrets stay app-side.** The extension never holds the database;
+3. **The client is transport-agnostic but face-scoped.** `packages/core`
+   owns request ids, envelopes, result narrowing and errors; xtask-generated
+   app clients expose only the contract operations assigned to that face.
+   `@castellan/tauri` owns the shared desktop/mobile invoke adapter; native
+   messaging stays in the extension. Neither belongs in `@castellan/core`.
+4. **There is one native dispatcher.** `crates/dispatch` executes operations.
+   Tauri commands and socket handlers are adapters, not a second match over
+   `RpcMethod`; domain behavior never belongs in an app shell.
+5. **Secrets stay app-side.** The extension never holds the database;
    `EntrySummary` carries no secret material, and WASM never links the vault
    crate.
-5. **KDBX save is copy-aside-then-write.** keepass-rs writing is
+6. **KDBX save is copy-aside-then-write.** keepass-rs writing is
    experimental; any save path must copy the old file first.
-6. **`unsafe_code = "forbid"`** is a workspace lint. Removing it is a
+7. **`unsafe_code = "forbid"`** is a workspace lint. Removing it is a
    workspace-level decision, not a branch convenience.
 
 ## Commands (all from the repo root)
@@ -42,7 +50,8 @@ packages/   protocol (generated), core (client), ui (Svelte), wasm (wrapper),
 $ pixi install               # optional: the whole dev-tool env in one command
 $ bun install                # JS deps (bun only; no node anywhere) + hooks
 $ bun run gates              # lint + typecheck + test, every language
-$ bun run codegen            # regenerate packages/protocol/src/generated
+$ bun run codegen            # regenerate types, clients + native-host manifests
+$ bun run codegen:check      # regenerate and fail on omitted committed output
 $ bun run wasm               # rebuild the WASM package
 $ bun run lint:workflows     # actionlint over .github/workflows
 $ bun run lint:commits       # convco: history is conventional (needs git)

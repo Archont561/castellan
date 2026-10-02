@@ -26,9 +26,14 @@ Hand-written TypeScript for a wire shape is a review blocker, not a style prefer
 
 ## Consequences
 
-- Adding a protocol method touches four files (variant, result, client method, dispatch
-  arm) and the compiler finds the forgotten ones.
+- Amended 2026-10-02: operations are entries in `rpc_contract!`. One entry declares the
+  request, its identically tagged success result, and the desktop/mobile/web-extension
+  clients that may expose it. `castellan-xtask` generates those scoped clients as well as
+  the wire DTOs; `packages/core` supplies their transport-independent base.
+- Adding an operation now means one contract entry, one implementation arm in the shared
+  `castellan-dispatch` crate, and `bun run codegen`. App shells never duplicate dispatch
+  matches or client methods.
 - The generated files are noisy in review by nature (ts-rs formatting); the mitigation is
   that protocol changes are *supposed* to be loud.
-- Field naming is snake_case on the wire and in TS, so both sides read the same. Revisit
-  only if a second non-Rust producer of the protocol ever appears.
+- Field naming is snake_case on the wire and in generated DTOs. Generated public client
+  arguments and compound result objects use camelCase without changing wire bytes.

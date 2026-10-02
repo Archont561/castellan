@@ -2,7 +2,7 @@
   "name": "@castellan/core",
   "version": "0.1.0",
   "license": "MIT OR Apache-2.0",
-  "description": "Transport-agnostic Castellan client: the same request logic for the Tauri app, the extension and the CLI",
+  "description": "Transport-independent RPC mechanics inherited by Castellan's generated face clients",
   "private": true,
   "type": "module",
   "main": "./src/index.ts",

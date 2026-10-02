@@ -1,9 +1,11 @@
 # Castellan mobile
 
-Tauri 2 iOS/Android + SvelteKit. The same `rpc` dispatcher as desktop (see
-`src-tauri/src/lib.rs`), the same `@castellan/*` packages; the frontend is a
-mobile layout, and the biometric unlock / credential-provider plugins land
-here as Tauri mobile plugins.
+Tauri 2 iOS/Android + SvelteKit. Its `rpc` command is the same thin adapter
+to `castellan-dispatch` as desktop; its xtask-generated `MobileClient` exposes
+only operations assigned to mobile. Its invoke adapter comes from the same
+`@castellan/tauri` package as desktop, while this face owns phone metrics for
+the shared `VaultHome` surface. Biometric unlock / credential-provider
+integrations land here as Tauri plugins.
 
 ## Run
 
@@ -14,6 +16,7 @@ $ bun run ios:init       # once, on a mac: generates src-tauri/gen/ios
 $ bun run ios
 ```
 
-`src-tauri/gen/` is generated and git-ignored. Biometric unlock wraps the
-vault key in Keystore/Secure Enclave per the design doc; the plugin surface
-this app will grow is `createBioKey` / `wrap` / `unwrap`.
+`src/generated/client.ts` is committed xtask output for the operations assigned
+to mobile. `src-tauri/gen/` is platform-generated and git-ignored. Biometric
+unlock wraps the vault key in Keystore/Secure Enclave per the design doc; the
+plugin surface this app will grow is `createBioKey` / `wrap` / `unwrap`.

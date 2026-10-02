@@ -16,6 +16,9 @@ workspace = true
 [dependencies]
 anyhow = { workspace = true }
 castellan-protocol = { workspace = true }
+castellan-wasm = { workspace = true }
 clap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 toml = { workspace = true }
 ts-rs = { workspace = true }

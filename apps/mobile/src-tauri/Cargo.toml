@@ -25,9 +25,9 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { workspace = true }
 
 [dependencies]
+castellan-dispatch = { workspace = true }
 castellan-ipc = { workspace = true }
 castellan-protocol = { workspace = true }
-castellan-vault = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tauri = { workspace = true }

@@ -2,27 +2,28 @@
 import type { EntrySummary } from "./EntrySummary";
 
 /**
- * The payload of a successful call, tagged by result kind.
+ * The payload of a successful call, correlated with [`RpcMethod`]
+ * by the same snake_case operation tag.
  */
-export type RpcResult = { "type": "ok" } | { "type": "entries", 
+export type RpcResult = { "type": "get_entries", 
 /**
  * Entries relevant to the requested origin.
  */
-entries: Array<EntrySummary>, } | { "type": "totp", 
+entries: Array<EntrySummary>, } | { "type": "get_totp", 
 /**
  * The code, right-aligned and zero-padded as services expect it.
  */
 code: string, 
 /**
- * Seconds until this code expires; the UI draws its progress ring
- * from this and never re-implements the period arithmetic.
+ * Seconds until this code expires; the UI draws its progress
+ * ring from this and never re-implements period arithmetic.
  */
-seconds_remaining: number, } | { "type": "passphrase", 
+seconds_remaining: number, } | { "type": "generate_passphrase", 
 /**
  * The generated passphrase.
  */
-value: string, } | { "type": "saved", 
+value: string, } | { "type": "save_entry", 
 /**
  * The id the saved entry received.
  */
-id: string, };
+id: string, } | { "type": "lock_database", } | { "type": "ping", };

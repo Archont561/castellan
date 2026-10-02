@@ -3,4 +3,4 @@
 /**
  * The vault, as a client sees it from the outside.
  */
-export type VaultStatus = "Unlocked" | "Locked" | "NoDatabase";
+export type VaultStatus = "unlocked" | "locked" | "no_database";

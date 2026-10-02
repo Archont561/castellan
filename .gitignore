@@ -31,7 +31,7 @@ apps/*/build/
 # before the first wasm build (the JS/WASM themselves stay untracked).
 packages/wasm/src/pkg/*
 !packages/wasm/src/pkg/castellan_wasm.d.ts
-!packages/wasm/src/pkg/castellan_wasm_bg.d.ts
+!packages/wasm/src/pkg/castellan_wasm_bg.wasm.d.ts
 
 # ── Docs site (Astro + Starlight) ───────────────────────────────────────
 # Astro's generated types dir; `astro build`/`astro dev` rewrite it.

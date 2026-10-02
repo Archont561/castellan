@@ -18,15 +18,15 @@ Monorepo setup **copied and adjusted from
       └───────┬───────┴───────────┬─────────┘
               ▼                   ▼
    ┌──────────────────────────────────────────┐
-   │  crates: protocol · vault · otp · ipc    │  ← one Rust workspace
-   │  native-host · wasm · xtask              │
+   │ protocol · dispatch · vault · otp · ipc  │  ← one Rust workspace
+   │ native-host · wasm · xtask               │
    └──────┬───────────────────────┬───────────┘
           │ ts-rs (codegen)       │ wasm-pack
           ▼                       ▼
   packages/protocol         packages/wasm
   (generated types)         (shared logic in the browser)
           │                       │
-          └─────► packages/core ◄─┘   (one client, any transport)
+          └─────► packages/core ◄─┘   (one base, generated face clients)
 ```
 
 ## The promise this repo is built around
@@ -47,16 +47,18 @@ error instead of a support ticket.
 | `apps/mobile` | Tauri 2 (iOS/Android) + SvelteKit — the mobile face; same dispatcher |
 | `apps/extension` | WXT extension, one codebase for chromium + gecko; native-messaging transport; passkey interception skeleton at `document_start`, MAIN world |
 | `apps/docs` | this project's documentation site (Astro + Starlight, a bun workspace) |
-| `crates/protocol` | the one message language; ts-rs derives the TS bindings |
+| `crates/protocol` | the one RPC contract; its macro emits paired request/result types and each operation's client faces |
+| `crates/dispatch` | the one transport-independent operation dispatcher used by every native face |
 | `crates/otp` | otpauth parsing + RFC 6238 TOTP (with the RFC's own test vectors) |
 | `crates/vault` | KDBX core: open, entry projection, passphrase generation |
 | `crates/ipc` | the one native channel: framing + well-known socket path (std-only) |
 | `crates/native-host` | the byte pump each browser spawns (the app binary, `--native-host`) |
 | `crates/wasm` | the WASM face of shared logic; `packages/wasm` wraps it |
-| `crates/xtask` | codegen: Rust types → `packages/protocol/src/generated` |
-| `packages/protocol` | generated TS types (committed; regenerate with `bun run codegen`) |
-| `packages/core` | the transport-agnostic client + the `Transport` seam |
-| `packages/ui` | shared Svelte components (entry row, TOTP ring, lock shield) — with Storybook stories and Playwright component tests beside them |
+| `crates/xtask` | codegen: Rust contract → generated TS wire types and desktop/mobile/web-extension clients |
+| `packages/protocol` | generated TS wire types (committed; regenerate with `bun run codegen`) |
+| `packages/core` | transport-independent client mechanics + the `Transport` seam; generated app clients extend it |
+| `packages/tauri` | the tested `invoke("rpc")` transport shared by desktop and mobile |
+| `packages/ui` | shared Svelte components and the native-face vault surface — with Storybook stories and Playwright component tests beside them |
 | `packages/wasm` | npm wrapper around the wasm-pack output |
 | `packages/utils` | the shared tsconfig bases + the bun test fixtures (`createFixture`) + the build/test presets (bunup `libPreset`, playwright `e2ePreset`) |
 
@@ -91,15 +93,14 @@ $ bun run dev:ext              # wxt dev (chromium; :firefox for gecko)
 $ bun run dev:docs             # the documentation site (apps/docs/, Astro + Starlight)
 ```
 
-Validated in this scaffold: `cargo check`/`cargo test` green across all
-library crates (64 tests — rstest fixtures/matrices and proptest properties
-included — zero warnings under `missing_docs` + `clippy::all`), cargo-deny
-clean (bans/licenses/sources/advisories, with one documented transitive
-unmaintained-crate ignore), the full TS gate green (biome, tsc/svelte-check
-on every package and app through the `@castellan/utils` bases, 38 bun tests
-including fast-check round-trip and client properties), actionlint clean on
-the workflows, the docs site building (10 pages), and the
-codegen pipeline producing the committed `packages/protocol/src/generated`.
+Validated in this scaffold: `cargo check`/`cargo test` green across the
+library crates (rstest fixtures/matrices and proptest properties included,
+zero warnings under `missing_docs` + `clippy::all`), cargo-deny clean
+(bans/licenses/sources/advisories, with one documented transitive
+unmaintained-crate ignore), the full TS gate green (biome, tsc/svelte-check,
+bun and Playwright component tests, including fast-check protocol/client
+properties), actionlint clean, the docs site building, and deterministic
+committed codegen.
 The Tauri app crates need the platform webkit libraries to compile
 (documented in `apps/desktop/README.md`).
 
@@ -110,9 +111,10 @@ package. The Rust workspace is **one node** in that graph, through the
 façade in `crates/package.json` (`@castellan/rust`) whose scripts `cd ..`
 and run cargo — so `bun run all:test` runs the TS suites *and*
 `cargo test --workspace`, exactly once, in the order the graph says.
-Codegen is a task too: `@castellan/protocol`'s typecheck depends on
-`@castellan/rust#codegen`, which means a stale generated directory fails the
-build instead of a review.
+Codegen is a task too: generated consumers depend on
+`@castellan/rust#codegen`, and CI runs `bun run codegen:check` to regenerate
+then reject tracked changes or untracked outputs. A stale generated directory
+therefore fails before review instead of being hidden by typecheck.
 
 The library packages (protocol, core, utils) build with **bunup** through
 one shared preset — `libPreset` in `@castellan/utils/bunup` — ESM plus
@@ -139,12 +141,14 @@ Chromium — and the ui components have Storybook stories (`defineMeta`,
 $ cargo run -p castellan-xtask -- codegen
 ```
 
-`castellan-xtask` loads `castellan-protocol`'s types and exports each one
-(ts-rs) into `packages/protocol/src/generated/`, writes the barrel
-`index.ts`, and writes `version.ts` from the Rust `PROTOCOL_VERSION`
-constant. The output is committed: a protocol change shows up in review as
-exactly the diff of the wire, and a stale generation is visible, not
-latent. Hand edits there are overwritten by design.
+`castellan-xtask` loads the operation metadata emitted beside
+`castellan-protocol`'s types. It exports wire DTOs and the WASM result
+projection with ts-rs, writes the barrel and protocol version, derives native
+host manifests from one metadata file, and generates scoped `DesktopClient`,
+`MobileClient` and `WebExtensionClient` classes into their apps. The output
+is committed: a protocol change shows both its wire diff and exactly which
+faces gained the call. Generator-owned directories are cleared first, and
+hand edits are overwritten by design.
 
 ## What came from where
 
@@ -183,7 +187,8 @@ Adjusted for this project:
   (`@castellan/protocol` typecheck depends on `@castellan/rust#codegen`) —
   geoquery's client was scaffolding-only when copied, so this edge is new.
 - **WASM**: geoquery has no wasm face; `crates/wasm` + `packages/wasm`
-  (wasm-pack → bundler target, git-ignored output, lazy load) are new.
+  (wasm-pack → bundler target, ignored runtime artifacts, committed generated
+  declarations, lazy load) are new.
 - Cargo **nextest/llvm-cov** stay out of the gates (plain `cargo test` /
   `coverage` tasks) so CI needs only bun + rust; both binaries ship in the
   pixi env for local use — swap the gates over when CI wants it.
@@ -203,7 +208,7 @@ devDependency (the agent-skills CLI), the **pixi dev-tool environment**
 `apps/docs/` is pixi-sandbox's Astro + Starlight app adapted (its
 version-substitution rig stays behind until versioned pages exist), plus
 turbo only where the workspace graph earns it — this repo's graph does
-(three apps + four packages + one Rust node + the docs site), so turbo
+(three apps + six packages + one Rust node + the docs site), so turbo
 stays.
 
 ## Adding things
@@ -214,9 +219,11 @@ stays.
   a member; no other edit.
 - **A TS package**: directory under `packages/` with a `package.json` and
   `tsconfig.json` extending the base; `bun install` links it.
-- **A protocol method**: a variant in `RpcMethod` (+ `RpcResult`), `bun run
-  codegen`, a method on `CastellanClient`, a match arm in each app's
-  dispatcher. Four files, and the compiler finds the ones you forget.
+- **A protocol operation**: one entry in `rpc_contract!` under
+  `crates/protocol` declares its request, correlated result and client faces;
+  one match arm in `crates/dispatch` implements it; `bun run codegen` updates
+  the committed wire types and each selected app client. App shells never
+  match on `RpcMethod`, and generated clients are never hand-edited.
 
 ## Planning and knowledge
 
