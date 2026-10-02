@@ -35,6 +35,7 @@
     "svelte": "^5.28.0",
     "svelte-check": "^4.1.0",
     "typescript": "^5.9.0",
+    "unocss": "^66.10.5",
     "vite": "^6.3.5"
   }
 }

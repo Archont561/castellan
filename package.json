@@ -48,7 +48,8 @@
     "lefthook": "^2.1.16",
     "skills": "^1.7.0",
     "turbo": "^2.11.5",
-    "typescript": "^5.9.0"
+    "typescript": "^5.9.0",
+    "unocss": "^66.10.5"
   },
   "trustedDependencies": [
     "@playwright/browser-chromium"

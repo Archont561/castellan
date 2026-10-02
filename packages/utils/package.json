@@ -14,7 +14,8 @@
     "./tsconfig/lib.json": "./tsconfig/lib.json",
     "./tsconfig/app.json": "./tsconfig/app.json",
     "./bunup": "./src/bunup.ts",
-    "./playwright": "./src/playwright.ts"
+    "./playwright": "./src/playwright.ts",
+    "./uno": "./src/uno.ts"
   },
   "scripts": {
     "build": "bunup",
@@ -24,6 +25,7 @@
   },
   "devDependencies": {
     "@playwright/test": "1.58.2",
-    "typescript": "^5.9.0"
+    "typescript": "^5.9.0",
+    "unocss": "^66.10.5"
   }
 }

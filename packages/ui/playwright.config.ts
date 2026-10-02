@@ -1,6 +1,7 @@
 import { e2ePreset } from "@castellan/utils/playwright";
 import { defineConfig } from "@playwright/experimental-ct-svelte";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
+import UnoCSS from "unocss/vite";
 
 /**
  * Component tests for the ui package: each component mounted in a real
@@ -17,7 +18,13 @@ export default defineConfig({
   use: {
     ...base.use,
     ctViteConfig: {
-      plugins: [svelte()]
+      // The CT build runs with its own vite root (`playwright/`), so the
+      // config file is named explicitly rather than discovered — otherwise
+      // the components mount with their class attributes and no CSS.
+      plugins: [
+        UnoCSS({ configFile: new URL("./uno.config.ts", import.meta.url).pathname }),
+        svelte()
+      ]
     }
   }
 });

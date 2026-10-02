@@ -41,6 +41,7 @@ contracts, rationale, and research. Delivery state lives in `backlog/`
 * [Code generation](infrastructure/codegen.md) - ts-rs + xtask pipeline, committed generated output
 * [Native channel](infrastructure/native-channel.md) - framing, the byte-pump host, manifests, association
 * [CI](infrastructure/ci.md) - the single gate, caches, what CI cannot check
+* [Styling](infrastructure/styling.md) - the shared UnoCSS config, tokens, shortcuts, extraction
 
 # Research
 

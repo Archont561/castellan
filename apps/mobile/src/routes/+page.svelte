@@ -25,19 +25,25 @@ async function roll(): Promise<void> {
 }
 </script>
 
-<main>
-  <header>
+<!--
+  The same shared UnoCSS looks as the desktop face, at phone metrics: no
+  max width, a tighter rhythm, and an action that spans the viewport
+  because a thumb is not a mouse. Everything that is a *look* rather than a
+  size comes from the shortcuts, so the two faces cannot drift.
+-->
+<main class="flex flex-col gap-6 p-5">
+  <header class="flex items-center gap-2">
     <LockedShield locked />
-    <h1>Castellan</h1>
+    <h1 class="m-0 text-[1.3rem]">Castellan</h1>
   </header>
 
   {#if error}
-    <p class="error">{error}</p>
+    <p class="error text-danger">{error}</p>
   {:else}
     <section>
-      <h2>Entries for github.com</h2>
+      <h2 class="c-section-title text-[0.85rem]">Entries for github.com</h2>
       {#if entries.length === 0}
-        <p class="muted">No entries yet — the vault core answers.</p>
+        <p class="text-muted">No entries yet — the vault core answers.</p>
       {:else}
         {#each entries as entry (entry.id)}
           <EntryRow {entry} />
@@ -46,58 +52,13 @@ async function roll(): Promise<void> {
     </section>
 
     <section>
-      <h2>Passphrase</h2>
-      <code class="phrase">{passphrase || "—"}</code>
-      <button onclick={roll} type="button">Generate</button>
+      <h2 class="c-section-title text-[0.85rem]">Passphrase</h2>
+      <code class="phrase c-field mb-[0.6rem] break-all px-[0.8rem] py-[0.6rem] text-[0.95rem]">
+        {passphrase || "—"}
+      </code>
+      <button class="c-action w-full rounded-10px p-3" onclick={roll} type="button">
+        Generate
+      </button>
     </section>
   {/if}
 </main>
-
-<style>
-  main {
-    padding: 1.25rem;
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-  }
-  header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-  h1 {
-    font-size: 1.3rem;
-    margin: 0;
-  }
-  h2 {
-    font-size: 0.85rem;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-  }
-  .muted {
-    color: var(--muted);
-  }
-  .phrase {
-    display: block;
-    padding: 0.6rem 0.8rem;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    font-size: 0.95rem;
-    margin-bottom: 0.6rem;
-    word-break: break-all;
-  }
-  button {
-    width: 100%;
-    padding: 0.75rem;
-    border-radius: 10px;
-    border: 1px solid var(--border);
-    background: var(--accent);
-    color: #14161a;
-    font-weight: 600;
-  }
-  .error {
-    color: #e06c75;
-  }
-</style>

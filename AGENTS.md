@@ -110,6 +110,25 @@ no per-script wrappers, so a new script never needs a pixi line (the
   was out of domain, fix the strategy and delete the seed. fast-check
   prints the failing seed itself — re-run with `{ seed }`; `bun test
   --seed` does not reach it.
+- **Styling is UnoCSS from one shared config.** `@castellan/utils/uno`
+  exports `unoPreset()`; every consumer's `uno.config.ts` is two lines around
+  it (`export default unoPreset()`), the same shape as the bunup configs. The
+  *look* lives there as shortcuts (`c-entry-row`, `c-action`, `c-badge`,
+  `c-field`, `c-section-title`, `c-ring-*`) and tokens (`--bg`, `--accent`…,
+  reachable as `bg-bg`/`text-accent` and overridable per subtree); the
+  *metrics* — padding, widths, corner radius — stay in the markup, because
+  that is exactly where the faces legitimately disagree. A new recurring look
+  is a shortcut; a one-off size is a utility. Two rules to respect: never put
+  a property in a shortcut that a face also sets inline (two utilities for
+  one property leave the winner to CSS source order), and keep the bare
+  semantic class (`username`, `badge`, `status`, `error`) as the first class
+  on an element — it carries no CSS and exists so the component tests and
+  e2e suites have a hook that design changes cannot break. The extraction
+  pipeline is configured to scan `packages/ui/src` as well as the app's own
+  source, because the shared components are consumed as source and their
+  classes are built by *the app's* UnoCSS pass — if that include ever stops
+  matching, components render unstyled in the apps while looking perfect in
+  Storybook (`packages/utils/test/uno.test.ts` is the guard).
 - **The `@` alias** maps to each workspace member's own root (`@/src/fixtures`),
   wired the way each stack wants it: packages declare tsconfig `paths`,
   SvelteKit apps use `kit.alias` (so tsc *and* vite learn it), WXT generates

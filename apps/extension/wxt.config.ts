@@ -1,3 +1,4 @@
+import UnoCSS from "unocss/vite";
 import { defineConfig } from "wxt";
 
 // One codebase, every engine: WXT compiles this to chromium (Chrome, Edge,
@@ -8,6 +9,11 @@ import { defineConfig } from "wxt";
 export default defineConfig({
   modules: ["@wxt-dev/module-svelte"],
   vite: () => ({
+    // The same UnoCSS pass the apps run, reading ./uno.config.ts (the
+    // shared preset with `shell: false`). WXT builds each entrypoint as its
+    // own vite build, so the popup gets exactly the utilities the popup
+    // uses and the content script pays for none of them.
+    plugins: [UnoCSS()],
     resolve: {
       // Svelte's package exports split client/server runtimes on the
       // "browser" condition, and WXT's multi-entry build resolves some
