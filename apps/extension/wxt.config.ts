@@ -31,6 +31,11 @@ export default defineConfig({
     short_name: "Fob",
     description:
       "Autofill, TOTP and passkeys from your Castellan vault. Local-first: no cloud, no accounts.",
+    // Firefox native-host manifests allow extension IDs rather than Chrome
+    // origins, so development needs a stable ID shared with host.json.
+    browser_specific_settings: {
+      gecko: { id: "fob-dev@castellan.app" }
+    },
     // nativeMessaging is the whole point: stdio to the app's host binary,
     // no localhost socket, no firewall prompt, nothing for other processes
     // to poke at.

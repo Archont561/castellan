@@ -18,9 +18,8 @@
   "dependencies": {
     "@castellan/core": "workspace:*",
     "@castellan/protocol": "workspace:*",
-    "@castellan/ui": "workspace:*",
-    "@castellan/wasm": "workspace:*",
-    "@tauri-apps/api": "^2.5.0"
+    "@castellan/tauri": "workspace:*",
+    "@castellan/ui": "workspace:*"
   },
   "devDependencies": {
     "@castellan/utils": "workspace:*",

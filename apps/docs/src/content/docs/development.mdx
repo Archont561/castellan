@@ -27,7 +27,8 @@ wrapper over the same `bun run` commands.
 
 ```console
 $ bun install                  # once: JS deps for every workspace
-$ bun run codegen              # regenerate packages/protocol/src/generated
+$ bun run codegen              # regenerate wire types, clients and host manifests
+$ bun run codegen:check        # regenerate and prove committed output is current
 $ bun run wasm                 # rebuild the WASM package for the extension
 $ bun run gates                # lint + typecheck + test, every language
 
@@ -82,9 +83,12 @@ façade), TypeScript fans out per package.
 - **Adding a crate**: a directory under `crates/` with a manifest that
   inherits, a line in root `[workspace.dependencies]`, a row in
   `crates/README.md`. The glob does the rest.
-- **Adding a protocol method**: a variant in `RpcMethod` (+ `RpcResult`),
-  `bun run codegen`, a method on `CastellanClient`, a match arm in each
-  dispatcher. Four files — and the compiler finds the ones you forget.
+- **Adding a protocol operation**: add one `rpc_contract!` entry with request
+  fields, success fields and its desktop/mobile/web-extension targets; add
+  one implementation arm in `crates/dispatch`, and one exhaustively keyed
+  arbitrary in the protocol property suite; run `bun run codegen`. Xtask
+  writes the correlated wire DTOs and every selected app client—never edit
+  those generated files or add a dispatch match to an app shell.
 
 `AGENTS.md` in the repository root is the full contract for agents and
 humans working in this tree: the invariants, the commands, the

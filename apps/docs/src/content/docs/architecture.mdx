@@ -9,7 +9,8 @@ apps/
   mobile/           Tauri (Android/iOS) — same UI kit, provider shells
   extension/        WXT: Chrome MV3 + Firefox — Fob, the companion
 crates/             Rust workspace (virtual root)
-  protocol/         the message language + origin matching
+  protocol/         RPC contract macro + messages + origin matching
+  dispatch/         one operation dispatcher for every native transport
   otp/              otpauth parsing, RFC 6238 TOTP
   ipc/              4-byte LE framing, 1 MB cap, well-known socket path
   native-host/      castellan --native-host (a byte pump, parses nothing)
@@ -17,9 +18,10 @@ crates/             Rust workspace (virtual root)
   wasm/             wasm-bindgen face of the pure logic
   xtask/            codegen + repo automation
 packages/           TS workspace
-  protocol/         @castellan/protocol — generated TS + the client
-  core/             transport-agnostic client + the Transport seam
-  ui/               shared Svelte components
+  protocol/         @castellan/protocol — generated TS wire types
+  core/             shared client mechanics + the Transport seam
+  tauri/            shared desktop/mobile invoke adapter
+  ui/               shared Svelte components and native-face surfaces
   wasm/             lazy wrapper around the wasm-pack output
 docs/               this site (Astro + Starlight)
 ```
@@ -27,10 +29,10 @@ docs/               this site (Astro + Starlight)
 ## The one-protocol principle
 
 Every face talks to the core through the same messages. Desktop and
-mobile dispatch through a single Tauri `rpc` command; the extension
-speaks native messaging through the host; all three end in the same
-dispatcher in the app process. A feature that bypasses the protocol is a
-design error by definition — see [the protocol](/castellan/protocol/).
+mobile adapt a single Tauri `rpc` command; the extension speaks native
+messaging through the host; all three terminate in `castellan-dispatch`.
+The app shells contain no operation match. A feature that bypasses the
+protocol is a design error by definition—see [the protocol](/castellan/protocol/).
 
 ## One autofill request, end to end
 
@@ -57,10 +59,12 @@ sealed-cache decision, not a convenience.
 
 ## The codegen flow
 
-`crates/protocol` types carry `#[ts(export)]`; `castellan-xtask`
-regenerates `packages/protocol/src/generated` — barrel and `version.ts`
-included, derived from the Rust `PROTOCOL_VERSION` constant — and the
-output is committed. The `@castellan/protocol` typecheck depends on the
-codegen task, so a stale generation fails the build, and the two doors
-(`cargo test` through `TS_RS_EXPORT_DIR`, xtask through the same
-directory) produce identical bytes.
+The `rpc_contract!` invocation in `crates/protocol` declares every request,
+its correlated result and the faces that expose it. `castellan-xtask`
+regenerates wire types, the WASM result projection, browser-specific native
+host manifests, and committed `DesktopClient`, `MobileClient` and
+`WebExtensionClient` classes. Shared operations appear in each selected
+class while domain-only operations do not leak to other faces. All generated
+clients extend `RpcClient` in `@castellan/core`, which owns request ids,
+envelopes, result checking and errors. CI runs `bun run codegen:check`, so a
+changed, missing, or newly untracked generated file fails before typecheck.

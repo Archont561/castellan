@@ -405,13 +405,21 @@ dependencies = [
 name = "castellan-desktop"
 version = "0.1.0"
 dependencies = [
+ "castellan-dispatch",
  "castellan-ipc",
  "castellan-protocol",
- "castellan-vault",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
+]
+
+[[package]]
+name = "castellan-dispatch"
+version = "0.1.0"
+dependencies = [
+ "castellan-protocol",
+ "castellan-vault",
 ]
 
 [[package]]
@@ -425,9 +433,9 @@ dependencies = [
 name = "castellan-mobile"
 version = "0.1.0"
 dependencies = [
+ "castellan-dispatch",
  "castellan-ipc",
  "castellan-protocol",
- "castellan-vault",
  "serde",
  "serde_json",
  "tauri",
@@ -486,6 +494,7 @@ dependencies = [
  "castellan-protocol",
  "serde",
  "serde-wasm-bindgen",
+ "ts-rs",
  "wasm-bindgen",
 ]
 
@@ -495,7 +504,10 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "castellan-protocol",
+ "castellan-wasm",
  "clap",
+ "serde",
+ "serde_json",
  "toml 1.1.6+spec-1.1.0",
  "ts-rs",
 ]

@@ -82,6 +82,7 @@ behavior per test, same discipline as `#[test]`.
 register it at suite scope, read it inside tests.
 
 ```ts
+import { PROTOCOL_VERSION } from "@castellan/protocol";
 import { createFixture } from "@castellan/utils/fixtures";
 
 // a fresh value per test (beforeEach/afterEach) — the default
@@ -92,7 +93,7 @@ const transport = createFixture(() => new ScriptedTransport());
 const wasm = createFixture(buildArtifact, undefined, "file");
 
 test("speaks the protocol version", () => {
-  expect(wasm().protocol_version()).toBe(1);
+  expect(wasm().protocol_version()).toBe(PROTOCOL_VERSION);
 });
 ```
 

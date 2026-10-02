@@ -19,10 +19,12 @@ answers paginate rather than approach it.
 ## Requests and results
 
 `RpcRequest` is the request id flattened into the method: `get_entries`,
-`get_totp`, `generate_passphrase`, `save_entry`, `lock_database`,
-`ping`. Every entry-scoped request carries the tab origin where the face
-has one, and **the app validates it before answering** — enforcement
-lives in the trusted process, never only in the extension.
+`get_totp`, `generate_passphrase`, `save_entry`, `lock_database`, `ping`.
+The success result repeats that same operation tag, so generated clients can
+correlate a request and result without a handwritten mapping and reject the
+wrong success variant. Every entry-scoped request carries the tab origin
+where the face has one, and **the app validates it before answering**—
+enforcement lives in the trusted process, never only in the extension.
 
 Three rules keep the protocol safe to expose:
 
@@ -32,6 +34,12 @@ Three rules keep the protocol safe to expose:
 2. **`lock_database` never fails.** Locking is a right, not a privilege.
 3. **Errors are codes, messages are for humans.** `vault_locked` is not
    an error banner; it is a state the UI renders.
+
+Every operation is one `rpc_contract!` entry with a list of client faces.
+Xtask emits separate desktop, mobile and web-extension clients: shared calls
+are generated into all selected classes, while `generate_passphrase` is
+currently native-app-only and extension capture gets `save_entry`. Every
+transport reaches the one `castellan-dispatch` implementation.
 
 ## The origin-matching rule
 

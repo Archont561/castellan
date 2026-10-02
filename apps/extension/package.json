@@ -13,7 +13,8 @@
     "zip": "wxt zip",
     "compile": "wxt prepare && tsc --noEmit",
     "typecheck": "wxt prepare && tsc --noEmit",
-    "lint": "biome check entrypoints src",
+    "lint": "biome check entrypoints src test",
+    "test": "bun test test",
     "e2e": "wxt build && playwright test"
   },
   "dependencies": {

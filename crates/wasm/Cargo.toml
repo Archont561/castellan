@@ -18,7 +18,15 @@ castellan-otp = { workspace = true }
 castellan-protocol = { workspace = true }
 serde = { workspace = true }
 serde-wasm-bindgen = { workspace = true }
+ts-rs = { workspace = true }
 wasm-bindgen = { workspace = true }
 
 [lib]
 crate-type = ["cdylib", "rlib"]
+
+# wasm-pack otherwise downloads Binaryen during a release build. A network
+# fetch inside CI is neither pinned by pixi.lock nor available in the offline
+# development environment; Cargo's release profile still optimizes the small
+# module. Re-enable wasm-opt only after Binaryen itself is a locked tool.
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false

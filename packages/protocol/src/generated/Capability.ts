@@ -6,4 +6,4 @@
  * Sent in [`Hello`] so the *client* can adapt its UI before the first
  * request, rather than discovering a missing capability by error path.
  */
-export type Capability = "Autofill" | "Totp" | "Passkeys" | "RecoveryCodes" | "Beam";
+export type Capability = "autofill" | "totp" | "passkeys" | "recovery_codes" | "beam";

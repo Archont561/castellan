@@ -1,18 +1,16 @@
 /**
- * The Castellan client: typed methods over any Transport.
+ * Transport-independent mechanics shared by every generated face client.
  *
- * This is the "same scoped logic" promise for the TypeScript side. The
- * desktop app, the mobile app, the extension and the tests all call
- * `client.getEntries(origin)` — one place builds the request, checks the
- * error code, and narrows the result type. A new method is added here once,
- * and every face gets it by upgrading the package, not by copying code.
+ * The protocol macro decides which operations each face can call, and xtask
+ * emits the public methods into that app. This base owns only invariants that
+ * must never vary by face: request ids, flat envelopes, result correlation,
+ * stable errors and pushed events.
  */
 
 import {
-  type EntrySummary,
-  type NewEntry,
   PROTOCOL_VERSION,
   type RpcError,
+  type RpcErrorCode,
   type RpcMethod,
   type RpcRequest,
   type RpcResponse,
@@ -21,10 +19,25 @@ import {
 
 import { DISCONNECTED, type Transport } from "./transport";
 
+/** A method tag from the generated protocol union. */
+export type RpcMethodName = RpcMethod["method"];
+
+/** The request payload for `M`, without the method discriminator. */
+export type RpcParams<M extends RpcMethodName> = Omit<Extract<RpcMethod, { method: M }>, "method">;
+
+/** The success variant correlated with method `M`. */
+export type RpcResultFor<M extends RpcMethodName> = Extract<RpcResult, { type: M }>;
+
+/** Failures produced locally rather than carried on the Rust wire. */
+export type ClientErrorCode = typeof DISCONNECTED | "malformed_response" | "unexpected_result";
+
+/** Every stable error code a face can receive. */
+export type CastellanErrorCode = RpcErrorCode | ClientErrorCode;
+
 /** What went wrong on a call, with the stable code the UI can switch on. */
 export class CastellanError extends Error {
   constructor(
-    readonly code: string,
+    readonly code: CastellanErrorCode,
     message: string
   ) {
     super(message);
@@ -32,8 +45,8 @@ export class CastellanError extends Error {
   }
 }
 
-/** The client. One instance per app lifetime; reconnects under it. */
-export class CastellanClient {
+/** Shared base for the desktop, mobile and web-extension generated clients. */
+export class RpcClient {
   private nextId = 1;
   private readonly transport: Transport;
 
@@ -46,55 +59,22 @@ export class CastellanClient {
     return PROTOCOL_VERSION;
   }
 
-  /** Liveness probe. */
-  async ping(): Promise<void> {
-    await this.call({ method: "ping" });
-  }
-
-  /** Entries relevant to an origin, for fill UIs and quick search. */
-  async getEntries(origin: string): Promise<EntrySummary[]> {
-    const result = await this.call({ method: "get_entries", origin });
-    return result.type === "entries" ? result.entries : [];
-  }
-
-  /** The current TOTP code for an entry, and its remaining seconds. */
-  async getTotp(entryId: string): Promise<{ code: string; secondsRemaining: number }> {
-    const result = await this.call({ method: "get_totp", entry_id: entryId });
-    if (result.type !== "totp") {
-      throw new CastellanError("unexpected_result", `expected a totp result, got ${result.type}`);
-    }
-    return { code: result.code, secondsRemaining: result.seconds_remaining };
-  }
-
-  /** A generated passphrase. */
-  async generatePassphrase(words: number, separator: string): Promise<string> {
-    const result = await this.call({ method: "generate_passphrase", words, separator });
-    return result.type === "passphrase" ? result.value : "";
-  }
-
-  /** Save an entry captured by a save prompt. Returns the new entry's id. */
-  async saveEntry(entry: NewEntry): Promise<string> {
-    const result = await this.call({ method: "save_entry", entry });
-    return result.type === "saved" ? result.id : "";
-  }
-
-  /** Lock the vault. Never throws: a lock that fails is reported, not ignored. */
-  async lock(): Promise<void> {
-    await this.call({ method: "lock_database" });
-  }
-
   /** Subscribe to pushed events (lock state changes, entry changes). */
   onEvent(cb: Parameters<Transport["onEvent"]>[0]): () => void {
     return this.transport.onEvent(cb);
   }
 
   /**
-   * The one place a method call becomes a request/response pair. The method
-   * variant is *spread* onto the request — serde's `flatten` on the Rust
-   * side, `{ id, ...method }` here — so every payload field (origin,
-   * entry_id, words, …) travels with the tag.
+   * Turn a generated operation into a request/response pair.
+   *
+   * `expectedType` is generated from the same macro entry as `method`, so a
+   * server returning another operation's success payload is rejected here
+   * rather than becoming an empty value in a UI.
    */
-  private async call(method: RpcMethod): Promise<RpcResult> {
+  protected async call<M extends RpcMethodName>(
+    method: Extract<RpcMethod, { method: M }>,
+    expectedType: M
+  ): Promise<RpcResultFor<M>> {
     const request: RpcRequest = { id: this.nextId++, ...method };
     const response: RpcResponse = await this.transport.request(request);
 
@@ -102,12 +82,15 @@ export class CastellanClient {
       throw toError(response.error);
     }
     if (!response.result) {
-      // The protocol says exactly one of result/error is set; an answer with
-      // neither is a bug on the app side, and a bug should not typecheck as
-      // success.
       throw new CastellanError("malformed_response", `response ${response.id} had no result`);
     }
-    return response.result;
+    if (response.result.type !== expectedType) {
+      throw new CastellanError(
+        "unexpected_result",
+        `expected a ${expectedType} result, got ${response.result.type}`
+      );
+    }
+    return response.result as RpcResultFor<M>;
   }
 }
 

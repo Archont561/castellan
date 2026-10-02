@@ -32,4 +32,4 @@ separator: string, } | { "method": "save_entry",
 /**
  * The captured entry.
  */
-entry: NewEntry, } | { "method": "lock_database" } | { "method": "ping" });
+entry: NewEntry, } | { "method": "lock_database", } | { "method": "ping", });

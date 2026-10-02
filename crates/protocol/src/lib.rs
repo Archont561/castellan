@@ -29,13 +29,14 @@ use ts_rs::TS;
 /// error: it is the input to capability negotiation — an old extension
 /// talking to a new app degrades to the methods both sides know, rather than
 /// dying with "cannot connect" the way version-skewed proxy setups do.
-pub const PROTOCOL_VERSION: u32 = 1;
+pub const PROTOCOL_VERSION: u32 = 2;
 
 /// What a connected face can be asked to do.
 ///
 /// Sent in [`Hello`] so the *client* can adapt its UI before the first
 /// request, rather than discovering a missing capability by error path.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
 #[ts(export)]
 pub enum Capability {
     /// Fill passwords and forms.
@@ -52,12 +53,13 @@ pub enum Capability {
 
 /// The vault, as a client sees it from the outside.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
 #[ts(export)]
 pub enum VaultStatus {
     /// A database is open and unlocked.
     Unlocked,
     /// A database is loaded but locked; requests that need secrets fail with
-    /// [`crate::VAULT_LOCKED`].
+    /// [`RpcErrorCode::VaultLocked`].
     Locked,
     /// No database has been created or opened on this device yet.
     NoDatabase,
@@ -117,43 +119,188 @@ pub struct NewEntry {
     pub otpauth: Option<String>,
 }
 
-/// One RPC call, tagged by method name.
+/// A generated TypeScript client surface.
 ///
-/// Internally tagged (`{"method": "get_entries", ...}`) so a method is
-/// readable on the wire and a typo is a parse error, not a silent dispatch
-/// miss. The tag strings stay snake_case on the wire even though the variants
-/// are Rust-idiomatic — rename attributes are part of the derived TypeScript,
-/// not a second hand-maintained mapping.
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[serde(tag = "method", rename_all = "snake_case")]
-#[ts(export)]
-pub enum RpcMethod {
+/// Operations declare their intended faces next to their wire shape. The
+/// repository xtask reads this metadata and emits one client per face; adding
+/// a desktop-only action therefore cannot accidentally expose it to a browser
+/// extension merely because both clients share the same transport core.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClientTarget {
+    /// The desktop Tauri face.
+    Desktop,
+    /// The iOS/Android Tauri face.
+    Mobile,
+    /// The Fob browser extension.
+    WebExtension,
+}
+
+/// Code-generation metadata for one request/result pair.
+///
+/// This is intentionally data emitted by the same macro that emits
+/// [`RpcMethod`] and [`RpcResult`], rather than a second operation registry in
+/// `castellan-xtask`. The field names let the generator preserve the wire's
+/// snake_case while presenting idiomatic camelCase TypeScript arguments.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RpcOperation {
+    /// The snake_case method tag used on the wire.
+    pub method: &'static str,
+    /// Faces whose generated clients expose this operation.
+    pub clients: &'static [ClientTarget],
+    /// Request payload fields, excluding the `method` tag.
+    pub request_fields: &'static [&'static str],
+    /// Success payload fields, excluding the `type` tag.
+    pub response_fields: &'static [&'static str],
+}
+
+impl RpcOperation {
+    /// Whether this operation belongs on `target`'s generated client.
+    #[must_use]
+    pub fn supports(self, target: ClientTarget) -> bool {
+        self.clients.contains(&target)
+    }
+}
+
+/// Declare the protocol's operations once.
+///
+/// Every entry expands to a request variant, its correlated success variant,
+/// and the metadata consumed by `castellan-xtask`. Request and result tags are
+/// deliberately identical: TypeScript can express `ResultFor<M>` with
+/// `Extract` instead of maintaining a handwritten method-to-result map.
+macro_rules! rpc_contract {
+    (
+        $(
+            $(#[$operation_meta:meta])*
+            $variant:ident => $wire:literal for [$($client:ident),+ $(,)?] {
+                request {
+                    $(
+                        $(#[$request_meta:meta])*
+                        $request_field:ident: $request_type:ty
+                    ),* $(,)?
+                }
+                response {
+                    $(
+                        $(#[$response_meta:meta])*
+                        $response_field:ident: $response_type:ty
+                    ),* $(,)?
+                }
+            }
+        )+
+    ) => {
+        /// One RPC call, tagged by method name.
+        ///
+        /// Internally tagged (`{"method": "get_entries", ...}`) so a
+        /// method is readable on the wire and a typo is a parse error, not a
+        /// silent dispatch miss. The tag strings stay snake_case on the wire
+        /// and in the generated TypeScript.
+        #[derive(Debug, Clone, Serialize, Deserialize, TS)]
+        #[serde(tag = "method")]
+        #[ts(export)]
+        pub enum RpcMethod {
+            $(
+                $(#[$operation_meta])*
+                #[serde(rename = $wire)]
+                $variant {
+                    $(
+                        $(#[$request_meta])*
+                        $request_field: $request_type,
+                    )*
+                },
+            )+
+        }
+
+        /// The payload of a successful call, correlated with [`RpcMethod`]
+        /// by the same snake_case operation tag.
+        #[derive(Debug, Clone, Serialize, Deserialize, TS)]
+        #[serde(tag = "type")]
+        #[ts(export)]
+        pub enum RpcResult {
+            $(
+                $(#[$operation_meta])*
+                #[serde(rename = $wire)]
+                $variant {
+                    $(
+                        $(#[$response_meta])*
+                        $response_field: $response_type,
+                    )*
+                },
+            )+
+        }
+
+        /// Every RPC operation, in declaration order, for client generation.
+        pub const RPC_OPERATIONS: &[RpcOperation] = &[
+            $(
+                RpcOperation {
+                    method: $wire,
+                    clients: &[$(ClientTarget::$client),+],
+                    request_fields: &[$(stringify!($request_field)),*],
+                    response_fields: &[$(stringify!($response_field)),*],
+                },
+            )+
+        ];
+    };
+}
+
+rpc_contract! {
     /// Entries relevant to an origin, for the fill UI.
-    GetEntries {
-        /// The page origin the fill is happening on.
-        origin: String,
-    },
+    GetEntries => "get_entries" for [Desktop, Mobile, WebExtension] {
+        request {
+            /// The page origin the fill is happening on.
+            origin: String,
+        }
+        response {
+            /// Entries relevant to the requested origin.
+            entries: Vec<EntrySummary>,
+        }
+    }
     /// The current TOTP code for one entry.
-    GetTotp {
-        /// Which entry to compute a code for.
-        entry_id: String,
-    },
-    /// A generated passphrase (word count and separator chosen by the UI).
-    GeneratePassphrase {
-        /// How many words to join.
-        words: u32,
-        /// What to join them with.
-        separator: String,
-    },
+    GetTotp => "get_totp" for [Desktop, Mobile, WebExtension] {
+        request {
+            /// Which entry to compute a code for.
+            entry_id: String,
+        }
+        response {
+            /// The code, right-aligned and zero-padded as services expect it.
+            code: String,
+            /// Seconds until this code expires; the UI draws its progress
+            /// ring from this and never re-implements period arithmetic.
+            seconds_remaining: u32,
+        }
+    }
+    /// A generated passphrase for an app's entry editor.
+    GeneratePassphrase => "generate_passphrase" for [Desktop, Mobile] {
+        request {
+            /// How many words to join.
+            words: u32,
+            /// What to join them with.
+            separator: String,
+        }
+        response {
+            /// The generated passphrase.
+            value: String,
+        }
+    }
     /// Save an entry captured by the extension's save prompt.
-    SaveEntry {
-        /// The captured entry.
-        entry: NewEntry,
-    },
+    SaveEntry => "save_entry" for [WebExtension] {
+        request {
+            /// The captured entry.
+            entry: NewEntry,
+        }
+        response {
+            /// The id the saved entry received.
+            id: String,
+        }
+    }
     /// Lock the vault now. Always available; never fails.
-    LockDatabase,
-    /// Liveness probe. Answers with [`RpcResult::Ok`].
-    Ping,
+    LockDatabase => "lock_database" for [Desktop, Mobile, WebExtension] {
+        request {}
+        response {}
+    }
+    /// Liveness probe.
+    Ping => "ping" for [Desktop, Mobile, WebExtension] {
+        request {}
+        response {}
+    }
 }
 
 /// A request envelope. `id` is echoed in [`RpcResponse`] so a transport that
@@ -172,24 +319,35 @@ pub struct RpcRequest {
     pub method: RpcMethod,
 }
 
+/// Stable application errors carried by [`RpcError`].
+///
+/// This enum is the source of truth for both Rust and the generated
+/// TypeScript union. Transport and client-validation failures are local to
+/// the TypeScript client and deliberately do not cross the wire.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+pub enum RpcErrorCode {
+    /// The vault exists but is locked.
+    VaultLocked,
+    /// The request named an entry that does not exist. Distinct from an empty
+    /// list so the UI can say "nothing for this site" without guessing
+    /// whether it queried the right database.
+    NoSuchEntry,
+    /// The protocol knows the operation but this build cannot execute it yet.
+    NotImplemented,
+}
+
 /// The machine-readable half of a failure. Codes are stable strings the UI
 /// can switch on; the message is for humans.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct RpcError {
     /// Stable, machine-readable error code.
-    pub code: String,
+    pub code: RpcErrorCode,
     /// Human-readable explanation.
     pub message: String,
 }
-
-/// Error code: the vault exists but is locked.
-pub const VAULT_LOCKED: &str = "vault_locked";
-
-/// Error code: the request named an entry that does not exist. Distinct from
-/// an empty list so the UI can say "nothing for this site" without guessing
-/// whether it queried the right database.
-pub const NO_SUCH_ENTRY: &str = "no_such_entry";
 
 /// The answer to a request. Exactly one of `result`/`error` is `Some`; both
 /// are `Option` rather than an enum so the wire shape stays `{id, result?}`
@@ -207,38 +365,6 @@ pub struct RpcResponse {
     pub result: Option<RpcResult>,
     /// The failure, when it did not.
     pub error: Option<RpcError>,
-}
-
-/// The payload of a successful call, tagged by result kind.
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[serde(tag = "type", rename_all = "snake_case")]
-#[ts(export)]
-pub enum RpcResult {
-    /// Nothing to return; the call just worked.
-    Ok,
-    /// Answer to `get_entries`.
-    Entries {
-        /// Entries relevant to the requested origin.
-        entries: Vec<EntrySummary>,
-    },
-    /// Answer to `get_totp`.
-    Totp {
-        /// The code, right-aligned and zero-padded as services expect it.
-        code: String,
-        /// Seconds until this code expires; the UI draws its progress ring
-        /// from this and never re-implements the period arithmetic.
-        seconds_remaining: u32,
-    },
-    /// Answer to `generate_passphrase`.
-    Passphrase {
-        /// The generated passphrase.
-        value: String,
-    },
-    /// Answer to `save_entry`.
-    Saved {
-        /// The id the saved entry received.
-        id: String,
-    },
 }
 
 /// Events the app pushes at connected faces. Lock state is pushed, not

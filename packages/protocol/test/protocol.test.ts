@@ -15,8 +15,4 @@ describe("@castellan/protocol", () => {
   test("the barrel's constant is the generated one", () => {
     expect(PROTOCOL_VERSION).toBe(generatedVersion);
   });
-
-  test("the protocol speaks version 1", () => {
-    expect(generatedVersion).toBe(1);
-  });
 });

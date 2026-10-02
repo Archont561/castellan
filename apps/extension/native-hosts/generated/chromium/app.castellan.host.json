@@ -1,0 +1,10 @@
+{
+  "allowed_origins": [
+    "chrome-extension://EXTENSION_ID_DEV/",
+    "chrome-extension://EXTENSION_ID_STORE/"
+  ],
+  "description": "Castellan vault access for the Fob extension",
+  "name": "app.castellan.host",
+  "path": "{path}",
+  "type": "stdio"
+}

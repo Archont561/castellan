@@ -25,9 +25,8 @@
       "dependencies": {
         "@castellan/core": "workspace:*",
         "@castellan/protocol": "workspace:*",
+        "@castellan/tauri": "workspace:*",
         "@castellan/ui": "workspace:*",
-        "@castellan/wasm": "workspace:*",
-        "@tauri-apps/api": "^2.5.0",
       },
       "devDependencies": {
         "@castellan/utils": "workspace:*",
@@ -81,9 +80,8 @@
       "dependencies": {
         "@castellan/core": "workspace:*",
         "@castellan/protocol": "workspace:*",
+        "@castellan/tauri": "workspace:*",
         "@castellan/ui": "workspace:*",
-        "@castellan/wasm": "workspace:*",
-        "@tauri-apps/api": "^2.5.0",
       },
       "devDependencies": {
         "@castellan/utils": "workspace:*",
@@ -116,6 +114,19 @@
     "packages/protocol": {
       "name": "@castellan/protocol",
       "version": "0.1.0",
+      "devDependencies": {
+        "@castellan/utils": "workspace:*",
+        "typescript": "^5.9.0",
+      },
+    },
+    "packages/tauri": {
+      "name": "@castellan/tauri",
+      "version": "0.1.0",
+      "dependencies": {
+        "@castellan/core": "workspace:*",
+        "@castellan/protocol": "workspace:*",
+        "@tauri-apps/api": "^2.5.0",
+      },
       "devDependencies": {
         "@castellan/utils": "workspace:*",
         "typescript": "^5.9.0",
@@ -157,6 +168,7 @@
       "name": "@castellan/wasm",
       "version": "0.1.0",
       "devDependencies": {
+        "@castellan/protocol": "workspace:*",
         "@castellan/utils": "workspace:*",
         "typescript": "^5.9.0",
       },
@@ -277,6 +289,8 @@
     "@castellan/protocol": ["@castellan/protocol@workspace:packages/protocol"],
 
     "@castellan/rust": ["@castellan/rust@workspace:crates"],
+
+    "@castellan/tauri": ["@castellan/tauri@workspace:packages/tauri"],
 
     "@castellan/ui": ["@castellan/ui@workspace:packages/ui"],
 

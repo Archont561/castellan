@@ -2,19 +2,16 @@
  * The Transport seam: how a request physically travels, without any opinion
  * about what the request means.
  *
- * Three implementations exist today and they are all one file each:
+ * Two adapters exist today:
  *
- * - `apps/desktop/src/lib/transport.ts` and `apps/mobile/src/lib/transport.ts`
- *   — Tauri's `invoke`, one `rpc` command, the whole protocol;
+ * - `@castellan/tauri` — Tauri's `invoke`, one `rpc` command shared by the
+ *   desktop and mobile faces;
  * - `apps/extension/src/transport.ts` — the browser's native-messaging port,
- *   framed exactly like the IPC socket, multiplexed by request id;
- * - a future CLI — the same socket the extension uses.
+ *   framed exactly like the IPC socket and multiplexed by request id.
  *
- * The transports stay in the apps (not in this package) on purpose: the
- * Tauri transport must not drag `@tauri-apps/api` into the extension, and
- * the extension transport must not drag `browser` globals into the apps. The
- * client logic — the part that has to be identical everywhere — is what
- * lives here.
+ * Adapters stay outside this package so core never drags Tauri or browser
+ * globals into consumers that do not use them. The client mechanics — the
+ * part that has to be identical everywhere — live here.
  */
 
 import type { Event, RpcRequest, RpcResponse } from "@castellan/protocol";

@@ -1,8 +1,8 @@
 # Castellan desktop
 
-Tauri 2 + SvelteKit (static adapter). One `rpc` command bridges the frontend
-to the Rust dispatcher in `src-tauri/src/lib.rs`; everything else — vault,
-TOTP, framing — comes from the workspace crates.
+Tauri 2 + SvelteKit (static adapter). One `rpc` command in
+`src-tauri/src/lib.rs` adapts Tauri invoke to the shared `castellan-dispatch`
+crate; everything else—vault, TOTP, framing—comes from workspace crates.
 
 ## Run
 
@@ -23,6 +23,7 @@ $ bun run tauri dev      # from this directory
 
 | Path | What it is |
 | --- | --- |
-| `src-tauri/` | the Tauri app crate — workspace member, RPC dispatcher |
-| `src/lib/transport.ts` | the Transport implementation over `invoke` |
+| `src-tauri/` | the Tauri shell—workspace member, thin adapter to the shared dispatcher |
+| `src/generated/client.ts` | xtask-generated operations assigned to the desktop face |
+| `@castellan/tauri` | the shared desktop/mobile Transport implementation over `invoke` |
 | `src/routes/` | SvelteKit routes (`ssr = false`, prerendered shells) |

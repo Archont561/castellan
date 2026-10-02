@@ -1,11 +1,18 @@
 /**
- * @castellan/core — the transport-agnostic client.
+ * @castellan/core — transport-independent client mechanics.
  *
- * Every face of Castellan that talks to the app does it through this
- * package: the request building, the id multiplexing, the error narrowing.
- * Only the Transport implementation is face-specific, and it lives in the
- * app that needs it.
+ * Face-specific public methods are generated into the desktop, mobile and
+ * extension apps. They all extend the same RpcClient so request construction,
+ * response validation and error behavior remain one implementation.
  */
-export { CastellanClient, CastellanError, DISCONNECTED } from "./client";
+
+export type {
+  CastellanErrorCode,
+  ClientErrorCode,
+  RpcMethodName,
+  RpcParams,
+  RpcResultFor
+} from "./client";
+export { CastellanError, DISCONNECTED, RpcClient } from "./client";
 export type { Transport } from "./transport";
 export { disconnected } from "./transport";

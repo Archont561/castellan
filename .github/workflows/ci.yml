@@ -96,13 +96,16 @@ jobs:
       - name: Install workspace dependencies
         run: bun install --frozen-lockfile
 
-      # Codegen before typechecking: the TS protocol package typechecks the
-      # generated directory, so it has to exist first.
-      - name: Generate protocol bindings
-        run: bun run codegen
+      # Generate before typechecking, then fail if a contributor omitted any
+      # committed output. Regeneration alone would hide stale files in a PR.
+      - name: Check generated protocol and clients
+        run: bun run codegen:check
 
       - name: Build the WASM package
         run: bun run wasm
+
+      - name: Check generated WASM declarations
+        run: git diff --exit-code -- packages/wasm/src/pkg/castellan_wasm.d.ts packages/wasm/src/pkg/castellan_wasm_bg.wasm.d.ts
 
       - name: Format check (rust)
         run: cargo fmt --all --check

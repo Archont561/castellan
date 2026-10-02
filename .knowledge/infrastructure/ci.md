@@ -30,8 +30,9 @@ while `bun run all:lint` is the per-package `lint` tasks — each package
 over its own `src`, plus `@castellan/rust`, which is where clippy
 `-D warnings` and `cargo deny check bans licenses sources` actually live.
 Running only the first is what kept the Rust lints unexecuted for the
-repository's whole life. Codegen-then-typecheck means a stale generated
-directory fails the build instead of a review.
+repository's whole life. `codegen:check` regenerates and then checks both
+tracked diffs and untracked files, so stale or omitted generated output fails
+before typecheck instead of being hidden by it.
 
 **Every gate tool comes from `pixi.lock`** (decision-10): bun, rust with
 clippy+rustfmt, the wasm32 std, wasm-pack, wasm-bindgen-cli, cargo-deny and

@@ -30,19 +30,19 @@ Expose otpauth parsing (without the secret) and origin matching to the extension
 - [x] #1 `parse_otpauth` returns issuer/account/digits/period and provably no secret bytes
 - [x] #2 `origin_matches` is the identical function the app links natively
 - [x] #3 Wrapper throws a readable "run bun run wasm" error when the pkg output is missing
-- [x] #4 wasm-pack builds for the bundler target into a git-ignored src/pkg
+- [x] #4 wasm-pack builds for the bundler target; JS/WASM artifacts are ignored and declarations are committed
 <!-- AC:END -->
 
 ## Implementation Plan
 
 <!-- SECTION:PLAN:BEGIN -->
-Plain-Rust core fn + thin wasm_bindgen wrapper so host tests exercise the real function; serde-wasm-bindgen for the JS value; a hand-written interface declaration so typecheck does not require the artifact.
+Plain-Rust core fn + thin wasm_bindgen wrapper so host tests exercise the real function; serde-wasm-bindgen for the JS value; wasm-bindgen declarations type the module and ts-rs derives `OtpAuthInfo` from the Rust projection.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-serde_wasm_bindgen panics off-target, so the wasm wrapper stays untested in host CI and the logic lives in the plain fn next to it.
+The plain Rust function keeps host tests independent of JS values. The package suite additionally instantiates the built WASM artifact with wasm-bindgen's glue and exercises the exported wrapper.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary

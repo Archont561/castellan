@@ -10,6 +10,7 @@
 //! touches the vault, the socket, or the disk goes over the protocol to the
 //! app process instead — the extension never holds a database, only answers.
 
+use ts_rs::TS;
 use wasm_bindgen::prelude::*;
 
 /// The protocol version of the shared logic this build was cut from.
@@ -27,7 +28,7 @@ pub fn protocol_version() -> u32 {
 /// for previews and validation, and asks the app for live codes through the
 /// protocol. A secret that never reaches the extension is a secret that no
 /// content script can read.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, TS)]
 pub struct OtpAuthInfo {
     /// Issuer, from the URI path or `issuer` parameter.
     pub issuer: Option<String>,

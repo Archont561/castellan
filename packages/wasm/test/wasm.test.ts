@@ -23,9 +23,10 @@
  */
 import { describe, expect, test } from "bun:test";
 
+import { PROTOCOL_VERSION } from "@castellan/protocol";
 import { createFixture } from "@castellan/utils/fixtures";
 
-import { loadWasm } from "@/src/index";
+import { loadWasm, type OtpAuthInfo } from "@/src/index";
 import * as glue from "@/src/pkg/castellan_wasm_bg.js";
 
 /** The vite path, done by hand — once per file, via the fixture helper.
@@ -65,17 +66,14 @@ const wasm = createFixture(
 );
 
 describe("@castellan/wasm (artifact)", () => {
-  test("reports the protocol version of the build", () => {
-    expect(wasm().protocol_version()).toBe(1);
+  test("reports the generated protocol version of the build", () => {
+    expect(wasm().protocol_version()).toBe(PROTOCOL_VERSION);
   });
 
   test("parses an otpauth URI without exposing the secret", () => {
-    const info = wasm().parse_otpauth("otpauth://totp/GitHub:octocat?secret=JBSWY3DPEHPK3PXP") as {
-      issuer: string | null;
-      account: string;
-      digits: number;
-      period: number;
-    };
+    const info = wasm().parse_otpauth(
+      "otpauth://totp/GitHub:octocat?secret=JBSWY3DPEHPK3PXP"
+    ) as OtpAuthInfo;
     expect(info.issuer).toBe("GitHub");
     expect(info.account).toBe("octocat");
     expect(info.digits).toBe(6);

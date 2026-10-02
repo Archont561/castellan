@@ -1,0 +1,10 @@
+{
+  "allowed_extensions": [
+    "fob-dev@castellan.app",
+    "FIREFOX_EXTENSION_ID_STORE"
+  ],
+  "description": "Castellan vault access for the Fob extension",
+  "name": "app.castellan.host",
+  "path": "{path}",
+  "type": "stdio"
+}

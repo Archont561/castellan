@@ -1,83 +1,121 @@
-//! Derive `packages/protocol/src/generated` from the Rust wire types.
+//! Derive TypeScript wire types and face-specific clients from the Rust RPC
+//! contract.
 
+use std::fmt::Write as _;
 use std::fs;
 use std::path::Path;
 
 use anyhow::{Context, Result};
+use serde::Deserialize;
 use ts_rs::TS;
 
 use castellan_protocol::{
-    Capability, ClientMessage, EntrySummary, Event, Hello, HostMessage, NewEntry, RpcError,
-    RpcMethod, RpcRequest, RpcResponse, RpcResult, VaultStatus,
+    Capability, ClientMessage, ClientTarget, EntrySummary, Event, Hello, HostMessage, NewEntry,
+    RPC_OPERATIONS, RpcError, RpcErrorCode, RpcMethod, RpcRequest, RpcResponse, RpcResult,
+    VaultStatus,
 };
+use castellan_wasm::OtpAuthInfo;
 
-/// Where the generated TypeScript lives, relative to the repository root.
+/// Where the generated wire types live, relative to the repository root.
 const GENERATED: &str = "packages/protocol/src/generated";
+/// Browser-host metadata from which installable manifests and the extension
+/// constant are derived.
+const NATIVE_HOST_METADATA: &str = "apps/extension/native-hosts/host.json";
 
-/// Export every wire type plus the barrel and the protocol version.
+macro_rules! export_types {
+    ($cfg:expr; $($ty:ty),+ $(,)?) => {{
+        $(<$ty>::export_all($cfg)?;)+
+        [$(stringify!($ty)),+]
+    }};
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ClientSpec {
+    target: ClientTarget,
+    class_name: &'static str,
+    path: &'static str,
+}
+
+const CLIENTS: &[ClientSpec] = &[
+    ClientSpec {
+        target: ClientTarget::Desktop,
+        class_name: "DesktopClient",
+        path: "apps/desktop/src/generated/client.ts",
+    },
+    ClientSpec {
+        target: ClientTarget::Mobile,
+        class_name: "MobileClient",
+        path: "apps/mobile/src/generated/client.ts",
+    },
+    ClientSpec {
+        target: ClientTarget::WebExtension,
+        class_name: "WebExtensionClient",
+        path: "apps/extension/src/generated/client.ts",
+    },
+];
+
+/// Export every wire type, the barrel, protocol version and scoped clients.
 ///
 /// `export_all_to` writes one file per type *and* the files its definition
-/// references, so the list below is the whole surface — adding a type to
-/// `castellan-protocol` without adding it here fails the barrel check below,
-/// not silently at the far end of a bundler.
+/// references, so the list below is the whole wire surface. Client methods
+/// come from `RPC_OPERATIONS`, emitted by the same macro that declares
+/// `RpcMethod` and `RpcResult`; xtask owns no second operation registry.
 pub(crate) fn run(root: &Path) -> Result<()> {
     let out = root.join(GENERATED);
-    fs::create_dir_all(&out).context("creating the generated directory")?;
+    recreate_directory(&out)?;
+    // Every face directory is generator-owned. Clearing first means deleting
+    // an operation or generated companion removes its old tracked file too.
+    for client in CLIENTS {
+        let parent = root
+            .join(client.path)
+            .parent()
+            .context("generated client has no parent")?
+            .to_path_buf();
+        recreate_directory(&parent)?;
+    }
 
     // ts-rs 12 takes its output directory from the config, not from a method
     // argument: one config, then every type exports into it. `number` for
     // large ints because request ids are monotonically small and `bigint`
     // would force every caller through BigInt() for no gain; a type that
-    // genuinely needs 64 bits (a YubiKey serial, a file size) says so by
-    // being a String on the wire.
+    // genuinely needs 64 bits says so by being a String on the wire.
     let cfg = ts_rs::Config::new()
         .with_out_dir(&out)
         .with_large_int("number");
 
-    Capability::export_all(&cfg)?;
-    VaultStatus::export_all(&cfg)?;
-    Hello::export_all(&cfg)?;
-    EntrySummary::export_all(&cfg)?;
-    NewEntry::export_all(&cfg)?;
-    RpcMethod::export_all(&cfg)?;
-    RpcRequest::export_all(&cfg)?;
-    RpcError::export_all(&cfg)?;
-    RpcResult::export_all(&cfg)?;
-    RpcResponse::export_all(&cfg)?;
-    Event::export_all(&cfg)?;
-    ClientMessage::export_all(&cfg)?;
-    HostMessage::export_all(&cfg)?;
+    // This one invocation drives both ts-rs and the barrel below. Adding a
+    // wire type cannot update one inventory while silently missing the other.
+    let wire_types = export_types!(
+        &cfg;
+        Capability,
+        VaultStatus,
+        Hello,
+        EntrySummary,
+        NewEntry,
+        RpcMethod,
+        RpcRequest,
+        RpcErrorCode,
+        RpcError,
+        RpcResult,
+        RpcResponse,
+        Event,
+        ClientMessage,
+        HostMessage,
+    );
 
-    // ts-rs writes one file per type and no barrel; a hand-maintained barrel
-    // is a second list to keep correct, so the generator writes it from the
-    // same list of types it just exported.
-    let barrel = [
-        "Capability",
-        "VaultStatus",
-        "Hello",
-        "EntrySummary",
-        "NewEntry",
-        "RpcMethod",
-        "RpcRequest",
-        "RpcError",
-        "RpcResult",
-        "RpcResponse",
-        "Event",
-        "ClientMessage",
-        "HostMessage",
-    ]
-    .into_iter()
-    .map(|ty| format!("export type {{ {ty} }} from \"./{ty}\";\n"))
-    .chain(std::iter::once(
-        "export { PROTOCOL_VERSION } from \"./version\";\n".to_string(),
-    ))
-    .collect::<String>();
+    // ts-rs writes one file per type and no barrel, so emit the barrel from
+    // the exact inventory passed to ts-rs above.
+    let barrel = wire_types
+        .into_iter()
+        .map(|ty| format!("export type {{ {ty} }} from \"./{ty}\";\n"))
+        .chain(std::iter::once(
+            "export { PROTOCOL_VERSION } from \"./version\";\n".to_string(),
+        ))
+        .collect::<String>();
     fs::write(out.join("index.ts"), barrel).context("writing the barrel")?;
 
-    // The one non-type export: the protocol version, generated from the Rust
-    // constant so the number a client sends in its hello is the number the
-    // app actually compares against — a second hand-typed copy of a version
-    // number is wrong after the first release nobody remembers to bump.
+    // The one non-type wire export: generated from the Rust constant so the
+    // number a client sends is the number the app actually compares against.
     fs::write(
         out.join("version.ts"),
         format!(
@@ -87,9 +125,283 @@ pub(crate) fn run(root: &Path) -> Result<()> {
     )
     .context("writing version.ts")?;
 
+    let wasm_out = root.join("packages/wasm/src/generated");
+    recreate_directory(&wasm_out)?;
+    OtpAuthInfo::export_all(
+        &ts_rs::Config::new()
+            .with_out_dir(&wasm_out)
+            .with_large_int("number"),
+    )?;
+
+    generate_native_host_files(root)?;
+
+    for client in CLIENTS {
+        let path = root.join(client.path);
+        fs::create_dir_all(path.parent().context("generated client has no parent")?)
+            .with_context(|| format!("creating parent for {}", path.display()))?;
+        fs::write(&path, generate_client(*client))
+            .with_context(|| format!("writing {}", path.display()))?;
+    }
+
     println!(
-        "generated TypeScript bindings in {}",
-        root.join(GENERATED).display()
+        "generated TypeScript protocol and {} face clients from the RPC contract",
+        CLIENTS.len()
     );
     Ok(())
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct NativeHostMetadata {
+    name: String,
+    description: String,
+    path: String,
+    chromium_extension_ids: Vec<String>,
+    firefox_extension_ids: Vec<String>,
+}
+
+fn recreate_directory(path: &Path) -> Result<()> {
+    if path.exists() {
+        fs::remove_dir_all(path)
+            .with_context(|| format!("clearing generated directory {}", path.display()))?;
+    }
+    fs::create_dir_all(path)
+        .with_context(|| format!("creating generated directory {}", path.display()))
+}
+
+fn generate_native_host_files(root: &Path) -> Result<()> {
+    let metadata_path = root.join(NATIVE_HOST_METADATA);
+    let metadata: NativeHostMetadata = serde_json::from_str(
+        &fs::read_to_string(&metadata_path)
+            .with_context(|| format!("reading {}", metadata_path.display()))?,
+    )
+    .with_context(|| format!("parsing {}", metadata_path.display()))?;
+
+    let generated = root.join("apps/extension/native-hosts/generated");
+    recreate_directory(&generated)?;
+    let chromium = generated
+        .join("chromium")
+        .join(format!("{}.json", metadata.name));
+    let firefox = generated
+        .join("firefox")
+        .join(format!("{}.json", metadata.name));
+
+    write_json(
+        &chromium,
+        &serde_json::json!({
+            "name": &metadata.name,
+            "description": &metadata.description,
+            "path": &metadata.path,
+            "type": "stdio",
+            "allowed_origins": metadata.chromium_extension_ids.iter()
+                .map(|id| format!("chrome-extension://{id}/"))
+                .collect::<Vec<_>>(),
+        }),
+    )?;
+    write_json(
+        &firefox,
+        &serde_json::json!({
+            "name": &metadata.name,
+            "description": &metadata.description,
+            "path": &metadata.path,
+            "type": "stdio",
+            "allowed_extensions": &metadata.firefox_extension_ids,
+        }),
+    )?;
+
+    let extension_constant = root.join("apps/extension/src/generated/native-host.ts");
+    fs::create_dir_all(
+        extension_constant
+            .parent()
+            .context("generated native-host constant has no parent")?,
+    )?;
+    fs::write(
+        &extension_constant,
+        format!(
+            "// Generated by castellan-xtask from {NATIVE_HOST_METADATA}; do not edit.\nexport const NATIVE_HOST_NAME = {};\n",
+            serde_json::to_string(&metadata.name)?
+        ),
+    )
+    .with_context(|| format!("writing {}", extension_constant.display()))?;
+
+    Ok(())
+}
+
+fn write_json(path: &Path, value: &serde_json::Value) -> Result<()> {
+    fs::create_dir_all(path.parent().context("generated JSON has no parent")?)?;
+    let mut json = serde_json::to_string_pretty(value)?;
+    json.push('\n');
+    fs::write(path, json).with_context(|| format!("writing {}", path.display()))
+}
+
+fn generate_client(client: ClientSpec) -> String {
+    let mut source = String::from(
+        "// Generated by castellan-xtask from crates/protocol/src/lib.rs; do not edit.\n\
+         import { RpcClient, type RpcParams, type RpcResultFor } from \"@castellan/core\";\n\n",
+    );
+    writeln!(
+        source,
+        "/** RPC operations available to the {} face. */\nexport class {} extends RpcClient {{",
+        target_name(client.target),
+        client.class_name
+    )
+    .expect("writing to a String cannot fail");
+
+    for operation in RPC_OPERATIONS
+        .iter()
+        .copied()
+        .filter(|operation| operation.supports(client.target))
+    {
+        let method_name = lower_camel(operation.method);
+        write!(source, "  async {method_name}(").expect("writing to a String cannot fail");
+        if !operation.request_fields.is_empty() {
+            source.push('\n');
+            for (index, field) in operation.request_fields.iter().enumerate() {
+                let comma = if index + 1 == operation.request_fields.len() {
+                    ""
+                } else {
+                    ","
+                };
+                writeln!(
+                    source,
+                    "    {}: RpcParams<\"{}\">[\"{}\"]{comma}",
+                    lower_camel(field),
+                    operation.method,
+                    field
+                )
+                .expect("writing to a String cannot fail");
+            }
+            source.push_str("  ");
+        }
+        write!(source, ")").expect("writing to a String cannot fail");
+        write_return_type(&mut source, operation.method, operation.response_fields);
+        source.push_str(" {\n");
+
+        let request = operation
+            .request_fields
+            .iter()
+            .map(|field| {
+                let argument = lower_camel(field);
+                if *field == argument {
+                    argument
+                } else {
+                    format!("{field}: {argument}")
+                }
+            })
+            .collect::<Vec<_>>();
+        let fields = if request.is_empty() {
+            String::new()
+        } else {
+            format!(", {}", request.join(", "))
+        };
+
+        if operation.response_fields.is_empty() {
+            writeln!(
+                source,
+                "    await this.call(\n      {{ method: \"{}\"{fields} }},\n      \"{}\"\n    );",
+                operation.method, operation.method
+            )
+            .expect("writing to a String cannot fail");
+        } else {
+            writeln!(
+                source,
+                "    const result = await this.call(\n      {{ method: \"{}\"{fields} }},\n      \"{}\"\n    );",
+                operation.method, operation.method
+            )
+            .expect("writing to a String cannot fail");
+            if operation.response_fields.len() == 1 {
+                writeln!(
+                    source,
+                    "    return result.{};",
+                    operation.response_fields[0]
+                )
+                .expect("writing to a String cannot fail");
+            } else {
+                source.push_str("    return {\n");
+                for (index, field) in operation.response_fields.iter().enumerate() {
+                    let comma = if index + 1 == operation.response_fields.len() {
+                        ""
+                    } else {
+                        ","
+                    };
+                    writeln!(
+                        source,
+                        "      {}: result.{field}{comma}",
+                        lower_camel(field)
+                    )
+                    .expect("writing to a String cannot fail");
+                }
+                source.push_str("    };\n");
+            }
+        }
+        source.push_str("  }\n\n");
+    }
+
+    source.push_str("}\n");
+    source
+}
+
+fn write_return_type(source: &mut String, method: &str, response_fields: &[&str]) {
+    match response_fields {
+        [] => source.push_str(": Promise<void>"),
+        [field] => write!(source, ": Promise<RpcResultFor<\"{method}\">[\"{field}\"]>")
+            .expect("writing to a String cannot fail"),
+        fields => {
+            source.push_str(": Promise<{\n");
+            for field in fields {
+                writeln!(
+                    source,
+                    "    {}: RpcResultFor<\"{method}\">[\"{field}\"];",
+                    lower_camel(field)
+                )
+                .expect("writing to a String cannot fail");
+            }
+            source.push_str("  }>");
+        }
+    }
+}
+
+fn lower_camel(snake: &str) -> String {
+    let mut parts = snake.split('_');
+    let mut result = parts.next().unwrap_or_default().to_string();
+    for part in parts {
+        let mut chars = part.chars();
+        if let Some(first) = chars.next() {
+            result.extend(first.to_uppercase());
+            result.extend(chars);
+        }
+    }
+    result
+}
+
+const fn target_name(target: ClientTarget) -> &'static str {
+    match target {
+        ClientTarget::Desktop => "desktop",
+        ClientTarget::Mobile => "mobile",
+        ClientTarget::WebExtension => "web extension",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{CLIENTS, generate_client, lower_camel};
+
+    #[test]
+    fn converts_wire_names_to_typescript_names() {
+        assert_eq!(lower_camel("get_totp"), "getTotp");
+        assert_eq!(lower_camel("seconds_remaining"), "secondsRemaining");
+    }
+
+    #[test]
+    fn scopes_domain_operations_to_the_declared_face() {
+        let desktop = generate_client(CLIENTS[0]);
+        let extension = generate_client(CLIENTS[2]);
+
+        assert!(desktop.contains("generatePassphrase("));
+        assert!(!desktop.contains("saveEntry("));
+        assert!(extension.contains("saveEntry("));
+        assert!(!extension.contains("generatePassphrase("));
+        assert!(desktop.contains("getEntries("));
+        assert!(extension.contains("getEntries("));
+    }
 }

@@ -2,13 +2,14 @@ import { sveltekit } from "@sveltejs/kit/vite";
 import UnoCSS from "unocss/vite";
 import { defineConfig } from "vite";
 
+import { DEV_PORT } from "./dev.config";
+
 export default defineConfig({
   // See the desktop config: UnoCSS runs first, and reads ./uno.config.ts.
   plugins: [UnoCSS(), sveltekit()],
-  // The dev port matches devUrl in src-tauri/tauri.conf.json; changing one
-  // and not the other is a very confusing ten minutes.
+  // Tauri's devUrl is the source; dev.config.ts validates and extracts it.
   server: {
-    port: 5174,
+    port: DEV_PORT,
     strictPort: true
   }
 });
