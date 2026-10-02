@@ -9,7 +9,7 @@ status: stable
 generated:
   by: agent/castellan-kb
   at: "2026-10-01T22:00:00Z"
-updated: "2026-10-01T23:45:00Z"
+updated: "2026-10-02T08:30:00Z"
 id: infrastructure/ci
 category: infrastructure
 refs:
@@ -22,11 +22,16 @@ One job, ordered gates, fast-fail: checkout → apt webkit/gtk (Tauri) →
 `setup-pixi --locked`, activated onto `PATH` → cargo caches (workspace
 `Cargo.lock` keyed) → `bun install --frozen-lockfile` → codegen →
 `bun run wasm` → `cargo fmt --all --check` → actionlint
-(`bun run lint:workflows`) → `bun run lint` → typecheck → docs build →
-tests (`cargo test` + `bun test` through turbo) → e2e → storybook →
-cargo-deny advisories. Clippy `-D warnings` runs in the lint task;
-codegen-then-typecheck means a stale generated directory fails the build
-instead of a review.
+(`bun run lint:workflows`) → `bun run lint` → `bun run all:lint` →
+typecheck → docs build → tests (`cargo test` + `bun test` through turbo) →
+e2e → storybook → cargo-deny advisories. The two lint steps are not
+redundant: `bun run lint` is `biome check .` across the whole repository,
+while `bun run all:lint` is the per-package `lint` tasks — each package
+over its own `src`, plus `@castellan/rust`, which is where clippy
+`-D warnings` and `cargo deny check bans licenses sources` actually live.
+Running only the first is what kept the Rust lints unexecuted for the
+repository's whole life. Codegen-then-typecheck means a stale generated
+directory fails the build instead of a review.
 
 **Every gate tool comes from `pixi.lock`** (decision-10): bun, rust with
 clippy+rustfmt, the wasm32 std, wasm-pack, wasm-bindgen-cli, cargo-deny and

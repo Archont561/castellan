@@ -115,6 +115,15 @@ jobs:
       - name: Lint
         run: bun run lint
 
+      # The step above is the repo-wide biome pass (`biome check .`), which
+      # the per-package `lint` tasks do not subsume -- they each check their
+      # own `src`, and the docs app has no lint task at all. This step is the
+      # other half, and the half CI has never run: `@castellan/rust`'s task
+      # is where `cargo clippy -- -D warnings` and `cargo deny check bans
+      # licenses sources` live.
+      - name: Lint (workspace tasks)
+        run: bun run all:lint
+
       - name: Typecheck
         run: bun run all:typecheck
 
