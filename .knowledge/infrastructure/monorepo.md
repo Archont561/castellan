@@ -53,9 +53,8 @@ single-job CI, dual MIT/Apache-2.0.
 - **The offline airlock**: `publish-sandbox.yml` packs the locked environment
   and the 489 vendored crates onto the orphan branch
   `sandbox/developer-<platform>`; `scripts/restore.sh` (generated, regenerable)
-  unpacks and verifies it with no network. Entry point is the hand-written
-  `scripts/airlock.sh` around it — see the divergence row below, and
-  `scripts/airlock.sh`'s own header for the measurements behind it.
+  unpacks and verifies it with no network. On 0.4.0 it stops one step short of
+  a usable cargo here — see the divergence row below.
 
 ## Kept from geoquery
 
@@ -76,7 +75,7 @@ single-job CI, dual MIT/Apache-2.0.
 | `codegen` turbo task + dependency edge | typecheck of `@castellan/protocol` *depends on* codegen — stale generated output fails the build |
 | WASM layer (`castellan-wasm` + `@castellan/wasm`) | the extension face needs pure-logic WASM (geoquery has none) |
 | Root `.cargo/config.toml` setting `TS_RS_EXPORT_DIR` | redirects ts-rs test-time exports into the shared generated dir — one output, two doors (`cargo test` and xtask produce identical bytes) |
-| `scripts/airlock.sh` wraps the generated `scripts/restore.sh` | that tracked `.cargo/config.toml` is exactly what stops pixi-sandbox from wiring the vendor tree (it will not clobber an existing file), and the `[source]` block cannot be tracked either — replacement pointing at a directory that only exists after a restore is a hard error for CI and every networked contributor. The wrapper puts it in a project-local `CARGO_HOME` under `.pixi/` instead (the only untracked, non-global layer cargo reads from a *file* — CLI `--config key=value` and `CARGO_SOURCE_*` do not work), fetches the sandbox branch when the clone's refspec missed it, and verifies resolution before claiming success |
+| **No** local wrapper around `scripts/restore.sh` | that tracked `.cargo/config.toml` is exactly what stops pixi-sandbox 0.4.0 from wiring the vendor tree (it will not clobber an existing file), and the `[source]` block cannot be tracked either — replacement pointing at a directory that only exists after a restore is a hard error for CI and every networked contributor. A working wrapper was written, measured and then reverted (`32b2b51`): the fix belongs in `restore`, and a local copy would be one more thing to re-sync with each pixi-sandbox release *and* would mask the upstream fix when it lands. Filed as [pixi-sandbox#55](https://github.com/Archont561/pixi-sandbox/issues/55) with the full measurement set; adoption here is a `PIXI_SANDBOX_VERSION` bump, and AGENTS.md carries the interim manual commands |
 | Tauri app crates as workspace members | two apps in-repo, built from the same crates |
 | `apps/docs/` as a workspace member | the docs site joins the turbo graph (build in CI) |
 | `@castellan/utils` owns the TS bases + test fixtures | geoquery's root `tsconfig.base.json` became a package: `base`/`lib`/`app` extended through package exports (apps compose their framework-generated config with `app.json` via extends-arrays — strictness now reaches the apps, which a root file never did), plus `createFixture` for bun test suites |
