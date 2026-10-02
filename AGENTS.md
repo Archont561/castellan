@@ -215,7 +215,9 @@ no per-script wrappers, so a new script never needs a pixi line (the
   `screenshot` / `click <ref>` — snapshots go to disk (`.playwright-cli/`,
   gitignored), not into context. It ships its own playwright, so its
   browser comes from `install-browser chromium`, not the repo's pinned
-  one.
+  one. UI implementation work should also consult the Anthropic
+  `frontend-design` skill for visual direction and the `webapp-testing`
+  skill when a native Playwright script is a better fit than the CLI.
 - Adding a crate: directory under `crates/` with its `Cargo.toml` (the glob
   picks it up), a line in root `[workspace.dependencies]`, a row in
   `crates/README.md`. Adding a package: directory under `packages/`, added
@@ -228,8 +230,10 @@ no per-script wrappers, so a new script never needs a pixi line (the
   happens to be on PATH.
 - Adding an agent skill: `bun x skills add <source>` writes into
   `.agents/skills/` and pins it in `skills-lock.json`; commit both, the
-  same way `bun.lock` is committed. The repo ships the CLI (devDependency)
-  with no skills vendored yet — capability, not content.
+  same way `bun.lock` is committed. The repo already vendors project skills
+  for backlog/session/refactor/TDD/browser exploration and the UI loop
+  (`frontend-design`, `webapp-testing`), so prefer updating that set over
+  scattering agent-specific instructions elsewhere.
 - Toolchain: rust pinned by `rust-toolchain.toml`, bun by `packageManager`.
   `pixi.toml` **mirrors** both pins and must move with them (conda's cargo is
   not a rustup proxy, so the pin file does not re-pin inside `pixi run`).
