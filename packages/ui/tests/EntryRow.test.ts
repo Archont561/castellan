@@ -1,6 +1,6 @@
 import type { EntrySummary } from "@castellan/protocol";
 import { expect, test } from "@playwright/experimental-ct-svelte";
-import EntryRow from "../src/components/EntryRow.svelte";
+import EntryRow from "@/src/components/EntryRow.svelte";
 
 const entry: EntrySummary = {
   id: "3f9d2c88-9a41-4b1d-9f6a-6c4f5b2a7e10",

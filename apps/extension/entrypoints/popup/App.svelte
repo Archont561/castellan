@@ -10,9 +10,18 @@ onMount(async () => {
 });
 </script>
 
-<main>
-  <h1>Fob</h1>
-  <p class="status" data-state={state}>
+<!--
+  The popup uses the same shared UnoCSS foundation as the apps, with
+  `shell: false` (uno.config.ts): tokens and tints, but no `html`/`body`
+  painting — the browser owns this surface and sizes it from the content.
+  No `@castellan/ui` preset either: the popup renders none of the shared
+  components, so it ships none of their looks. The status colour is a data-attribute variant rather than a
+  CSS rule on `[data-state]`, so the state → colour mapping is visible in
+  the markup that sets the state. `status`/`muted` stay as e2e hooks.
+-->
+<main class="w-240px p-[0.9rem] font-sans">
+  <h1 class="mb-1 mt-0 text-[1.1rem]">Fob</h1>
+  <p class="status data-[state=up]:text-ok data-[state=down]:text-danger" data-state={state}>
     <!-- {#if}, not `state === "…" && "…"`: Svelte 5 renders a bare `false`
          in text position as the string "false", so the && form leaks
          "false" lines into the popup — caught by the e2e suite. -->
@@ -24,27 +33,5 @@ onMount(async () => {
       Castellan is not running
     {/if}
   </p>
-  <p class="muted">protocol v{PROTOCOL_VERSION} · no cloud, no accounts</p>
+  <p class="muted text-[0.75rem] text-muted">protocol v{PROTOCOL_VERSION} · no cloud, no accounts</p>
 </main>
-
-<style>
-  main {
-    width: 240px;
-    padding: 0.9rem;
-    font-family: system-ui, sans-serif;
-  }
-  h1 {
-    margin: 0 0 0.25rem;
-    font-size: 1.1rem;
-  }
-  .status[data-state="up"] {
-    color: #4caf7d;
-  }
-  .status[data-state="down"] {
-    color: #e06c75;
-  }
-  .muted {
-    color: #8a90a0;
-    font-size: 0.75rem;
-  }
-</style>

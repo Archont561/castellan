@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/experimental-ct-svelte";
-import LockedShield from "../src/components/LockedShield.svelte";
+import LockedShield from "@/src/components/LockedShield.svelte";
 
 // mount() resolves to the component's root element — here the svg itself,
 // so the state is asserted on the locator directly (role locators only

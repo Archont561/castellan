@@ -2,6 +2,11 @@
   A countdown ring around a TOTP code. Receives `secondsRemaining` from the
   protocol answer (the app computes the period arithmetic; the UI only draws
   it), and ticks locally between protocol answers.
+
+  The ring's two circles are the `c-ring-track` / `c-ring-progress`
+  shortcuts from this package's UnoCSS preset (`../../uno.ts`); `track` and
+  `progress` stay on the elements as test hooks (see EntryRow's header for
+  the convention).
 -->
 <script lang="ts">
 interface Props {
@@ -28,11 +33,11 @@ const circumference = 2 * Math.PI * 9;
 let dash = $derived((remaining / Math.max(secondsRemaining, 1)) * circumference);
 </script>
 
-<span class="totp">
+<span class="totp inline-flex items-center gap-2">
   <svg aria-hidden="true" height="22" width="22" viewBox="0 0 22 22">
-    <circle class="track" cx="11" cy="11" r="9" />
+    <circle class="track c-ring-track" cx="11" cy="11" r="9" />
     <circle
-      class="progress"
+      class="progress c-ring-progress"
       cx="11"
       cy="11"
       r="9"
@@ -40,31 +45,5 @@ let dash = $derived((remaining / Math.max(secondsRemaining, 1)) * circumference)
       stroke-dashoffset="{circumference - dash}"
     />
   </svg>
-  <code>{code}</code>
+  <code class="text-[1.1em] tracking-[0.15em]">{code}</code>
 </span>
-
-<style>
-  .totp {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-  .track,
-  .progress {
-    fill: none;
-    stroke-width: 2.5;
-  }
-  .track {
-    stroke: color-mix(in oklab, currentColor 20%, transparent);
-  }
-  .progress {
-    stroke: currentColor;
-    transform: rotate(-90deg);
-    transform-origin: center;
-    transition: stroke-dashoffset 1s linear;
-  }
-  code {
-    font-size: 1.1em;
-    letter-spacing: 0.15em;
-  }
-</style>

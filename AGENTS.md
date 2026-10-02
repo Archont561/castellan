@@ -61,6 +61,8 @@ $ bunx playwright-cli install-browser chromium   # once per machine, for the
                              # bun install via @playwright/browser-chromium
 $ cargo test --workspace     # rust suites directly
 $ cargo run -p castellan-xtask -- codegen
+$ ./scripts/restore.sh       # restore the offline environment (read the
+                             # airlock note below before trusting it)
 ```
 
 Any of these also runs with the dev-tool env on PATH through pixi's one
@@ -108,6 +110,34 @@ no per-script wrappers, so a new script never needs a pixi line (the
   was out of domain, fix the strategy and delete the seed. fast-check
   prints the failing seed itself — re-run with `{ seed }`; `bun test
   --seed` does not reach it.
+- **Styling is UnoCSS, from a foundation plus a look.** `@castellan/utils/uno`
+  exports `unoPreset()`: the tokens (`--bg`, `--accent`…, reachable as
+  `bg-bg`/`text-accent` and overridable per subtree), the `*-tint-<n>`
+  currentColor mixes, the optional `html`/`body` shell, and the extraction
+  pipeline. `@castellan/ui/uno` exports `presetUi()`: the component looks, as
+  shortcuts (`c-entry-row`, `c-action`, `c-badge`, `c-field`,
+  `c-section-title`, `c-ring-*`), kept with the components they describe. A
+  consumer's `uno.config.ts` is one expression around them —
+  `export default unoPreset({ presets: [presetUi()] })` in the two faces and
+  the library's harnesses, plain `unoPreset({ shell: false })` in the
+  extension popup, which renders no shared components and so ships none of
+  their looks. Put a new recurring look in `packages/ui/uno.ts` (at the
+  package *root*: `src/**` is scanned by the extractor, and a shortcut table
+  under it would ship every utility it names); put a one-off size in the
+  markup. The *metrics* — padding, widths, corner radius — always stay in the
+  markup, because that is exactly where the faces legitimately disagree. Two
+  rules to respect: never put a property in a shortcut that a face also sets
+  inline (two utilities for one property leave the winner to CSS source
+  order), and keep the bare semantic class (`username`, `badge`, `status`,
+  `error`) as the first class on an element — it carries no CSS and exists so
+  the component tests and e2e suites have a hook that design changes cannot
+  break. The extraction pipeline is configured to scan `packages/ui/src` as
+  well as the app's own source, because the shared components are consumed as
+  source and their classes are built by *the app's* UnoCSS pass — if that
+  include ever stops matching, components render unstyled in the apps while
+  looking perfect in Storybook (`packages/utils/test/uno.test.ts` guards the
+  pipeline and the preset seam; `packages/ui/tests/styling.test.ts` reads the
+  looks back out of a real browser).
 - **The `@` alias** maps to each workspace member's own root (`@/src/fixtures`),
   wired the way each stack wants it: packages declare tsconfig `paths`,
   SvelteKit apps use `kit.alias` (so tsc *and* vite learn it), WXT generates
@@ -115,7 +145,16 @@ no per-script wrappers, so a new script never needs a pixi line (the
   **Never in a shared package's `src/`** — that source is bundled by the
   *consuming* app's bundler, whose `@` points at the app, not the package;
   the import would resolve to the wrong files at the consumer's build, not
-  yours. Package source keeps `./`-relative imports.
+  yours. Package source keeps `./`-relative imports. **Enforced by
+  `style/noRestrictedImports`** (biome.json): any import that climbs with
+  `../` is an error, and `packages/*/src/**` is the one override where the
+  rule is off, because that is exactly where `@` is forbidden. If the alias
+  does not resolve somewhere, teach that bundler instead of climbing —
+  tsconfig `paths` only convinces tsc, so vite-driven harnesses need their
+  own `resolve.alias` (`packages/ui`'s `ctViteConfig` is the worked
+  example). Runtime path arithmetic — `new URL("../.output/…",
+  import.meta.url)` in the extension's e2e fixture — is not an import and
+  is not affected: no bundler resolves it, so there is no alias to apply.
 - **Library packages build with bunup**, configured once: every
   `bunup.config.ts` is two lines around `libPreset` from
   `@castellan/utils/bunup` (ESM-only, d.ts, sourcemaps, clean `dist/`,
@@ -136,6 +175,16 @@ no per-script wrappers, so a new script never needs a pixi line (the
   faces through their dev servers (desktop 5173, mobile 5174) and loads
   the *built* extension into full Chromium (`channel: "chromium"` — the
   default headless shell cannot load extensions).
+- **If `cdn.playwright.dev` is unreachable, `bun run browsers:offline`.**
+  `scripts/offline-browsers.ts` provisions chromium and ffmpeg from npm
+  packages that ship the binary *inside the tarball*
+  (`@sparticuz/chromium`, `@ffmpeg-installer/ffmpeg`) into the user cache,
+  shimmed into Playwright's registry layout. It is a host-level fallback,
+  not a second supported setup: never add those packages to the workspace,
+  nothing in CI calls it, and on a healthy machine it prints "already
+  provisioned". It unblocks the ui component tests and the desktop/mobile
+  e2e suites; it cannot unblock the **extension** suite, because that
+  chromium is a headless shell with no extensions subsystem at all.
 - **`mount()` in component tests resolves to the component's root
   element**, not a wrapper — assert and click the returned locator
   directly, and query only the parts inside it as descendants. Role
@@ -187,6 +236,32 @@ no per-script wrappers, so a new script never needs a pixi line (the
   activated onto `PATH`), so a tool is added in one place and a stale
   `pixi.lock` fails the gate instead of drifting; contributors who prefer
   rustup + bun.sh installs get the same binaries, provisioned differently.
+- **The offline airlock is `./scripts/restore.sh`** (generated by `pixi-sandbox
+  init` — regenerate it, never edit it), and on pixi-sandbox **0.4.0 it does not
+  finish the job**: it `git archive`s `origin/sandbox/developer-<platform>`,
+  which a clone whose fetch refspec covers only `main` does not have, and it
+  wires the vendored crates by writing `.cargo/config.toml` — then finds the
+  tracked one carrying `TS_RS_EXPORT_DIR`, rightly leaves it alone, and still
+  prints `restore complete`. The 489 crates land in `.pixi-sandbox/vendor/` with
+  nothing pointing at them, so the next cargo call fails with `no matching
+  package named proptest` and blames offline mode. **Both halves are fixed
+  upstream, not here**
+  ([pixi-sandbox#55](https://github.com/Archont561/pixi-sandbox/issues/55)): the
+  repo deliberately carries no wrapper script, so bumping
+  `PIXI_SANDBOX_VERSION` in `publish-sandbox.yml` once the fix ships is the
+  whole adoption. Until then, two throwaway commands either side of the restore
+  — never a commit:
+  ```console
+  $ git fetch --no-tags origin 'refs/heads/sandbox/*:refs/remotes/origin/sandbox/*'
+  $ ./scripts/restore.sh && mkdir -p .pixi/cargo-home && printf '[source.crates-io]\nreplace-with = "vendored-sources"\n[source.vendored-sources]\ndirectory = "%s/.pixi-sandbox/vendor"\n' "$PWD" > .pixi/cargo-home/config.toml
+  $ export CARGO_HOME="$PWD/.pixi/cargo-home"   # alongside .pixi/sandbox-env.sh
+  ```
+  Do **not** "fix" this by committing the `[source]` block into
+  `.cargo/config.toml`: source replacement pointing at a directory that exists
+  only after a restore breaks CI and every networked contributor. `cargo
+  --config key=value`, `CARGO_SOURCE_*` and `pixi run` do not help either — the
+  first two are not config *files*, and `pixi run` chooses the cargo binary, not
+  where it looks for sources.
 - Hooks and repo linters: **lefthook** is a devDependency, installed by the
   guarded `prepare` script (skips silently where there is no `.git`, so
   `bun install` never breaks in a snapshot/zip export). The commit-msg hook

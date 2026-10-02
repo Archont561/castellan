@@ -19,8 +19,12 @@ dist/
 apps/*/build/
 # SvelteKit's generated types and cache.
 .svelte-kit/
-# WXT's generated types and build output.
+# WXT's generated types and build output. `.wxt/` is the type cache;
+# `.output/` is where `wxt build` actually writes the packed extension
+# (and what the e2e suite loads into chromium) — untracked, like every
+# other face's build directory.
 .wxt/
+.output/
 # The wasm-pack output of crates/wasm: a build artifact, rebuilt by
 # `bun run wasm`, deterministic enough not to review — except the .d.ts,
 # which is committed so `bun run all:typecheck` passes on a fresh clone

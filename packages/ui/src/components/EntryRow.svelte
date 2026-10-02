@@ -3,6 +3,13 @@
   Presentational only — data comes in as props, every action is an event
   callback, and the components stay usable in the desktop grid and the mobile
   list alike.
+
+  Styling is UnoCSS: the row's look is the `c-entry-row` shortcut from this
+  package's own preset (`../../uno.ts`, layered on the foundation in
+  `@castellan/utils/uno`), the one-off metrics are utilities. The leading bare class on each element
+  (`title`, `username`, `badge`…) carries no CSS — it is the stable hook the
+  component tests and the faces' e2e suites query by, kept deliberately
+  separate from the utilities, which are free to change with the design.
 -->
 <script lang="ts">
 import type { EntrySummary } from "@castellan/protocol";
@@ -15,57 +22,13 @@ interface Props {
 let { entry, onPick }: Props = $props();
 </script>
 
-<button class="row" onclick={() => onPick?.(entry)} type="button">
-  <span class="title">{entry.title}</span>
+<button class="row c-entry-row" onclick={() => onPick?.(entry)} type="button">
+  <span class="title font-600 truncate">{entry.title}</span>
   {#if entry.username}
-    <span class="username">{entry.username}</span>
+    <span class="username truncate text-[0.85em] text-tint-60">{entry.username}</span>
   {/if}
-  <span class="badges">
-    {#if entry.has_totp}<span class="badge" title="TOTP">2FA</span>{/if}
-    {#if entry.has_passkey}<span class="badge" title="Passkey">🔑</span>{/if}
+  <span class="badges flex gap-1">
+    {#if entry.has_totp}<span class="badge c-badge" title="TOTP">2FA</span>{/if}
+    {#if entry.has_passkey}<span class="badge c-badge" title="Passkey">🔑</span>{/if}
   </span>
 </button>
-
-<style>
-  .row {
-    display: grid;
-    grid-template-columns: 1fr auto auto;
-    align-items: baseline;
-    gap: 0.75rem;
-    width: 100%;
-    padding: 0.6rem 0.8rem;
-    background: none;
-    border: 0;
-    border-radius: 8px;
-    color: inherit;
-    font: inherit;
-    text-align: left;
-    cursor: pointer;
-  }
-  .row:hover {
-    background: color-mix(in oklab, currentColor 8%, transparent);
-  }
-  .title {
-    font-weight: 600;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .username {
-    color: color-mix(in oklab, currentColor 60%, transparent);
-    font-size: 0.85em;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .badges {
-    display: flex;
-    gap: 0.25rem;
-  }
-  .badge {
-    font-size: 0.7em;
-    padding: 0.1rem 0.4rem;
-    border-radius: 999px;
-    border: 1px solid color-mix(in oklab, currentColor 30%, transparent);
-  }
-</style>

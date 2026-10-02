@@ -8,6 +8,7 @@ the native channel, the testing vocabulary, and the CI gate.
 * [Native channel](native-channel.md) - framing, host, manifests, association
 * [Testing](testing.md) - the shared vocabulary: rstest/proptest ↔ createFixture/fast-check
 * [CI](ci.md) - the single gate and its known blind spots
+* [Styling](styling.md) - one shared UnoCSS config, tokens, and the extraction pipeline
 
 # Navigation
 

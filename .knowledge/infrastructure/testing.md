@@ -137,6 +137,38 @@ Who uses that one browser:
   into that entry; its build cache is `playwright/.cache/` (gitignored
   + biome-ignored).
 
+### When the Playwright CDN is unreachable (`bun run browsers:offline`)
+
+A sandbox or a locked-down network that cannot reach `cdn.playwright.dev`
+loses the component tests *and* every e2e suite at once — most of the gate.
+`scripts/offline-browsers.ts` is the fallback, and only that: CI never
+calls it, and on a healthy machine it prints "already provisioned" and
+exits.
+
+It works because two npm packages ship a **binary inside the tarball**
+instead of downloading one from a postinstall, so the npm registry is the
+only host involved: `@sparticuz/chromium` (a brotli-compressed chromium
+built for Lambda, with its NSS/NSPR libraries beside it) and
+`@ffmpeg-installer/ffmpeg` (a static ffmpeg — Playwright needs one to
+encode the failure videos `e2ePreset` asks for). Both are installed into
+`$XDG_CACHE_HOME/castellan-offline-browsers` — never the repo, never the
+lockfile: this is a property of the host, not of the project — and shimmed
+into the layout Playwright's registry expects, with the revisions read out
+of the installed `playwright-core/browsers.json` so a version bump needs no
+edit.
+
+The shim at each executable path is a **launcher script**, not a symlink:
+it exports `LD_LIBRARY_PATH` for the bundled libraries, and it is also what
+makes Playwright's host-requirements check pass, since `ldd` on a shell
+script finds nothing missing.
+
+What it does **not** give you is the extension suite. That chromium is a
+headless shell with no extensions subsystem compiled in at all — no
+`extensions::` symbols, no `chrome-extension://` scheme — so
+`--load-extension` is silently ignored and the MV3 service worker never
+registers. Component tests and the desktop/mobile e2e suites do pass on it
+(verified: 10 CT + both shell specs).
+
 ### Gotchas this layer already caught (keep the tests in the loop)
 
 - **`mount()` resolves to the component's root element**, not a

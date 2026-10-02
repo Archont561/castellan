@@ -9,6 +9,7 @@
     "deny.toml"
   ],
   "globalEnv": ["CASTELLAN_VERSION"],
+  "globalPassThroughEnv": ["PLAYWRIGHT_BROWSERS_PATH", "XDG_CACHE_HOME"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

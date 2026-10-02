@@ -11,7 +11,7 @@ generated:
   by: agent/castellan-kb
   at: "2026-10-01T22:00:00Z"
 created: "2026-10-01T22:00:00Z"
-updated: "2026-10-01T22:15:00Z"
+updated: "2026-10-02T10:30:00Z"
 id: infrastructure/monorepo
 category: infrastructure
 refs:
@@ -50,6 +50,11 @@ single-job CI, dual MIT/Apache-2.0.
 - **skills** (devDependency): the agent-skills CLI. `bun x skills add
   <source>` vendors into `.agents/skills/` + `skills-lock.json`; the repo
   commits the capability, no skills yet.
+- **The offline airlock**: `publish-sandbox.yml` packs the locked environment
+  and the 489 vendored crates onto the orphan branch
+  `sandbox/developer-<platform>`; `scripts/restore.sh` (generated, regenerable)
+  unpacks and verifies it with no network. On 0.4.0 it stops one step short of
+  a usable cargo here — see the divergence row below.
 
 ## Kept from geoquery
 
@@ -70,10 +75,11 @@ single-job CI, dual MIT/Apache-2.0.
 | `codegen` turbo task + dependency edge | typecheck of `@castellan/protocol` *depends on* codegen — stale generated output fails the build |
 | WASM layer (`castellan-wasm` + `@castellan/wasm`) | the extension face needs pure-logic WASM (geoquery has none) |
 | Root `.cargo/config.toml` setting `TS_RS_EXPORT_DIR` | redirects ts-rs test-time exports into the shared generated dir — one output, two doors (`cargo test` and xtask produce identical bytes) |
+| **No** local wrapper around `scripts/restore.sh` | that tracked `.cargo/config.toml` is exactly what stops pixi-sandbox 0.4.0 from wiring the vendor tree (it will not clobber an existing file), and the `[source]` block cannot be tracked either — replacement pointing at a directory that only exists after a restore is a hard error for CI and every networked contributor. A working wrapper was written, measured and then reverted (`32b2b51`): the fix belongs in `restore`, and a local copy would be one more thing to re-sync with each pixi-sandbox release *and* would mask the upstream fix when it lands. Filed as [pixi-sandbox#55](https://github.com/Archont561/pixi-sandbox/issues/55) with the full measurement set; adoption here is a `PIXI_SANDBOX_VERSION` bump, and AGENTS.md carries the interim manual commands |
 | Tauri app crates as workspace members | two apps in-repo, built from the same crates |
 | `apps/docs/` as a workspace member | the docs site joins the turbo graph (build in CI) |
 | `@castellan/utils` owns the TS bases + test fixtures | geoquery's root `tsconfig.base.json` became a package: `base`/`lib`/`app` extended through package exports (apps compose their framework-generated config with `app.json` via extends-arrays — strictness now reaches the apps, which a root file never did), plus `createFixture` for bun test suites |
-| Repo-wide `@` root alias + bunup builds through one preset | every member resolves `@/` to its own root (tsconfig paths in packages, `kit.alias` in SvelteKit, generated in WXT, tsconfig paths in Astro); `libPreset` in `@castellan/utils/bunup` centralizes ESM+dts build choices — package `src/` never uses `@` because consumer bundlers would misresolve it |
+| Repo-wide `@` root alias + bunup builds through one preset | every member resolves `@/` to its own root (tsconfig paths in packages, `kit.alias` in SvelteKit, generated in WXT, tsconfig paths in Astro); `libPreset` in `@castellan/utils/bunup` centralizes ESM+dts build choices — package `src/` never uses `@` because consumer bundlers would misresolve it. The alias is **enforced**, not suggested: biome's `style/noRestrictedImports` forbids any `../`-climbing import, with `packages/*/src/**` exempted as the place where `@` is the wrong answer. A directory the alias does not reach is a directory whose bundler has not been taught it — `packages/ui`'s component tests needed `resolve.alias` in `ctViteConfig`, because tsconfig `paths` is a typechecker fact and vite never reads it |
 | fast-check + bun-test properties | the TS packages get proptest's mirror; convco/actionlint ride the toolchain (neither ships a usable npm CLI — the npm `convco` entry is an empty squat, npm `actionlint` is a wasm library with no bin) |
 
 ## Conventions that travel with the pattern
