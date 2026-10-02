@@ -36,25 +36,21 @@ jobs:
       - name: Clippy, captured
         run: |
           set +e
-          cargo clippy --workspace --all-targets -- -D warnings > /tmp/clippy.txt 2>&1
+          # `short` gives one `file:line: message` per diagnostic, which fits
+          # in an annotation; the cargo progress chatter does not and would
+          # otherwise eat the whole budget before the first error.
+          cargo clippy --workspace --all-targets --message-format=short -- -D warnings > /tmp/raw.txt 2>&1
           code=$?
           echo "exit=$code"
+          grep -vE '^( *(Downloaded|Downloading|Compiling|Checking|Updating|Finished|Blocking) |warning: build failed)' /tmp/raw.txt > /tmp/clippy.txt
           {
             echo '## clippy exit '"$code"
             echo '```'
             cat /tmp/clippy.txt
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-          # Only the warning/error headlines, as one annotation.
-          grep -E '^(error|warning)(\[|:)' /tmp/clippy.txt | sort | uniq -c | sort -rn > /tmp/head.txt
-          body=$(cat /tmp/head.txt)
+          body=$(head -c 30000 /tmp/clippy.txt)
           body="${body//'%'/'%25'}"
           body="${body//$'\n'/'%0A'}"
           body="${body//$'\r'/'%0D'}"
-          echo "::error title=clippy headlines::${body}"
-          # And the first 120 lines of real detail.
-          det=$(head -c 60000 /tmp/clippy.txt)
-          det="${det//'%'/'%25'}"
-          det="${det//$'\n'/'%0A'}"
-          det="${det//$'\r'/'%0D'}"
-          echo "::error title=clippy detail::${det}"
+          echo "::error title=clippy::${body}"
