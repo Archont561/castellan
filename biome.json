@@ -67,7 +67,18 @@
         "noUnusedVariables": "error"
       },
       "style": {
-        "useNamingConvention": "off"
+        "useNamingConvention": "off",
+        "noRestrictedImports": {
+          "level": "error",
+          "options": {
+            "patterns": [
+              {
+                "group": ["../**", "../"],
+                "message": "Climbing out of a directory with `../` is not how this repo resolves siblings: use the `@` alias, which points at your package or app root (`@/src/components/X.svelte`, `@/src/fixtures`). The one exception is a shared package's own `src/`, which keeps `./`-relative imports because `@` would resolve against the consuming app there — see AGENTS.md."
+              }
+            ]
+          }
+        }
       },
       "suspicious": {
         "noExplicitAny": "warn"
@@ -88,6 +99,16 @@
     }
   },
   "overrides": [
+    {
+      "includes": ["packages/*/src/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": "off"
+          }
+        }
+      }
+    },
     {
       "includes": ["**/*.svelte"],
       "linter": {

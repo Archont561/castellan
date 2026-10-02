@@ -145,7 +145,16 @@ no per-script wrappers, so a new script never needs a pixi line (the
   **Never in a shared package's `src/`** — that source is bundled by the
   *consuming* app's bundler, whose `@` points at the app, not the package;
   the import would resolve to the wrong files at the consumer's build, not
-  yours. Package source keeps `./`-relative imports.
+  yours. Package source keeps `./`-relative imports. **Enforced by
+  `style/noRestrictedImports`** (biome.json): any import that climbs with
+  `../` is an error, and `packages/*/src/**` is the one override where the
+  rule is off, because that is exactly where `@` is forbidden. If the alias
+  does not resolve somewhere, teach that bundler instead of climbing —
+  tsconfig `paths` only convinces tsc, so vite-driven harnesses need their
+  own `resolve.alias` (`packages/ui`'s `ctViteConfig` is the worked
+  example). Runtime path arithmetic — `new URL("../.output/…",
+  import.meta.url)` in the extension's e2e fixture — is not an import and
+  is not affected: no bundler resolves it, so there is no alias to apply.
 - **Library packages build with bunup**, configured once: every
   `bunup.config.ts` is two lines around `libPreset` from
   `@castellan/utils/bunup` (ESM-only, d.ts, sourcemaps, clean `dist/`,

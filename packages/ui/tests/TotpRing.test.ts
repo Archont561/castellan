@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/experimental-ct-svelte";
-import TotpRing from "../src/components/TotpRing.svelte";
+import TotpRing from "@/src/components/TotpRing.svelte";
 
 // The ring ticks on its own between protocol answers, but the contract
 // worth pinning is what it draws *for a given answer*: the code, and a
