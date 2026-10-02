@@ -34,6 +34,7 @@
     "lint:workflows": "actionlint .github/workflows/*.yml",
     "lint:commits": "convco check",
     "all:e2e": "turbo run e2e --concurrency=1",
+    "browsers:offline": "bun run scripts/offline-browsers.ts",
     "all:storybook": "turbo run build:storybook",
     "prepare": "sh -c 'if [ -d .git ]; then lefthook install; fi'"
   },
