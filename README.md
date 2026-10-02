@@ -233,9 +233,8 @@ boundary between them:
   recovery, and hardening. Run `bun run backlog` for the kanban board.
 - **[`.knowledge/`](.knowledge/)** — durable knowledge in Google's
   **Open Knowledge Format v0.2**: 24 concepts across six categories
-  (project, faces, security, features, infrastructure, research), with the
-  conformance validator vendored at `.knowledge/tools/validate_okf.py`
-  (`bun run okf:check` — currently green, zero warnings). This is the
+  (project, faces, security, features, infrastructure, research), each
+  carrying typed YAML front matter. This is the
   *why*: threat model, biometric-unlock architecture, the passkey
   enforcement rule, keepass-rs and LocalSend findings, the naming research
   behind Castellan/Fob.

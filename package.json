@@ -30,14 +30,13 @@
     "dev:storybook": "bun run --cwd packages/ui storybook",
     "docs:build": "bun --bun run --cwd apps/docs build",
     "backlog": "backlog",
-    "okf:check": "python3 .knowledge/tools/validate_okf.py",
     "hooks:install": "lefthook install",
     "lint:workflows": "actionlint .github/workflows/*.yml",
     "lint:commits": "convco check",
     "all:e2e": "turbo run e2e --concurrency=1",
-    "all:storybook": "turbo run build:storybook"
+    "all:storybook": "turbo run build:storybook",
+    "prepare": "sh -c 'if [ -d .git ]; then lefthook install; fi'"
   },
-  "prepare": "sh -c 'if [ -d .git ]; then lefthook install; fi'",
   "devDependencies": {
     "@biomejs/biome": "^2.5.14",
     "@playwright/browser-chromium": "1.58.2",

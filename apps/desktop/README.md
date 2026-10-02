@@ -12,8 +12,10 @@ $ bun run tauri dev      # from this directory
 
 ## First-time setup
 
-- Icons: `bunx tauri icon <path-to-1024px-png>` writes `src-tauri/icons/` and
-  then `tauri.conf.json`'s empty `bundle.icon` array can be filled in.
+- Icons: `app-icon.png` is a placeholder. Replace it with a real 1024x1024
+  PNG and run `bunx tauri icon app-icon.png` to rewrite `src-tauri/icons/`;
+  `tauri.conf.json`'s `bundle.icon` array already lists the five files that
+  command produces. `apps/mobile` carries the same pair of files.
 - Linux needs the usual Tauri system libraries (webkit2gtk-4.1, librsvg,
   libssl); macOS and Windows need Xcode / WebView2 respectively.
 

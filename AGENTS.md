@@ -177,14 +177,16 @@ no per-script wrappers, so a new script never needs a pixi line (the
   not a rustup proxy, so the pin file does not re-pin inside `pixi run`).
   Do not suggest npx/pnpm/cargo-from-path; hooks and CI assume exactly these.
   `pixi install` (decision-8) provisions every tool the gates call — bun, rust
-  with clippy+rustfmt, the wasm32 std, wasm-pack, convco, actionlint,
-  cargo-deny, cargo-nextest, cargo-llvm-cov — pinned through the committed
-  `pixi.lock`, split across three features (`rust`, `web`, `utils`) so a
-  toolchain change is a reviewable diff on its own. Pixi manages **tools
+  with clippy+rustfmt, the wasm32 std, wasm-pack, wasm-bindgen-cli, convco,
+  actionlint, cargo-deny, cargo-nextest, cargo-llvm-cov — pinned through the
+  committed `pixi.lock`, split across three features (`rust`, `web`, `utils`)
+  so a toolchain change is a reviewable diff on its own. Pixi manages **tools
   only**: scripts stay behind `bun run` (reached from the env as `pixi run
-  bun run <script>` — the task table has no per-script wrappers), and
-  contributors who prefer rustup + bun.sh installs get the same binaries the
-  same way CI does.
+  bun run <script>` — the task table has no per-script wrappers). **CI
+  installs that same environment** (decision-10: `setup-pixi`, `--locked`,
+  activated onto `PATH`), so a tool is added in one place and a stale
+  `pixi.lock` fails the gate instead of drifting; contributors who prefer
+  rustup + bun.sh installs get the same binaries, provisioned differently.
 - Hooks and repo linters: **lefthook** is a devDependency, installed by the
   guarded `prepare` script (skips silently where there is no `.git`, so
   `bun install` never breaks in a snapshot/zip export). The commit-msg hook
@@ -200,6 +202,34 @@ no per-script wrappers, so a new script never needs a pixi line (the
   lint:workflows`, `pixi run bun run lint:commits`), or install release
   binaries like cargo-deny's.
 
+## Reading a failed CI run
+
+Neither `gh run view --log` nor `gh api .../actions/jobs/<id>/logs` works
+from a sandboxed agent: `gh` follows the redirect to
+`productionresultssa*.blob.core.windows.net` itself and dies with `EOF`,
+and the check-run annotations carry nothing but `Process completed with
+exit code N`. **Do not answer this by pushing a throwaway diagnostic
+workflow that re-runs the failing command and echoes `::error::`.** It
+costs a five-minute round trip per question, truncates at the annotation
+size limit, and the real log was reachable the whole time.
+
+`gh` prints the signed blob URL inside its own error message. Take it and
+retrieve it with a plain HTTP fetch — an agent's web-fetch tool resolves
+outside the sandbox, where the blob store is reachable:
+
+```console
+$ JOB=$(gh run view <run-id> --json jobs --jq '.jobs[0].databaseId')
+$ gh api -i "repos/Archont561/castellan/actions/jobs/$JOB/logs" 2>&1 \
+    | grep -o 'https://[^"]*job-logs.txt[^"]*'
+```
+
+Fetching that URL returns the complete, uncut job log — every step in
+order, timestamped. Two caveats: the signature expires roughly ten minutes
+after it is minted, so fetch promptly and re-mint rather than reusing a
+stale URL; and the log arrives in chunks, so page to the **end** — a gate
+failure is almost always in the last chunk, because every later step was
+skipped.
+
 ## Planning and knowledge — two systems, one boundary
 
 - **`backlog/`** is delivery state, in the [backlog.md](https://backlog.md)
@@ -212,8 +242,10 @@ no per-script wrappers, so a new script never needs a pixi line (the
   [Open Knowledge Format v0.2](https://github.com/GoogleCloudPlatform/knowledge-catalog)
   (GoogleCloudPlatform/knowledge-catalog): architecture, contracts,
   rationale, research. Every concept file carries typed YAML front matter
-  (`id`, `category`, `status`…); `python3 .knowledge/tools/validate_okf.py`
-  (or `bun run okf:check`) must exit 0 before a knowledge change lands.
+  (`id`, `category`, `status`…); match the shape of the files already
+  there, and bump `updated` when you change one. Nothing machine-checks
+  this — the conformance validator that used to was removed, so review is
+  the only gate.
 - **The boundary rule**: task checklists, sequencing, and status live in
   `backlog/`; the *why*, the contracts, and the research live in
   `.knowledge/`. Never a task list inside the knowledge bundle, never

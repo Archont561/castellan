@@ -26,6 +26,7 @@ environments:
   default:
     channels:
     - url: https://conda.anaconda.org/conda-forge/
+    - url: https://prefix.dev/archont561/pixi-sandbox/
     packages:
       linux-64:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda
@@ -66,6 +67,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/lzo-2.10-hebe6cf0_1003.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/openssl-3.6.4-h781a0a9_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/rust-1.98.0-hc89c8c8_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/wasm-bindgen-cli-0.2.129-h392c2a1_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/wasm-pack-0.15.0-hb17b654_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zstd-1.5.7-hb78ec9c_7.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/ca-certificates-2026.7.22-hbd8a1cb_0.conda
@@ -115,6 +117,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/lzo-2.10-h29ee22c_1003.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/openssl-3.6.4-he6ad1d5_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/rust-1.98.0-h651fc87_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/wasm-bindgen-cli-0.2.129-h8e35314_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/wasm-pack-0.15.0-h069e38c_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/zstd-1.5.7-h9d15635_7.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/ca-certificates-2026.7.22-hbd8a1cb_0.conda
@@ -157,6 +160,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-64/lzo-2.10-had63097_1003.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/openssl-3.6.4-h332eb6d_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/rust-1.98.0-h5655b98_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-64/wasm-bindgen-cli-0.2.129-h21e0505_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/wasm-pack-0.15.0-h19f9e61_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/zstd-1.5.7-hbc1a06c_7.conda
       osx-arm64:
@@ -192,6 +196,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/lzo-2.10-h74c22ad_1003.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/openssl-3.6.4-h55eecbc_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/rust-1.98.0-h4ff7c5d_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/wasm-bindgen-cli-0.2.129-hc2b0a5d_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/wasm-pack-0.15.0-h6fdd925_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/zstd-1.5.7-hf451053_7.conda
 packages:
@@ -737,6 +742,17 @@ packages:
     - __glibc >=2.17
   size: 173356947
   timestamp: 1787579582345
+- conda: https://conda.anaconda.org/conda-forge/linux-64/wasm-bindgen-cli-0.2.129-h392c2a1_0.conda
+  sha256: 46cacec2dd86f513a5f9a91578aedc88058100ba888870913a5a7a6920bdb8df
+  md5: 4e75ed85d5a4b8021910084fc673e681
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  constrains:
+  - __glibc >=2.17
+  license: MIT OR Apache-2.0
+  run_exports: {}
+  size: 7776271
+  timestamp: 1790358029199
 - conda: https://conda.anaconda.org/conda-forge/linux-64/wasm-pack-0.15.0-hb17b654_0.conda
   sha256: f8aed69714662b4da06ee0364d695792ae8d9397191ab441a8a6432dd61f5251
   md5: e528a0758c2dce2dfc8ea4fd0bcbb643
@@ -1268,6 +1284,15 @@ packages:
     - __glibc >=2.17
   size: 137660449
   timestamp: 1787578509925
+- conda: https://conda.anaconda.org/conda-forge/linux-aarch64/wasm-bindgen-cli-0.2.129-h8e35314_0.conda
+  sha256: 6cc9aa3260500eb7a0d3c462706f32b006904843d8446ab91e23de86f3d38af6
+  md5: 9071f618f390c9d0303f5c25117d9f76
+  constrains:
+  - __glibc >=2.17
+  license: MIT OR Apache-2.0
+  run_exports: {}
+  size: 7442039
+  timestamp: 1790358026506
 - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/wasm-pack-0.15.0-h069e38c_0.conda
   sha256: 9e964e24d9f677fcdf062c9d5b3789e070dc6cbebaa35c546b9aae7f1844dbeb
   md5: 18fa656fab4fa678356f5ade7982ddfc
@@ -1830,6 +1855,17 @@ packages:
     - __osx >=11.0
   size: 118613917
   timestamp: 1787578736364
+- conda: https://conda.anaconda.org/conda-forge/osx-64/wasm-bindgen-cli-0.2.129-h21e0505_0.conda
+  sha256: 32560837f70aeda2a879cdd07d4514c6cd9c24caeeac585eff37fc682e21be21
+  md5: 9bdc93fdca154d85b891ebf6834b4895
+  depends:
+  - __osx >=11.0
+  constrains:
+  - __osx >=11.0
+  license: MIT OR Apache-2.0
+  run_exports: {}
+  size: 7287590
+  timestamp: 1790358100448
 - conda: https://conda.anaconda.org/conda-forge/osx-64/wasm-pack-0.15.0-h19f9e61_0.conda
   sha256: 054dd0fe133d2fe42e6e090c0800dd2d10c663aa01c0ad28802c7a7f619b02c4
   md5: afce185f83a2fa7a5acd17db16322db9
@@ -2237,6 +2273,17 @@ packages:
   run_exports: {}
   size: 105937676
   timestamp: 1787578529591
+- conda: https://conda.anaconda.org/conda-forge/osx-arm64/wasm-bindgen-cli-0.2.129-hc2b0a5d_0.conda
+  sha256: 26faa7f16ad183b920d0facae6cfe769996e338f1f501df7f178723bee1e19a6
+  md5: e01861fa9125e181ee5d4df91c9181f7
+  depends:
+  - __osx >=11.0
+  constrains:
+  - __osx >=11.0
+  license: MIT OR Apache-2.0
+  run_exports: {}
+  size: 6869322
+  timestamp: 1790358037441
 - conda: https://conda.anaconda.org/conda-forge/osx-arm64/wasm-pack-0.15.0-h6fdd925_0.conda
   sha256: da3268c99f9ba928e6c8e7b5ccc80d615686fe926179cab5a76703d6ee03816f
   md5: acbf02604fb4e6881967c355164f6b74

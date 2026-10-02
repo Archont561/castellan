@@ -11,7 +11,7 @@ generated:
   by: agent/castellan-kb
   at: "2026-10-01T22:00:00Z"
 created: "2026-10-01T22:00:00Z"
-updated: "2026-10-01T22:00:00Z"
+updated: "2026-10-02T08:30:00Z"
 id: project/standards
 category: project
 refs:
@@ -35,7 +35,7 @@ refs:
 | **Aegis / andOTP export formats** | authenticator import | documented JSON/zip layouts, incl. encrypted |
 | **Bitwarden export JSON** | importer | encrypted + plaintext variants |
 | **KeeAgent fields** | SSH keys in KDBX | KeeAgent-compatible naming |
-| **OKF v0.2** | this knowledge bundle | validated by `tools/validate_okf.py` |
+| **OKF v0.2** | this knowledge bundle | front matter follows the spec; no local validator |
 
 Standing rule: adopt a documented format, never a reverse-engineered one
 without labeling it as such (LocalSend is documented; that is why it was

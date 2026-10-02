@@ -89,6 +89,17 @@ fn not_implemented(what: &str) -> RpcError {
 #[allow(dead_code)]
 fn reserved(_entries: &[EntrySummary], _new: &NewEntry) {}
 
+/// Builds and runs the desktop Tauri application.
+///
+/// Both entry points land here: `main` calls it directly, and on mobile
+/// `#[tauri::mobile_entry_point]` makes it the symbol the platform
+/// launcher invokes — which is why the binary stays a one-line
+/// delegation and all the wiring lives in the library.
+///
+/// # Panics
+///
+/// Panics if the webview runtime cannot start — there is no usable
+/// fallback for a GUI app whose window never opens.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()

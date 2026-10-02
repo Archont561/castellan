@@ -11,6 +11,11 @@ cargo-llvm-cov = "0.9.*"
 cargo-nextest = "0.9.*"
 rust = "==1.98.0"
 rust-std-wasm32-unknown-unknown = "==1.98.0"
+# Exact, and it must equal the `wasm-bindgen` version Cargo.lock resolves:
+# wasm-pack uses a `wasm-bindgen` already on PATH only when the versions match
+# exactly, and otherwise downloads one (or falls back to `cargo install`) mid
+# build — an unpinned network install inside a gate. Bump this with the crate.
+wasm-bindgen-cli = "==0.2.129"
 wasm-pack = "0.15.*"
 
 [feature.utils.dependencies]
@@ -36,7 +41,11 @@ default = ""
 [workspace]
 channels = [
     "conda-forge",
-    "https://prefix.dev/archont561",
+    # The channel segment is load-bearing: prefix.dev serves this channel at
+    # /archont561/pixi-sandbox, and /archont561 alone 404s on noarch/repodata
+    # — which fails the whole solve, not just this channel. Same URL as
+    # publish-sandbox.yml's PIXI_SANDBOX_CHANNEL; they move together.
+    "https://prefix.dev/archont561/pixi-sandbox",
 ]
 description = "Local-first secrets manager: KeePass-compatible vault, authenticator and soft security key"
 name = "castellan"
