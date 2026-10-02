@@ -30,7 +30,6 @@
     "dev:storybook": "bun run --cwd packages/ui storybook",
     "docs:build": "bun --bun run --cwd apps/docs build",
     "backlog": "backlog",
-    "okf:check": "python3 .knowledge/tools/validate_okf.py",
     "hooks:install": "lefthook install",
     "lint:workflows": "actionlint .github/workflows/*.yml",
     "lint:commits": "convco check",

@@ -31,8 +31,7 @@ Starlight, adjusted).
 - [`.knowledge/`](https://github.com/Archont561/castellan/tree/main/.knowledge)
   is **durable knowledge**, in Google's Open Knowledge Format v0.2: 24
   concepts across project, faces, security, features, infrastructure,
-  and research. The *why*, the contracts, the research. Validated by a
-  vendored conformance validator (`bun run okf:check`).
+  and research. The *why*, the contracts, the research.
 
 The boundary rule: task checklists and status live in backlog; the
 architecture rationale never buries itself in a task. A change with both
@@ -48,5 +47,5 @@ The five facts an agent needs before touching the repository are in
   `.agents/skills/` with `skills-lock.json` tracking sources and hashes;
   the repository commits no skills yet, so the dependency is capability,
   not content.
-- `bun run backlog` serves the kanban board locally; `bun run okf:check`
-  validates the knowledge bundle; `bun run dev:docs` serves this site.
+- `bun run backlog` serves the kanban board locally; `bun run dev:docs`
+  serves this site.

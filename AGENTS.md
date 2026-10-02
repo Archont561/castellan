@@ -214,8 +214,10 @@ no per-script wrappers, so a new script never needs a pixi line (the
   [Open Knowledge Format v0.2](https://github.com/GoogleCloudPlatform/knowledge-catalog)
   (GoogleCloudPlatform/knowledge-catalog): architecture, contracts,
   rationale, research. Every concept file carries typed YAML front matter
-  (`id`, `category`, `status`…); `python3 .knowledge/tools/validate_okf.py`
-  (or `bun run okf:check`) must exit 0 before a knowledge change lands.
+  (`id`, `category`, `status`…); match the shape of the files already
+  there, and bump `updated` when you change one. Nothing machine-checks
+  this — the conformance validator that used to was removed, so review is
+  the only gate.
 - **The boundary rule**: task checklists, sequencing, and status live in
   `backlog/`; the *why*, the contracts, and the research live in
   `.knowledge/`. Never a task list inside the knowledge bundle, never
