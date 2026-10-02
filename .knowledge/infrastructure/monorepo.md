@@ -11,7 +11,7 @@ generated:
   by: agent/castellan-kb
   at: "2026-10-01T22:00:00Z"
 created: "2026-10-01T22:00:00Z"
-updated: "2026-10-01T22:15:00Z"
+updated: "2026-10-02T10:30:00Z"
 id: infrastructure/monorepo
 category: infrastructure
 refs:
@@ -50,6 +50,12 @@ single-job CI, dual MIT/Apache-2.0.
 - **skills** (devDependency): the agent-skills CLI. `bun x skills add
   <source>` vendors into `.agents/skills/` + `skills-lock.json`; the repo
   commits the capability, no skills yet.
+- **The offline airlock**: `publish-sandbox.yml` packs the locked environment
+  and the 489 vendored crates onto the orphan branch
+  `sandbox/developer-<platform>`; `scripts/restore.sh` (generated, regenerable)
+  unpacks and verifies it with no network. Entry point is the hand-written
+  `scripts/airlock.sh` around it — see the divergence row below, and
+  `scripts/airlock.sh`'s own header for the measurements behind it.
 
 ## Kept from geoquery
 
@@ -70,6 +76,7 @@ single-job CI, dual MIT/Apache-2.0.
 | `codegen` turbo task + dependency edge | typecheck of `@castellan/protocol` *depends on* codegen — stale generated output fails the build |
 | WASM layer (`castellan-wasm` + `@castellan/wasm`) | the extension face needs pure-logic WASM (geoquery has none) |
 | Root `.cargo/config.toml` setting `TS_RS_EXPORT_DIR` | redirects ts-rs test-time exports into the shared generated dir — one output, two doors (`cargo test` and xtask produce identical bytes) |
+| `scripts/airlock.sh` wraps the generated `scripts/restore.sh` | that tracked `.cargo/config.toml` is exactly what stops pixi-sandbox from wiring the vendor tree (it will not clobber an existing file), and the `[source]` block cannot be tracked either — replacement pointing at a directory that only exists after a restore is a hard error for CI and every networked contributor. The wrapper puts it in a project-local `CARGO_HOME` under `.pixi/` instead (the only untracked, non-global layer cargo reads from a *file* — CLI `--config key=value` and `CARGO_SOURCE_*` do not work), fetches the sandbox branch when the clone's refspec missed it, and verifies resolution before claiming success |
 | Tauri app crates as workspace members | two apps in-repo, built from the same crates |
 | `apps/docs/` as a workspace member | the docs site joins the turbo graph (build in CI) |
 | `@castellan/utils` owns the TS bases + test fixtures | geoquery's root `tsconfig.base.json` became a package: `base`/`lib`/`app` extended through package exports (apps compose their framework-generated config with `app.json` via extends-arrays — strictness now reaches the apps, which a root file never did), plus `createFixture` for bun test suites |
