@@ -41,11 +41,6 @@ default = ""
 [workspace]
 channels = [
     "conda-forge",
-    # The channel segment is load-bearing: prefix.dev serves this channel at
-    # /archont561/pixi-sandbox, and /archont561 alone 404s on noarch/repodata
-    # — which fails the whole solve, not just this channel. Same URL as
-    # publish-sandbox.yml's PIXI_SANDBOX_CHANNEL; they move together.
-    "https://prefix.dev/archont561/pixi-sandbox",
 ]
 description = "Local-first secrets manager: KeePass-compatible vault, authenticator and soft security key"
 name = "castellan"
@@ -56,3 +51,6 @@ platforms = [
     "osx-arm64",
 ]
 version = "0.1.0"
+
+[dependencies]
+nodejs = ">=25.2.1,<26.11"
