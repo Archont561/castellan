@@ -318,12 +318,15 @@ no per-script wrappers, so a new script never needs a pixi line (the
 
 Neither `gh run view --log` nor `gh api .../actions/jobs/<id>/logs` works
 from a sandboxed agent: `gh` follows the redirect to
-`productionresultssa*.blob.core.windows.net` itself and dies with `EOF`,
-and the check-run annotations carry nothing but `Process completed with
-exit code N`. **Do not answer this by pushing a throwaway diagnostic
-workflow that re-runs the failing command and echoes `::error::`.** It
-costs a five-minute round trip per question, truncates at the annotation
-size limit, and the real log was reachable the whole time.
+`productionresultssa*.blob.core.windows.net` itself and dies with `EOF`.
+The workflow's annotation step narrows the common cases — a panicking
+test, a bun `(fail)`, a cargo `error:` — into check-run annotations, but
+a failure outside those patterns still reads as nothing but `Process
+completed with exit code N`. **Do not answer this by pushing a throwaway
+diagnostic workflow that re-runs the failing command and echoes
+`::error::`.** It costs a five-minute round trip per question, truncates
+at the annotation size limit, and the real log was reachable the whole
+time.
 
 `gh` prints the signed blob URL inside its own error message. Take it and
 retrieve it with a plain HTTP fetch — an agent's web-fetch tool resolves
@@ -336,11 +339,22 @@ $ gh api -i "repos/Archont561/castellan/actions/jobs/$JOB/logs" 2>&1 \
 ```
 
 Fetching that URL returns the complete, uncut job log — every step in
-order, timestamped. Two caveats: the signature expires roughly ten minutes
-after it is minted, so fetch promptly and re-mint rather than reusing a
-stale URL; and the log arrives in chunks, so page to the **end** — a gate
-failure is almost always in the last chunk, because every later step was
-skipped.
+order, timestamped. The signature expires roughly ten minutes after it
+is minted, so fetch promptly and re-mint rather than reusing a stale
+URL.
+
+Read in this order: the check-run annotations first — the workflow's
+`Surface test failures as annotations` step distills panicking tests,
+bun `(fail)` lines, and cargo `error:` lines into the check result, so
+`gh pr checks` plus one annotations call often answers without any
+fetch — then the raw log for what a digest cannot carry: which step,
+how long it ran, what the compiler said verbatim. And when the log
+spans dozens of chunks, do not page from the top: the fetcher reports
+the chunk total, a failing gate's output sits in the last chunk (every
+step after it was skipped), and the ten-minute signature will not
+outlast a sequential walk. Jump straight to the end, and binary-search
+backwards by the timestamp each chunk opens with when the failure's
+first line matters.
 
 ## Planning and knowledge — two systems, one boundary
 
