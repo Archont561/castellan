@@ -22,6 +22,8 @@ against ahead of the app.
 | `otp/` | otpauth parsing + RFC 6238 TOTP (SHA-1; other algorithms refused with clear errors, not wrong codes) |
 | `vault/` | KDBX core: open, entry projection, passphrase generation. Save = copy-aside-then-write, because keepass-rs writing is experimental |
 | `ipc/` | the one native channel: 4-byte LE framing (Chromium's native-messaging wire format, byte for byte) + the well-known socket path. std-only |
+| `ipc-server/` | the app-side socket server: connection multiplexing by request id, the association handshake (enroll once, prove with HMAC thereafter), silence on every refusal, and the connected-browsers panel data |
+| `manifests/` | the native-messaging manifest installer: browser detection, the one-pass write for every installed browser, the staleness audit, idempotent repair |
 | `native-host/` | the process each browser spawns: a byte pump between the browser's stdio and the app's socket. Parses nothing, so it can never be the wrong version |
 | `wasm/` | the WASM face of shared logic (`castellan-otp` + `protocol::matching`) — what the extension runs, the apps link natively |
 | `xtask/` | code generation: derives TypeScript bindings plus desktop/mobile/web-extension clients from `protocol` |
