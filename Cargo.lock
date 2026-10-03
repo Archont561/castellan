@@ -452,6 +452,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "castellan-manifests"
+version = "0.1.0"
+dependencies = [
+ "castellan-protocol",
+ "proptest",
+ "rstest",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "castellan-mobile"
 version = "0.1.0"
 dependencies = [

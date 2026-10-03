@@ -75,8 +75,12 @@ impl IpcServer {
             connections: Vec::new(),
             pending: Vec::new(),
             remembered: Vec::new(),
+            manifest_problems: Vec::new(),
         }
     }
+
+    /// Nothing to surface on a platform with no listener.
+    pub fn set_manifest_problems(&self, _problems: Vec<castellan_protocol::ManifestProblem>) {}
 
     /// No keys are remembered, because no store was ever loaded.
     #[must_use]

@@ -3,6 +3,8 @@ export type { FaceKind } from "./FaceKind";
 export type { AssociationClaim } from "./AssociationClaim";
 export type { ConnectionState } from "./ConnectionState";
 export type { ConnectionInfo } from "./ConnectionInfo";
+export type { ManifestProblem } from "./ManifestProblem";
+export type { ManifestProblemKind } from "./ManifestProblemKind";
 export type { PendingKey } from "./PendingKey";
 export type { PanelSnapshot } from "./PanelSnapshot";
 export type { RememberedKey } from "./RememberedKey";

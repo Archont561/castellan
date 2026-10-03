@@ -556,3 +556,37 @@ fn every_face_completes_the_handshake(#[case] face: FaceKind) {
     assert_eq!(conn.face, face);
     let _ = std::fs::remove_dir_all(dir);
 }
+
+#[test]
+fn manifest_problems_surface_in_the_panel_and_fire_changes() {
+    let (server, dir) = spawn_server("manifests");
+    let fires = Arc::new(AtomicUsize::new(0));
+    let counter = Arc::clone(&fires);
+    server.subscribe_changes(Arc::new(move || {
+        counter.fetch_add(1, Ordering::Relaxed);
+    }));
+
+    // The shell audited and found Chrome's manifest stale.
+    use castellan_protocol::{ManifestProblem, ManifestProblemKind};
+    server.set_manifest_problems(vec![ManifestProblem {
+        browser: FaceKind::Chrome,
+        kind: ManifestProblemKind::StalePath,
+        detail: "points at /old/place, the app now lives at /opt/castellan".to_string(),
+    }]);
+    let snapshot = server.panel();
+    assert_eq!(snapshot.manifest_problems.len(), 1);
+    assert_eq!(
+        snapshot.manifest_problems[0].kind,
+        ManifestProblemKind::StalePath
+    );
+    wait_until("the manifest problem's change signal", || {
+        fires.load(Ordering::Relaxed) >= 1
+    });
+
+    // The shell repaired; the panel's rows follow.
+    let before = fires.load(Ordering::Relaxed);
+    server.set_manifest_problems(Vec::new());
+    assert!(server.panel().manifest_problems.is_empty());
+    assert!(fires.load(Ordering::Relaxed) > before);
+    let _ = std::fs::remove_dir_all(dir);
+}

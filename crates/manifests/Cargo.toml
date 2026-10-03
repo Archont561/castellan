@@ -1,0 +1,32 @@
+# The native-messaging manifest installer (task-10): detect the installed
+# browsers, write every host manifest in one pass, and audit them for
+# staleness. A library crate for the same reason the IPC server is one —
+# the Tauri shells cannot compile in the dev sandbox, so the installer's
+# every rule is testable here; the settings surface calls into it and
+# surfaces the report.
+[package]
+name = "castellan-manifests"
+description = "Native-messaging manifest detection, installation, repair and audit for every supported browser"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+castellan-protocol = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+# The suite drives a fake home directory per platform layout; the rstest
+# matrices (browser × platform) and the repair-fixpoint property ride the
+# workspace pair.
+rstest = { workspace = true }
+proptest = { workspace = true }

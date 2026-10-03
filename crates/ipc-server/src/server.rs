@@ -21,7 +21,8 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use castellan_ipc::{MAX_MESSAGE_BYTES, encode_frame};
 use castellan_protocol::{
     AssociationClaim, ClientMessage, ConnectionInfo, ConnectionState, Event, FaceKind, Hello,
-    HostMessage, PanelSnapshot, PendingKey, RememberedKey, RpcRequest, RpcResponse,
+    HostMessage, ManifestProblem, PanelSnapshot, PendingKey, RememberedKey, RpcRequest,
+    RpcResponse,
 };
 
 use crate::association::{EnrollOutcome, WaitOutcome};
@@ -85,6 +86,10 @@ pub struct IpcServer {
     store: Arc<crate::association::AssociationStore>,
     registry: Mutex<BTreeMap<u64, Conn>>,
     listeners: Mutex<Vec<(u64, ChangeSink)>>,
+    /// Manifest staleness the shell's audit found (task-10). The server
+    /// owns no filesystem opinions about browser manifests — it surfaces
+    /// what it was handed, so the panel stays data.
+    manifest_problems: Mutex<Vec<ManifestProblem>>,
     next_id: AtomicU64,
     next_listener: AtomicU64,
     /// The handshake waits, in the open, behind a mutex so tests can
@@ -171,6 +176,7 @@ impl IpcServer {
             store,
             registry: Mutex::new(BTreeMap::new()),
             listeners: Mutex::new(Vec::new()),
+            manifest_problems: Mutex::new(Vec::new()),
             next_id: AtomicU64::new(0),
             next_listener: AtomicU64::new(0),
             timeouts: Mutex::new((APPROVAL_TIMEOUT, HELLO_TIMEOUT)),
@@ -223,11 +229,26 @@ impl IpcServer {
             .into_iter()
             .map(Into::into)
             .collect();
+        let manifest_problems = self
+            .manifest_problems
+            .lock()
+            .expect("manifest problems")
+            .clone();
         PanelSnapshot {
             connections,
             pending,
             remembered,
+            manifest_problems,
         }
+    }
+
+    /// Replace the manifest-staleness rows the panel shows (task-10).
+    /// The shell runs the audit — at startup, after every repair, and
+    /// whenever it rebuilds the settings — and hands the findings here;
+    /// empty means every installed browser's manifest is current.
+    pub fn set_manifest_problems(&self, problems: Vec<ManifestProblem>) {
+        *self.manifest_problems.lock().expect("manifest problems") = problems;
+        self.changed();
     }
 
     /// Remembered keys, oldest first.

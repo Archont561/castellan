@@ -18,6 +18,15 @@
 <script lang="ts">
 import type { FaceKind, PanelSnapshot } from "@castellan/protocol";
 
+/** The one-line label for each way a manifest can be stale (task-10). */
+const problemLabels: Record<string, string> = {
+  missing: "Manifest missing",
+  unreadable: "Manifest unreadable",
+  stale_path: "Manifest points at an old app path",
+  missing_id: "Manifest is missing an extension id",
+  foreign: "Manifest belongs to another host"
+};
+
 interface Props {
   snapshot: PanelSnapshot;
   onConfirm: (keyId: string) => void;
@@ -107,6 +116,23 @@ function dateOnly(unixSeconds: number): string {
         </li>
       {/each}
     </ul>
+  {/if}
+
+  {#if snapshot.manifest_problems.length > 0}
+    <section class="manifests" aria-label="Native messaging manifests">
+      <h2 class="manifest-title c-section-title text-[0.7em]">Needs repair</h2>
+      <ul class="list-none p-0 m-0">
+        {#each snapshot.manifest_problems as problem (problem.detail)}
+          <li class="problem flex items-baseline gap-2 py-[0.25rem]">
+            <span class="face font-600">{faceLabel(problem.browser)}</span>
+            <span class="kind text-[0.85em] text-danger">
+              {problemLabels[problem.kind] ?? "Manifest needs repair"}
+            </span>
+            <span class="detail text-[0.85em] text-tint-60">{problem.detail}</span>
+          </li>
+        {/each}
+      </ul>
+    </section>
   {/if}
 
   {#if snapshot.remembered.length > 0}

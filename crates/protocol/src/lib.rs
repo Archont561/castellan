@@ -607,8 +607,9 @@ pub struct PendingKey {
 }
 
 /// Everything the connected-browsers panel renders in one read: live
-/// connections, enrollments awaiting a decision, and the remembered keys
-/// the settings list shows.
+/// connections, enrollments awaiting a decision, the remembered keys
+/// the settings list shows, and the native-messaging manifests that
+/// need the repair button (task-10).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct PanelSnapshot {
@@ -618,6 +619,43 @@ pub struct PanelSnapshot {
     pub pending: Vec<PendingKey>,
     /// Keys the user has confirmed, oldest first.
     pub remembered: Vec<RememberedKey>,
+    /// Native-messaging manifests the audit flagged, per browser. Empty
+    /// means every installed browser's manifest is current; the panel
+    /// renders each row with a way to run the repair.
+    pub manifest_problems: Vec<ManifestProblem>,
+}
+
+/// One browser's native-messaging manifest failing the audit (task-10):
+/// the app moved, an extension id is missing, the manifest is gone or is
+/// not ours. Surfaced in the panel so "the extension suddenly stopped
+/// working" has a visible cause instead of a forum thread.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct ManifestProblem {
+    /// Which browser's manifest is stale.
+    pub browser: FaceKind,
+    /// What is wrong with it.
+    pub kind: ManifestProblemKind,
+    /// Human-readable specifics (the old path, the missing id) — for the
+    /// panel row, never a secret.
+    pub detail: String,
+}
+
+/// The ways a manifest can be stale.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+pub enum ManifestProblemKind {
+    /// No manifest where one should be — never installed, or deleted.
+    Missing,
+    /// The file exists but is not valid JSON (a half-write, an editor).
+    Unreadable,
+    /// The manifest points at a path the app no longer lives at.
+    StalePath,
+    /// One of our extension ids is absent from the allow list.
+    MissingId,
+    /// The file carries a different host's manifest entirely.
+    Foreign,
 }
 
 /// Origin matching, shared by every face.
