@@ -420,6 +420,8 @@ version = "0.1.0"
 dependencies = [
  "castellan-protocol",
  "castellan-vault",
+ "proptest",
+ "rstest",
 ]
 
 [[package]]
@@ -492,6 +494,8 @@ version = "0.1.0"
 dependencies = [
  "castellan-otp",
  "castellan-protocol",
+ "proptest",
+ "rstest",
  "serde",
  "serde-wasm-bindgen",
  "ts-rs",

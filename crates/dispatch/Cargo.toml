@@ -19,3 +19,11 @@ workspace = true
 [dependencies]
 castellan-protocol = { workspace = true }
 castellan-vault = { workspace = true }
+
+[dev-dependencies]
+# The suite's matrices and properties ride the workspace's pinned pair, the
+# same as ipc/otp/protocol/vault (AGENTS.md, "Tests live in a tests/
+# directory"): #[case] rows per contract operation, proptest for the
+# for-any-id and for-any-passphrase-request invariants.
+proptest = { workspace = true }
+rstest = { workspace = true }

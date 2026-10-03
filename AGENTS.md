@@ -228,6 +228,17 @@ no per-script wrappers, so a new script never needs a pixi line (the
   The docs site is the `apps/docs/` bun workspace; its scripts are forced onto
   bun's runtime (`bun --bun`), so Astro never falls back to whatever node
   happens to be on PATH.
+- **Implementing a change starts in the local skills, not the code.** Two of
+  the vendored skills under `.agents/skills/` are process contracts, not
+  reference shelf-ware: before writing any code for a change, consult
+  `tdd/SKILL.md` (the red → green loop, seams agreed up front, the
+  anti-patterns that make tests worthless) and, whenever the change
+  restructures existing code without changing behavior,
+  `refactor/SKILL.md` (small steps, tests green after each, behavior
+  preserved). They are local on purpose — read them from disk rather
+  than from memory, because a skill update lands as a reviewable commit
+  like any other. New work goes test-first at a seam; restructuring goes
+  through the refactor checklist; both end with the gates, not before.
 - Adding an agent skill: `bun x skills add <source>` writes into
   `.agents/skills/` and pins it in `skills-lock.json`; commit both, the
   same way `bun.lock` is committed. The repo already vendors project skills
