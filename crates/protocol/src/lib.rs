@@ -29,7 +29,11 @@ use ts_rs::TS;
 /// error: it is the input to capability negotiation — an old extension
 /// talking to a new app degrades to the methods both sides know, rather than
 /// dying with "cannot connect" the way version-skewed proxy setups do.
-pub const PROTOCOL_VERSION: u32 = 2;
+///
+/// Version 3 added the association handshake: the client hello carries a
+/// face, a client version, and an association claim; the app answers with a
+/// nonce challenge before it will send anything else (doc-2 §3).
+pub const PROTOCOL_VERSION: u32 = 3;
 
 /// What a connected face can be asked to do.
 ///
@@ -49,6 +53,70 @@ pub enum Capability {
     RecoveryCodes,
     /// LocalSend-compatible transfer between paired devices.
     Beam,
+}
+
+/// Which face a connected client is, for the connected-browsers panel.
+///
+/// The client self-reports this in its hello; the panel displays it, and
+/// the app-side origin enforcement (doc-1) never trusts it for a security
+/// decision — it is a label, not a credential.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+pub enum FaceKind {
+    /// Google Chrome (and, for manifest purposes, Chromium).
+    Chrome,
+    /// Microsoft Edge.
+    Edge,
+    /// Brave.
+    Brave,
+    /// Vivaldi.
+    Vivaldi,
+    /// Firefox (and derivatives that share its native-messaging layout).
+    Firefox,
+    /// Safari, through the app-extension transport rather than a host.
+    Safari,
+    /// The CLI, over the same socket (task-34).
+    Cli,
+    /// Anything else — future browsers, test harnesses.
+    Other,
+}
+
+/// The association claim in a client hello: who the client says it is,
+/// key-wise (doc-2 §3).
+///
+/// The first connection from an extension enrolls — it presents its key
+/// material so the app can prompt "Chrome wants to connect" and remember
+/// the key. Every later connection only claims the key id and proves
+/// possession with an HMAC over the app's nonce challenge. The two shapes
+/// share one type so the protocol can grow an asymmetric proof
+/// (Ed25519) without changing the handshake's message structure: the
+/// enroll variant carries whatever public material the proof scheme
+/// needs, the claim variant stays a bare key id.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+#[ts(export)]
+pub enum AssociationClaim {
+    /// First contact: here is my key material, remember me.
+    ///
+    /// The key crosses this channel once, on the local socket, after the
+    /// app has checked the peer credentials — the same-user rule is what
+    /// makes carrying the material acceptable. With a symmetric proof the
+    /// material is the HMAC key itself; with an asymmetric proof it would
+    /// be the public key only.
+    Enroll {
+        /// The key's stable identifier (a fingerprint of the material).
+        key_id: String,
+        /// The key material, hex-encoded.
+        key_hex: String,
+        /// A human label for the prompt ("Chrome on this machine").
+        label: String,
+    },
+    /// Returning: I am the key with this id; challenge me.
+    Claim {
+        /// The key's stable identifier.
+        key_id: String,
+    },
 }
 
 /// The vault, as a client sees it from the outside.
@@ -207,6 +275,18 @@ macro_rules! rpc_contract {
                     )*
                 },
             )+
+        }
+
+        impl RpcMethod {
+            /// The snake_case wire tag of this method — the name logs, the
+            /// connected-browsers panel and diagnostics display. Generated
+            /// with the enum so a new operation can never miss it.
+            #[must_use]
+            pub fn tag(&self) -> &'static str {
+                match self {
+                    $(RpcMethod::$variant { .. } => $wire,)+
+                }
+            }
         }
 
         /// The payload of a successful call, correlated with [`RpcMethod`]
@@ -405,6 +485,23 @@ pub enum ClientMessage {
     Hello {
         /// The protocol version the client speaks.
         protocol_version: u32,
+        /// Which face is connecting, for the panel. `None` on clients
+        /// older than the association handshake (version 2).
+        #[serde(default)]
+        face: Option<FaceKind>,
+        /// The client's own version string, for the panel.
+        #[serde(default)]
+        client_version: Option<String>,
+        /// The association claim: enroll on first contact, claim after.
+        #[serde(default)]
+        association: Option<AssociationClaim>,
+    },
+    /// The answer to the app's nonce challenge: proof of key possession.
+    Proof {
+        /// Which key this proves possession of.
+        key_id: String,
+        /// HMAC-SHA256 over the challenge nonce, hex-encoded.
+        proof_hex: String,
     },
     /// An RPC call.
     Request {
@@ -418,10 +515,23 @@ pub enum ClientMessage {
 #[serde(tag = "kind", rename_all = "snake_case")]
 #[ts(export)]
 pub enum HostMessage {
-    /// The answer to a client's hello.
+    /// The answer to a client's hello — sent only after the association
+    /// handshake completes (or for clients that predate it).
     Hello {
         /// The app's handshake.
         hello: Hello,
+    },
+    /// Prove you hold the key you claimed: HMAC-SHA256 over this nonce.
+    Challenge {
+        /// Which key to prove possession of.
+        key_id: String,
+        /// The nonce, hex-encoded. Fresh per connection; never reused.
+        nonce_hex: String,
+    },
+    /// The key id you claimed is not remembered here — enroll again.
+    UnknownKey {
+        /// The key id the app does not know.
+        key_id: String,
     },
     /// The answer to a request.
     Response {
@@ -433,6 +543,81 @@ pub enum HostMessage {
         /// What happened.
         event: Event,
     },
+}
+
+/// Where a connection stands in the association handshake.
+///
+/// The panel renders this as the row's state: a connection waiting for
+/// approval is the "Chrome wants to connect" prompt made visible; a ready
+/// connection is a live browser integration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+pub enum ConnectionState {
+    /// The key was presented but the user has not confirmed it yet; the
+    /// connection gets no data until they do (or it is denied).
+    AwaitingApproval,
+    /// The handshake completed; requests and events flow.
+    Ready,
+}
+
+/// One row of the connected-browsers panel.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct ConnectionInfo {
+    /// Connection identifier, stable for the connection's lifetime.
+    pub id: u64,
+    /// Which face is connected.
+    pub face: FaceKind,
+    /// The client's version string, when it sent one.
+    pub client_version: Option<String>,
+    /// The protocol version the client speaks.
+    pub protocol_version: u32,
+    /// Association state: awaiting approval or ready.
+    pub state: ConnectionState,
+    /// The last RPC method this connection sent, for "is it alive" and
+    /// for debugging a silent integration. A method name, never a
+    /// payload — the panel must not become a side channel.
+    pub last_request: Option<String>,
+    /// When the connection opened, unix seconds.
+    pub connected_at: u64,
+}
+
+/// One remembered association key, for the settings list.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct RememberedKey {
+    /// The key's stable identifier (a fingerprint of its material).
+    pub key_id: String,
+    /// The label chosen at enrollment ("Chrome on this machine").
+    pub label: String,
+    /// When the user confirmed the key, unix seconds.
+    pub added_at: u64,
+}
+
+/// An enrollment waiting for the user's decision — the "Chrome wants to
+/// connect" prompt, as data.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PendingKey {
+    /// The key's stable identifier.
+    pub key_id: String,
+    /// The label the client chose at enrollment.
+    pub label: String,
+}
+
+/// Everything the connected-browsers panel renders in one read: live
+/// connections, enrollments awaiting a decision, and the remembered keys
+/// the settings list shows.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PanelSnapshot {
+    /// Live connections, in connect order.
+    pub connections: Vec<ConnectionInfo>,
+    /// Enrollments waiting for the user, oldest first.
+    pub pending: Vec<PendingKey>,
+    /// Keys the user has confirmed, oldest first.
+    pub remembered: Vec<RememberedKey>,
 }
 
 /// Origin matching, shared by every face.

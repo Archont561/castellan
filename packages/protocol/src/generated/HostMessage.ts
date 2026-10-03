@@ -10,7 +10,19 @@ export type HostMessage = { "kind": "hello",
 /**
  * The app's handshake.
  */
-hello: Hello, } | { "kind": "response", 
+hello: Hello, } | { "kind": "challenge", 
+/**
+ * Which key to prove possession of.
+ */
+key_id: string, 
+/**
+ * The nonce, hex-encoded. Fresh per connection; never reused.
+ */
+nonce_hex: string, } | { "kind": "unknown_key", 
+/**
+ * The key id the app does not know.
+ */
+key_id: string, } | { "kind": "response", 
 /**
  * The response payload.
  */

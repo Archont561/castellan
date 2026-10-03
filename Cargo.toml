@@ -93,12 +93,23 @@ getrandom = ">=0.4,<0.5"
 data-encoding = ">=2.11,<3"
 
 # ── TOTP (RFC 6238) ───────────────────────────────────────────────────────────
-# SHA-1 only for now: it is what the overwhelming majority of services'
-# otpauth URIs specify, and the otp crate refuses `algorithm=SHA256` with a
-# clear error rather than computing the wrong code. Add sha2 when a real user
-# hits one.
+# SHA-1 only for now for otpauth: it is what the overwhelming majority of
+# services' URIs specify, and the otp crate refuses `algorithm=SHA256` with a
+# clear error rather than computing the wrong code. Add sha2 to the otp crate
+# when a real user hits one. sha2 itself is vendored and used by the IPC
+# server's association proof (HMAC-SHA256 over the nonce challenge) — pinned
+# to 0.11, the line that pairs with hmac 0.13's digest 0.11.
 hmac = ">=0.13,<0.14"
 sha1 = ">=0.11,<0.12"
+sha2 = ">=0.11,<0.12"
+# Hex codec for the association handshake's key/nonce/proof fields (and the
+# ipc crate's key parsing upstream). Tiny, no_std, exactly one job.
+hex = ">=0.4,<0.5"
+# Peer credentials for the IPC server's same-user check (SO_PEERCRED,
+# getpeereid). std's peer_cred is still unstable (rust#42839), so the one
+# getsockopt call goes through libc — a transitive dependency of half the
+# graph already, so this adds no new code to the vendor set.
+libc = ">=0.2,<0.3"
 
 # ── WASM face of the shared logic ─────────────────────────────────────────────
 # The extension runs the same `castellan-otp` parsing and `castellan-protocol`
@@ -137,13 +148,17 @@ rstest = ">=0.27,<0.28"
 proptest = ">=1.11,<2"
 
 # ── Lints ─────────────────────────────────────────────────────────────────────
-# One policy for every member. `unsafe_code = "forbid"` is the rule a secrets
-# manager owes its readers: the day a crate genuinely needs unsafe (a raw
-# socket option, a keychain FFI), it will be a workspace-level decision made
-# by removing this line in a reviewable diff, not an accident in a feature
-# branch. Copied from geoquery, which copied it from the same instinct.
+# One policy for every member. `unsafe_code = "deny"` is the rule a secrets
+# manager owes its readers — the original `forbid` held until the day it
+# foretold arrived: task-9's same-user check needs `SO_PEERCRED`, a raw
+# socket option std cannot express on stable (rust#42839). The decision this
+# comment prescribed — workspace-level, in a reviewable diff — is the two
+# `#[allow(unsafe_code)]` functions in `castellan-ipc-server`'s
+# `peer_credentials` audit surface, each with a SAFETY case in place. Every
+# other unsafe block in the workspace still fails the build by default.
+# Copied from geoquery, which copied it from the same instinct.
 [workspace.lints.rust]
-unsafe_code = "forbid"
+unsafe_code = "deny"
 missing_docs = "warn"
 missing_debug_implementations = "warn"
 unreachable_pub = "warn"

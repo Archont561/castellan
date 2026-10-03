@@ -10,9 +10,10 @@ use serde::Deserialize;
 use ts_rs::TS;
 
 use castellan_protocol::{
-    Capability, ClientMessage, ClientTarget, EntrySummary, Event, Hello, HostMessage, NewEntry,
-    RPC_OPERATIONS, RpcError, RpcErrorCode, RpcMethod, RpcRequest, RpcResponse, RpcResult,
-    VaultStatus,
+    AssociationClaim, Capability, ClientMessage, ClientTarget, ConnectionInfo, ConnectionState,
+    EntrySummary, Event, FaceKind, Hello, HostMessage, NewEntry, PanelSnapshot, PendingKey,
+    RPC_OPERATIONS, RememberedKey, RpcError, RpcErrorCode, RpcMethod, RpcRequest, RpcResponse,
+    RpcResult, VaultStatus,
 };
 use castellan_wasm::OtpAuthInfo;
 
@@ -88,6 +89,13 @@ pub(crate) fn run(root: &Path) -> Result<()> {
     let wire_types = export_types!(
         &cfg;
         Capability,
+        FaceKind,
+        AssociationClaim,
+        ConnectionState,
+        ConnectionInfo,
+        PendingKey,
+        PanelSnapshot,
+        RememberedKey,
         VaultStatus,
         Hello,
         EntrySummary,

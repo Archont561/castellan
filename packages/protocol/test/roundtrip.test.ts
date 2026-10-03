@@ -146,13 +146,46 @@ const arbRpcResponse: fc.Arbitrary<RpcResponse> = fc.record({
   error: fc.oneof(arbRpcError, fc.constant(null))
 });
 
+// The association handshake (protocol v3): a claim can enroll (material
+// crosses once) or just name a key, and both the face and the whole claim
+// are nullable so a v2 hello still parses.
+const arbFace = fc.constantFrom(
+  "chrome",
+  "edge",
+  "brave",
+  "vivaldi",
+  "firefox",
+  "safari",
+  "cli",
+  "other"
+);
+
+const arbAssociationClaim = fc.oneof(
+  fc.record({
+    kind: fc.constant("enroll"),
+    key_id: text,
+    key_hex: text,
+    label: text
+  }),
+  fc.record({ kind: fc.constant("claim"), key_id: text })
+);
+
 const arbClientMessage: fc.Arbitrary<ClientMessage> = fc.oneof(
-  fc.record({ kind: fc.constant("hello"), protocol_version: fc.nat() }),
+  fc.record({
+    kind: fc.constant("hello"),
+    protocol_version: fc.nat(),
+    face: fc.oneof(arbFace, fc.constant(null)),
+    client_version: nullableText,
+    association: fc.oneof(arbAssociationClaim, fc.constant(null))
+  }),
+  fc.record({ kind: fc.constant("proof"), key_id: text, proof_hex: text }),
   fc.record({ kind: fc.constant("request"), request: arbRpcRequest })
 );
 
 const arbHostMessage: fc.Arbitrary<HostMessage> = fc.oneof(
   fc.record({ kind: fc.constant("hello"), hello: arbHello }),
+  fc.record({ kind: fc.constant("challenge"), key_id: text, nonce_hex: text }),
+  fc.record({ kind: fc.constant("unknown_key"), key_id: text }),
   fc.record({ kind: fc.constant("response"), response: arbRpcResponse }),
   fc.record({ kind: fc.constant("event"), event: arbEvent })
 );

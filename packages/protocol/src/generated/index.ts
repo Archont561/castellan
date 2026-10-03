@@ -1,4 +1,11 @@
 export type { Capability } from "./Capability";
+export type { FaceKind } from "./FaceKind";
+export type { AssociationClaim } from "./AssociationClaim";
+export type { ConnectionState } from "./ConnectionState";
+export type { ConnectionInfo } from "./ConnectionInfo";
+export type { PendingKey } from "./PendingKey";
+export type { PanelSnapshot } from "./PanelSnapshot";
+export type { RememberedKey } from "./RememberedKey";
 export type { VaultStatus } from "./VaultStatus";
 export type { Hello } from "./Hello";
 export type { EntrySummary } from "./EntrySummary";
