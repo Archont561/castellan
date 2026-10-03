@@ -136,10 +136,20 @@ impl TestClient {
 
     /// The refusal answer: the connection closes and *zero* application
     /// bytes precede the close. Panics if bytes arrive or the connection
-    /// merely stalls.
+    /// merely stalls. The wait is generous (10 s, not the client's usual
+    /// 2 s read timeout) because a loaded shared runner may schedule the
+    /// server's close slowly — the property under test is "it closes,
+    /// silently", not "within two seconds".
     pub(crate) fn expect_silence(&mut self) {
+        self.stream
+            .set_read_timeout(Some(Duration::from_secs(10)))
+            .expect("read timeout");
         let mut one_byte = [0u8; 1];
-        match self.stream.read(&mut one_byte) {
+        let outcome = self.stream.read(&mut one_byte);
+        self.stream
+            .set_read_timeout(Some(Duration::from_secs(2)))
+            .expect("read timeout");
+        match outcome {
             Ok(0) => {} // EOF: closed, silent
             Ok(_) => panic!("expected silence, received application bytes"),
             Err(error) if error.kind() == ErrorKind::WouldBlock => {
