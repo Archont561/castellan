@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@astrojs/starlight": "^0.42.5",
-    "@iconify-json/lucide": "^1.2.136",
+    "@iconify-json/lucide": "^1.2.139",
     "@iconify-json/mdi": "^1.2.0",
     "@iconify-json/simple-icons": "^1.2.0",
     "@iconify-json/tabler": "^1.2.40",

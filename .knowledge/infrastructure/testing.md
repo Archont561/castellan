@@ -137,7 +137,7 @@ Who uses that one browser:
   into that entry; its build cache is `playwright/.cache/` (gitignored
   + biome-ignored).
 
-### When the Playwright CDN is unreachable (`bun run browsers:offline`)
+### When the Playwright CDN is unreachable (`pixi run bun run browsers:offline`)
 
 A sandbox or a locked-down network that cannot reach `cdn.playwright.dev`
 loses the component tests *and* every e2e suite at once — most of the gate.
@@ -192,6 +192,6 @@ registers. Component tests and the desktop/mobile e2e suites do pass on it
   `vite.config.ts` in packages/ui carries the `svelte()` plugin.
 - **`@playwright/cli` (the agent CLI) is version-independent** on
   purpose: it bundles its own alpha playwright, so its browser comes
-  from `bunx playwright-cli install-browser chromium` (per machine),
+  from `pixi run bunx playwright-cli install-browser chromium` (per machine),
   and it defaults to the *system chrome channel* — pass
   `--browser chromium`. The committed suites never depend on it.

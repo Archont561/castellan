@@ -5,44 +5,37 @@ description: Prerequisites, the daily commands, and the conventions the reposito
 
 ## Prerequisites
 
-Two tools, pinned by the repository itself:
-
-- **Rust** 1.98 — pinned by `rust-toolchain.toml`; rustup installs it
-  automatically on the first cargo command.
-- **Bun** — pinned by `packageManager` in the root `package.json`. There
-  is no node anywhere: hooks, CI, and every script assume `bun run`.
+Install [pixi](https://pixi.sh), then run `pixi install`. The committed
+`pixi.lock` supplies Bun, Rust with clippy and rustfmt, the wasm32 target,
+wasm-pack, convco, actionlint, cargo-deny, cargo-nextest, and cargo-llvm-cov.
+Rust and Bun retain mirror pins in `rust-toolchain.toml` and `package.json`,
+but direct rustup/bun execution is not a supported repository command path:
+hooks, CI, and contributors all enter through `pixi run`.
 
 The Tauri desktop app additionally needs the platform webkit libraries
 (`libwebkit2gtk-4.1-dev` and friends on Linux — the lists are in
 `.github/workflows/ci.yml`).
 
-Or skip the per-tool installs entirely: [pixi](https://pixi.sh) provisions
-all of it in one command — `pixi install` brings bun, rust with clippy and
-rustfmt, the wasm32 target, wasm-pack, convco, actionlint, cargo-deny,
-cargo-nextest and cargo-llvm-cov, pinned through the committed `pixi.lock`.
-Pixi manages tools only (decision-8): every `pixi run <task>` is a thin
-wrapper over the same `bun run` commands.
-
 ## The daily loop
 
 ```console
-$ bun install                  # once: JS deps for every workspace
-$ bun run codegen              # regenerate wire types, clients and host manifests
-$ bun run codegen:check        # regenerate and prove committed output is current
-$ bun run wasm                 # rebuild the WASM package for the extension
-$ bun run gates                # lint + typecheck + test, every language
+$ pixi run install                  # once: JS deps for every workspace
+$ pixi run codegen              # regenerate wire types, clients and host manifests
+$ pixi run codegen-check        # regenerate and prove committed output is current
+$ pixi run wasm                 # rebuild the WASM package for the extension
+$ pixi run gates                # lint + typecheck + test, every language
 
-$ bun run all:e2e              # browser e2e: desktop, mobile, extension
-$ bun run all:storybook        # build the ui package's Storybook
-$ bun run dev:storybook        # Storybook dev server (packages/ui)
+$ pixi run e2e              # browser e2e: desktop, mobile, extension
+$ pixi run storybook-build        # build the ui package's Storybook
+$ pixi run dev-storybook        # Storybook dev server (packages/ui)
 
-$ bun run dev:desktop          # tauri dev (apps/desktop)
-$ bun run dev:mobile           # tauri dev (apps/mobile)
-$ bun run dev:ext              # wxt dev (chromium; :firefox for gecko)
-$ bun run dev:docs             # this documentation site
+$ pixi run dev-desktop          # tauri dev (apps/desktop)
+$ pixi run dev-mobile           # tauri dev (apps/mobile)
+$ pixi run dev-extension              # wxt dev (chromium; :firefox for gecko)
+$ pixi run dev-docs             # this documentation site
 
-$ cargo test --workspace       # the Rust suites directly
-$ cargo run -p castellan-xtask -- codegen
+$ pixi run cargo test --workspace       # the Rust suites directly
+$ pixi run xtask codegen
 ```
 
 `gates` is the same command CI runs, through the same turbo graph: Rust
@@ -77,7 +70,7 @@ façade), TypeScript fans out per package.
   packages are pinned to the same version (the last line of
   `@playwright/experimental-ct-svelte`), and the browser is a root
   devDependency — `@playwright/browser-chromium` downloads it during
-  `bun install`, so there is no `playwright install` step anywhere. See
+  `pixi run install`, so there is no `playwright install` step anywhere. See
   [Testing](/testing) for the shapes: app e2e, component tests, and the
   `playwright-cli` agent workflow.
 - **Adding a crate**: a directory under `crates/` with a manifest that
@@ -86,7 +79,7 @@ façade), TypeScript fans out per package.
 - **Adding a protocol operation**: add one `rpc_contract!` entry with request
   fields, success fields and its desktop/mobile/web-extension targets; add
   one implementation arm in `crates/dispatch`, and one exhaustively keyed
-  arbitrary in the protocol property suite; run `bun run codegen`. Xtask
+  arbitrary in the protocol property suite; run `pixi run codegen`. Xtask
   writes the correlated wire DTOs and every selected app client—never edit
   those generated files or add a dispatch match to an app shell.
 
@@ -97,7 +90,7 @@ conventions, and what is deliberately not there yet.
 ## The documentation site you are reading
 
 `docs/` is a workspace member: Astro + Starlight, served by
-`bun run dev:docs`, built by `bun run --cwd docs build` (CI builds it on
+`pixi run dev-docs`, built by `pixi run docs-build` (CI builds it on
 every push). Pages are MDX under `docs/src/content/docs/`; the sidebar is
 hand-written in `docs/astro.config.mjs` — a generated sidebar documents
 the file tree, not the reading order.

@@ -22,7 +22,7 @@ packages/   protocol (generated), core (client), ui (Svelte), wasm (wrapper),
    `packages/protocol/src/generated` and the scoped clients under each app's
    `src/generated`. All are committed. Never hand-edit generated files—edit
    the contract, implement one arm in `crates/dispatch`, then run
-   `bun run codegen`.
+   `pixi run codegen`.
 2. **One logic, two targets.** Shared behavior (otpauth parsing, origin
    matching) lives in Rust crates and reaches the extension through
    `crates/wasm` → `packages/wasm`. If you are about to re-implement either
@@ -47,43 +47,38 @@ packages/   protocol (generated), core (client), ui (Svelte), wasm (wrapper),
 ## Commands (all from the repo root)
 
 ```console
-$ pixi install               # optional: the whole dev-tool env in one command
-$ bun install                # JS deps (bun only; no node anywhere) + hooks
-$ bun run gates              # lint + typecheck + test, every language
-$ bun run codegen            # regenerate types, clients + native-host manifests
-$ bun run codegen:check      # regenerate and fail on omitted committed output
-$ bun run wasm               # rebuild the WASM package
-$ bun run lint:workflows     # actionlint over .github/workflows
-$ bun run lint:commits       # convco: history is conventional (needs git)
-$ bun run hooks:install      # lefthook install, if bun install ran without git
-$ bun run dev:desktop        # tauri dev (desktop)
-$ bun run dev:ext            # wxt dev (chromium)
-$ bun run dev:docs           # the docs site (apps/docs/, Astro + Starlight)
-$ bun run docs:build         # build the docs site (what CI runs)
-$ bun run all:e2e            # browser e2e: desktop, mobile, extension — serial
-$ bun run all:storybook      # build the ui package's Storybook (static)
-$ bunx playwright-cli open --browser chromium <url>
-                             # agent-driven browser; snapshots land in
-                             # .playwright-cli/ as YAML with element refs
-$ bunx playwright-cli install-browser chromium   # once per machine, for the
-                             # agent CLI only — the *test* browsers come from
-                             # bun install via @playwright/browser-chromium
-$ cargo test --workspace     # rust suites directly
-$ cargo run -p castellan-xtask -- codegen
-$ ./scripts/restore.sh       # restore the offline environment (read the
-                             # airlock note below before trusting it)
+$ pixi install                         # materialize the locked dev-tool environment
+$ pixi run install                     # JS deps (bun only; no node anywhere) + hooks
+$ pixi run gates                       # lint + typecheck + test, every language
+$ pixi run codegen                     # regenerate types, clients + host manifests
+$ pixi run codegen-check               # prove committed generated output is current
+$ pixi run wasm                        # rebuild the WASM package
+$ pixi run lint-workflows              # actionlint over .github/workflows
+$ pixi run lint-commits                # convco: history is conventional (needs git)
+$ pixi run hooks-install               # reinstall lefthook explicitly
+$ pixi run dev-desktop                 # tauri dev (desktop)
+$ pixi run dev-extension               # wxt dev (chromium)
+$ pixi run dev-docs                    # Astro + Starlight docs site
+$ pixi run docs-build                  # build the docs site (what CI runs)
+$ pixi run e2e                         # desktop/mobile/extension browser e2e
+$ pixi run storybook-build             # build the UI package's Storybook
+$ pixi run bunx playwright-cli open --browser chromium <url>
+                                       # agent-driven browser
+$ pixi run cargo test --workspace      # Rust suites directly
+$ pixi run xtask codegen
+$ ./scripts/restore.sh                 # restore the offline environment
 ```
 
-Any of these also runs with the dev-tool env on PATH through pixi's one
-generic task: `pixi run bun run <script>` — the task table deliberately has
-no per-script wrappers, so a new script never needs a pixi line (the
-`xtask` task is the only other one: `pixi run xtask <subcommand>`).
+Pixi is the sole entry point for repository commands (decision-11). Named
+high-frequency tasks form the command API; `pixi run bun …`, `pixi run bunx
+…`, and `pixi run cargo …` cover one-off or package-scoped work without
+escaping the locked environment.
 
 ## Conventions
 
 - Conventional commits only (`feat:`, `fix:`…) — enforced by the commit-msg
   hook when the repository carries a `.git` (this workspace snapshot ships
-  without one; `git init` + `bun run hooks:install` brings the hooks up),
+  without one; `git init` + `pixi run hooks-install` brings the hooks up),
   changelogs are generated from them via convco (`.versionrc`).
 - Comments explain *why*, and reference the tradeoff that was made. The
   geoquery/pixi-sandbox house style: a comment that restates the code is
@@ -192,12 +187,12 @@ no per-script wrappers, so a new script never needs a pixi line (the
   package refuses to launch, so the pins move together or not at all.
   The chromium binary is a root devDependency
   (`@playwright/browser-chromium`, in `trustedDependencies` so bun runs
-  its postinstall) — a fresh clone is testable after `bun install`,
+  its postinstall) — a fresh clone is testable after `pixi run install`,
   nobody runs `playwright install` by hand. E2e runs the two SvelteKit
   faces through their dev servers (desktop 5173, mobile 5174) and loads
   the *built* extension into full Chromium (`channel: "chromium"` — the
   default headless shell cannot load extensions).
-- **If `cdn.playwright.dev` is unreachable, `bun run browsers:offline`.**
+- **If `cdn.playwright.dev` is unreachable, run `pixi run bun run browsers:offline`.**
   `scripts/offline-browsers.ts` provisions chromium and ffmpeg from npm
   packages that ship the binary *inside the tarball*
   (`@sparticuz/chromium`, `@ffmpeg-installer/ffmpeg`) into the user cache,
@@ -234,7 +229,7 @@ no per-script wrappers, so a new script never needs a pixi line (the
 - Adding a crate: directory under `crates/` with its `Cargo.toml` (the glob
   picks it up), a line in root `[workspace.dependencies]`, a row in
   `crates/README.md`. Adding a package: directory under `packages/`, added
-  to nothing (workspaces glob), `bun install` links it.
+  to nothing (workspaces glob), `pixi run install` links it.
 - Adding a docs page: an MDX file under `apps/docs/src/content/docs/` plus a
   sidebar entry in `apps/docs/astro.config.mjs` — the sidebar is hand-written
   because a generated one documents the file tree, not the reading order.
@@ -267,12 +262,12 @@ no per-script wrappers, so a new script never needs a pixi line (the
   actionlint, cargo-deny, cargo-nextest, cargo-llvm-cov — pinned through the
   committed `pixi.lock`, split across three features (`rust`, `web`, `utils`)
   so a toolchain change is a reviewable diff on its own. Pixi manages **tools
-  only**: scripts stay behind `bun run` (reached from the env as `pixi run
-  bun run <script>` — the task table has no per-script wrappers). **CI
-  installs that same environment** (decision-10: `setup-pixi`, `--locked`,
-  activated onto `PATH`), so a tool is added in one place and a stale
-  `pixi.lock` fails the gate instead of drifting; contributors who prefer
-  rustup + bun.sh installs get the same binaries, provisioned differently.
+  only**, but it is the sole command entry point (decision-11): named tasks
+  delegate into `bun run` and Cargo, while generic `bun`, `bunx`, and `cargo`
+  tasks handle one-offs. **CI installs that same environment** (decision-10:
+  `setup-pixi`, `--locked`) but does not activate it globally; every repository
+  step says `pixi run`, so a missing boundary is visible in review and cannot
+  pick up a runner-global binary.
 - **The offline airlock is `./scripts/restore.sh`** (generated by `pixi-sandbox
   init` — regenerate it, never edit it), and on pixi-sandbox **0.4.0 it does not
   finish the job**: it `git archive`s `origin/sandbox/developer-<platform>`,
@@ -301,18 +296,13 @@ no per-script wrappers, so a new script never needs a pixi line (the
   where it looks for sources.
 - Hooks and repo linters: **lefthook** is a devDependency, installed by the
   guarded `prepare` script (skips silently where there is no `.git`, so
-  `bun install` never breaks in a snapshot/zip export). The commit-msg hook
-  uses **convco** when it is on PATH (`cargo install convco --locked` or a
-  [release binary](https://github.com/convco/convco/releases); its accepted
-  types are pinned in `.versionrc`, matching the grep fallback exactly) and
-  falls back to a grep of the same rule — convco's verdict is final, the
-  grep is not an appeal court. **actionlint** lints the workflows
-  (`bun run lint:workflows`, explicit paths so it runs from a snapshot
-  export with no `.git`; install from
-  [its releases](https://github.com/rhysd/actionlint/releases)). Neither
-  ships a usable npm CLI — the pixi env carries both (`pixi run bun run
-  lint:workflows`, `pixi run bun run lint:commits`), or install release
-  binaries like cargo-deny's.
+  `pixi run install` never breaks in a snapshot/zip export). Every hook body
+  enters through `pixi run`; the commit-msg hook therefore always uses the
+  locked **convco** rather than a PATH-dependent fallback. Accepted types are
+  pinned in `.versionrc`. **actionlint** is also supplied by the pixi
+  environment and reached through `pixi run lint-workflows` (explicit paths
+  let it lint a snapshot export with no `.git`). Neither tool ships a usable
+  npm CLI, which is one reason bypassing pixi is unsupported.
 
 ## Reading a failed CI run
 
@@ -359,7 +349,7 @@ first line matters.
 ## Planning and knowledge — two systems, one boundary
 
 - **`backlog/`** is delivery state, in the [backlog.md](https://backlog.md)
-  format (devDep `backlog.md`, run `bun run backlog` for the board). Tasks
+  format (devDep `backlog.md`, run `pixi run backlog` for the board). Tasks
   (`tasks/`), decisions (`decisions/`), milestones (`milestones/`), docs
   (`apps/docs/`). A task's acceptance criteria are the contract — implement
   against them, tick them, and keep `status` honest. Decisions are append-only

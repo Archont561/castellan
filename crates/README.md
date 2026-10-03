@@ -44,11 +44,11 @@ Everything runs from the repository root; the façade scripts `cd ..` first
 because that is where the workspace manifest lives.
 
 ```console
-$ cargo test --workspace      # every suite
-$ cargo clippy --workspace --all-targets -- -D warnings
-$ cargo fmt --all
-$ cargo run -p castellan-xtask -- codegen   # regenerate the TS bindings
-$ cargo deny --workspace check bans licenses sources
+$ pixi run cargo test --workspace      # every suite
+$ pixi run cargo clippy --workspace --all-targets -- -D warnings
+$ pixi run cargo fmt --all
+$ pixi run xtask codegen   # regenerate the TS bindings
+$ pixi run cargo deny --workspace check bans licenses sources
 ```
 
 `build` and `typecheck` (`cargo check --workspace`) include the Tauri app

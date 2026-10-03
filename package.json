@@ -31,26 +31,26 @@
     "dev:storybook": "bun run --cwd packages/ui storybook",
     "docs:build": "bun --bun run --cwd apps/docs build",
     "backlog": "backlog",
-    "hooks:install": "lefthook install",
+    "hooks:install": "pixi run hooks-install",
     "lint:workflows": "actionlint .github/workflows/*.yml",
     "lint:commits": "convco check",
     "all:e2e": "turbo run e2e --concurrency=1",
     "browsers:offline": "bun run scripts/offline-browsers.ts",
     "all:storybook": "turbo run build:storybook",
-    "prepare": "sh -c 'if [ -d .git ]; then lefthook install; fi'"
+    "prepare": "sh -c 'if [ -d .git ]; then pixi run hooks-install; fi'"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.14",
+    "@biomejs/biome": "^2.5.15",
     "@playwright/browser-chromium": "1.58.2",
     "@playwright/cli": "^0.1.22",
-    "@types/bun": "^1.3.11",
+    "@types/bun": "^1.4.2",
     "backlog.md": "^1.53.0",
     "bunup": "^0.16.32",
     "fast-check": "^4.10.2",
     "lefthook": "^2.1.16",
     "skills": "^1.7.0",
-    "turbo": "^2.11.5",
-    "typescript": "^5.9.0",
+    "turbo": "^2.11.7",
+    "typescript": "^5.9.3",
     "unocss": "^66.10.5"
   },
   "trustedDependencies": [

@@ -30,7 +30,7 @@
 > Every face speaks **one RPC contract**, defined once in Rust: the TypeScript that describes it is
 > derived (`ts-rs` → committed generated code), and behavior that must not drift — otpauth parsing,
 > origin matching — is written once in Rust and linked natively or compiled to WASM. Adding an
-> operation is one entry in `rpc_contract!`, one arm in the dispatcher, then `bun run codegen`.
+> operation is one entry in `rpc_contract!`, one arm in the dispatcher, then `pixi run codegen`.
 
 ## 🖥️ Face & Platform Support
 
@@ -105,42 +105,40 @@ unassociated host learns nothing, not even why.
 
 ### 1. Bootstrap the toolchain
 
-Prerequisites: [bun](https://bun.sh) 1.3.x (the only JS runtime — no node anywhere) and Rust with
-the pinned toolchain (`rust-toolchain.toml`; rustup picks it up automatically). Linux desktop
-builds additionally need the [Tauri system libraries](apps/desktop/README.md).
-
-The one-command alternative is [pixi](https://pixi.sh) (decision-8): `pixi install` provisions
-the whole toolchain — bun, rust with clippy and rustfmt, the wasm32 std, wasm-pack, convco,
-actionlint, cargo-deny — pinned through the committed `pixi.lock`. Pixi manages **tools only**;
-scripts stay behind `bun run` either way.
+Prerequisite: [pixi](https://pixi.sh). It provisions bun, Rust with clippy
+and rustfmt, the wasm32 std, wasm-pack, convco, actionlint, and cargo-deny from
+the committed `pixi.lock`. Linux desktop builds additionally need the
+[Tauri system libraries](apps/desktop/README.md). Pixi manages tools rather
+than application dependencies, and it is the sole command entry point so no
+hook, CI step, or contributor silently selects a global binary.
 
 ```bash
-pixi install                  # optional: the whole dev-tool env at once
-bun install                   # link the workspace (+ git hooks)
-bun run codegen               # derive TS types from the Rust protocol
-bun run wasm                  # build the shared-logic WASM package
+pixi install                  # materialize the locked dev-tool environment
+pixi run install              # link the workspace (+ git hooks)
+pixi run codegen               # derive TS types from the Rust protocol
+pixi run wasm                  # build the shared-logic WASM package
 ```
 
 ### 2. Run the gates
 
 ```bash
-bun run gates                 # turbo: lint + typecheck + test, every language
-bun run codegen:check         # fail on stale or untracked generated output
-cargo test --workspace        # or drive Rust directly
+pixi run gates                 # turbo: lint + typecheck + test, every language
+pixi run codegen-check         # fail on stale or untracked generated output
+pixi run cargo test --workspace        # or drive Rust directly
 ```
 
 ### 3. Run a face
 
 ```bash
-bun run dev:desktop           # tauri dev (apps/desktop)
-bun run dev:mobile            # tauri dev (apps/mobile; see its README for android/ios init)
-bun run dev:ext               # wxt dev (chromium; :firefox for gecko)
-bun run dev:docs              # the docs site (apps/docs, Astro + Starlight)
+pixi run dev-desktop           # tauri dev (apps/desktop)
+pixi run dev-mobile            # tauri dev (apps/mobile; see its README for android/ios init)
+pixi run dev-extension               # wxt dev (chromium; :firefox for gecko)
+pixi run dev-docs              # the docs site (apps/docs, Astro + Starlight)
 ```
 
 > [!TIP]
 > On a machine without the webkit stack (or offline), scope cargo to the library crates — the
-> session skill's standing commands: `cargo test --workspace --exclude castellan-desktop
+> session skill's standing commands: `pixi run cargo test --workspace --exclude castellan-desktop
 > --exclude castellan-mobile`. The Tauri shells compile in CI, which installs the GTK stack.
 
 ---
@@ -150,8 +148,8 @@ bun run dev:docs              # the docs site (apps/docs, Astro + Starlight)
 Two systems with a hard boundary between them:
 
 - **[`backlog/`](backlog/)** — delivery state in the [backlog.md](https://backlog.md) format:
-  50 tasks across six milestones, 10 decision records, 20 planning/spec/research/spike docs.
-  Run `bun run backlog` for the board.
+  50 tasks across six milestones, 11 decision records, 20 planning/spec/research/spike docs.
+  Run `pixi run backlog` for the board.
 - **[`.knowledge/`](.knowledge/)** — durable knowledge in Google's Open Knowledge Format:
   35 documents across six categories. This is the *why*: threat model, biometric-unlock
   architecture, the passkey enforcement rule, keepass-rs and LocalSend findings, the naming
@@ -180,7 +178,7 @@ October 2026.
 | `crates/native-host` | The byte pump each browser spawns (the app binary, `--native-host`) |
 | `crates/wasm` | The WASM face of shared logic; `packages/wasm` wraps it |
 | `crates/xtask` | Codegen: Rust contract → generated TS wire types, native-host manifests + the installer's identity file, scoped face clients |
-| `packages/protocol` | Generated TS wire types (committed; `bun run codegen` regenerates) |
+| `packages/protocol` | Generated TS wire types (committed; `pixi run codegen` regenerates) |
 | `packages/core` | Transport-independent client mechanics + the `Transport` seam; generated app clients extend it |
 | `packages/tauri` | The tested `invoke("rpc")` transport shared by desktop and mobile, incl. event subscription |
 | `packages/ui` | Shared Svelte components with Storybook stories and Playwright component tests beside them |
@@ -192,24 +190,24 @@ October 2026.
 ## 🛠️ Development & Quality Gates
 
 ```bash
-bun run gates                 # turbo: lint + typecheck + test, every language
-bun run codegen && bun run codegen:check   # regenerate, then fail on uncommitted drift
-bun run wasm                  # rebuild the WASM package
-bun run all:e2e               # browser e2e: desktop, mobile, extension — serial
-bun run all:storybook         # build the ui package's Storybook (static)
-bun run lint:workflows        # actionlint over .github/workflows
-bun run lint:commits          # convco: history is conventional
-bun run backlog               # the kanban board (backlog.md)
-cargo test --workspace        # rust suites directly
-cargo run -p castellan-xtask -- codegen
+pixi run gates                 # turbo: lint + typecheck + test, every language
+pixi run codegen && pixi run codegen-check   # regenerate, then fail on uncommitted drift
+pixi run wasm                  # rebuild the WASM package
+pixi run e2e               # browser e2e: desktop, mobile, extension — serial
+pixi run storybook-build         # build the ui package's Storybook (static)
+pixi run lint-workflows        # actionlint over .github/workflows
+pixi run lint-commits          # convco: history is conventional
+pixi run backlog               # the kanban board (backlog.md)
+pixi run cargo test --workspace        # rust suites directly
+pixi run xtask codegen
 ./scripts/restore.sh          # restore the offline environment (see the airlock note below)
 ```
 
 `turbo` runs the monorepo and `bun run <verb>` fans out to every package. The Rust workspace is
 **one node** in that graph, through the façade in `crates/package.json` (`@castellan/rust`) whose
 scripts `cd ..` and run cargo — so `bun run all:test` runs the TS suites *and*
-`cargo test --workspace`, exactly once, in the order the graph says. Generated consumers depend
-on `@castellan/rust#codegen`, and CI runs `bun run codegen:check` to reject stale or untracked
+`pixi run cargo test --workspace`, exactly once, in the order the graph says. Generated consumers depend
+on `@castellan/rust#codegen`, and CI runs `pixi run codegen-check` to reject stale or untracked
 generated output before review.
 
 **Testing vocabulary (both languages, one shape):** `#[fixture]` ↔ `createFixture`, `#[case]`
@@ -220,7 +218,7 @@ KeePassXC-written file and the KDBX 3.1 fixture). Rust lints run `clippy -D warn
 peer-credential `getsockopt` in the IPC server, each function carrying a SAFETY case (see the
 `[workspace.lints]` comment in the root manifest). TS runs biome + tsc/svelte-check on strict
 shared bases. Browser tests ride one pinned Playwright (1.58.2) and one prebundled chromium that
-`bun install` downloads.
+`pixi run install` downloads.
 
 > [!IMPORTANT]
 > **The offline airlock.** `./scripts/restore.sh` (plus the documented two-command workaround in
@@ -230,7 +228,7 @@ shared bases. Browser tests ride one pinned Playwright (1.58.2) and one prebundl
 
 **Adding things:** a crate is a directory under `crates/` with an inheriting `Cargo.toml`, a line
 in root `[workspace.dependencies]`, and a row in `crates/README.md`. A TS package is a directory
-under `packages/` — `bun install` links it. A protocol operation is one entry in `rpc_contract!`
+under `packages/` — `pixi run install` links it. A protocol operation is one entry in `rpc_contract!`
 plus one arm in `crates/dispatch`; app shells never match on `RpcMethod`.
 
 ## 🧬 What came from where
@@ -276,8 +274,8 @@ upstream licenses (the vault test corpus carries its own attribution in
 The documentation site lives in `apps/docs/` (Astro + Starlight):
 
 ```bash
-bun run dev:docs               # live-reload dev server
-bun run docs:build             # the static build CI verifies
+pixi run dev-docs               # live-reload dev server
+pixi run docs-build             # the static build CI verifies
 ```
 
 Publishing to GitHub Pages is task-44; the config is already shaped for it. Until then, the

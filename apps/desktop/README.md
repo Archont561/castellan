@@ -7,13 +7,14 @@ crate; everything else—vault, TOTP, framing—comes from workspace crates.
 ## Run
 
 ```console
-$ bun run tauri dev      # from this directory
+$ pixi run dev-desktop   # from the repository root
 ```
 
 ## First-time setup
 
 - Icons: `app-icon.png` is a placeholder. Replace it with a real 1024x1024
-  PNG and run `bunx tauri icon app-icon.png` to rewrite `src-tauri/icons/`;
+  PNG and run `pixi run bun run --cwd apps/desktop tauri icon app-icon.png`
+  from the repository root to rewrite `src-tauri/icons/`;
   `tauri.conf.json`'s `bundle.icon` array already lists the five files that
   command produces. `apps/mobile` carries the same pair of files.
 - Linux needs the usual Tauri system libraries (webkit2gtk-4.1, librsvg,

@@ -19,16 +19,16 @@ refs:
 # CI
 
 One job, ordered gates, fast-fail: checkout → apt webkit/gtk (Tauri) →
-`setup-pixi --locked`, activated onto `PATH` → cargo caches (workspace
-`Cargo.lock` keyed) → `bun install --frozen-lockfile` → codegen →
-`bun run wasm` → `cargo fmt --all --check` → actionlint
-(`bun run lint:workflows`) → `bun run lint` → `bun run all:lint` →
-typecheck → docs build → tests (`cargo test` + `bun test` through turbo) →
-e2e → storybook → cargo-deny advisories. The two lint steps are not
-redundant: `bun run lint` is `biome check .` across the whole repository,
-while `bun run all:lint` is the per-package `lint` tasks — each package
-over its own `src`, plus `@castellan/rust`, which is where clippy
-`-D warnings` and `cargo deny check bans licenses sources` actually live.
+`setup-pixi --locked` without global activation → cargo caches (workspace
+`Cargo.lock` keyed) → `pixi run install-frozen` → codegen → WASM → rustfmt →
+actionlint → repository lint → workspace lint → typecheck → docs build →
+tests → e2e → Storybook → advisories. Every repository step is an explicit
+`pixi run <task>`, including lefthook's commands; system setup remains outside
+the project command API. The two lint steps are not redundant: `pixi run lint`
+is `biome check .` across the whole repository, while `pixi run
+lint-workspace` delegates to the per-package `lint` tasks — each package over
+its own `src`, plus `@castellan/rust`, which is where clippy `-D warnings` and
+`cargo deny check bans licenses sources` actually live.
 Running only the first is what kept the Rust lints unexecuted for the
 repository's whole life. `codegen:check` regenerates and then checks both
 tracked diffs and untracked files, so stale or omitted generated output fails
@@ -36,11 +36,10 @@ before typecheck instead of being hidden by it.
 
 **Every gate tool comes from `pixi.lock`** (decision-10): bun, rust with
 clippy+rustfmt, the wasm32 std, wasm-pack, wasm-bindgen-cli, cargo-deny and
-actionlint. The steps are the bare commands a contributor types, so the two
-sides cannot resolve different binaries, and `locked: true` turns a stale
-lockfile into a failed gate rather than a silent re-solve (relock.yml owns
-fixing the drift). One override survives activation: conda-forge's rust points
-cargo at conda's gcc, so CI resets
+actionlint. The task names are the same contributor-facing API CI uses, and
+`locked: true` turns a stale lockfile into a failed gate rather than a silent
+re-solve (relock.yml owns fixing the drift). One environment override remains:
+conda-forge's rust points cargo at conda's gcc, so CI resets
 `CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=cc` — the Tauri crates link
 against apt's webkit/gtk, built for the runner's glibc, not conda's older
 sysroot.
@@ -58,7 +57,7 @@ sysroot.
   bun tests with fast-check properties (protocol JSON round-trips, client
   id/error/wire-shape properties) and `createFixture` fixtures — same
   vocabulary, other side of the wire (see [Testing](testing.md)).
-- **actionlint**: the workflows are code too; `bun run lint:workflows`
+- **actionlint**: the workflows are code too; `pixi run lint-workflows`
   runs on every push, on the conda-forge binary `pixi.lock` pins (convco,
   the other toolchain-binary linter, is in the same environment but stays
   unused by CI: the commit-msg hook runs it when present, and
@@ -67,7 +66,7 @@ sysroot.
   directory that was not on `PATH` — hence decision-10.
 - **codegen zero-diff**: proves the committed TS matches the Rust — drift
   dies at review time.
-- **docs build**: `bun run docs:build` — the Starlight site is a workspace
+- **docs build**: `pixi run docs-build` — the Starlight site is a workspace
   member with no typecheck/test tasks of its own, so a build step is what
   proves it.
 - **wasm step**: the extension face's dependency exists and compiles.

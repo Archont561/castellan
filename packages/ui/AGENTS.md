@@ -130,8 +130,8 @@ Preferred loop:
    component; use the desktop/mobile app only when the behavior depends on the
    app shell, routing, or face-specific metrics.
 3. **Open it with the offline browser.** If the local Playwright browser cache
-   is missing, run `bun run browsers:offline` once. Then open the local URL
-   with `bunx playwright-cli open --browser chromium <url>`; the tool writes
+   is missing, run `pixi run bun run browsers:offline` once. Then open the local URL
+   with `pixi run bunx playwright-cli open --browser chromium <url>`; the tool writes
    snapshots under `.playwright-cli/` for inspection.
 4. **Compare to the spec, not to memory.** Check layout shape, density,
    responsive behavior, empty/loading/error/locked states, focus order, Escape
@@ -150,10 +150,10 @@ Preferred loop:
 Useful commands from the repository root:
 
 ```console
-$ bun run browsers:offline                         # provision offline Chromium when needed
-$ bun run dev:storybook                            # inspect package stories first
-$ bunx playwright-cli open --browser chromium <url>
-$ bun run --cwd packages/ui test                   # component behavior tests
+$ pixi run bun run browsers:offline                 # provision offline Chromium
+$ pixi run dev-storybook                            # inspect package stories first
+$ pixi run bunx playwright-cli open --browser chromium <url>
+$ pixi run bun run --cwd packages/ui test           # component behavior tests
 ```
 
 When using Arena live previews instead of the agent's offline browser, make the

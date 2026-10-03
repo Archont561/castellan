@@ -10,10 +10,10 @@ integrations land here as Tauri plugins.
 ## Run
 
 ```console
-$ bun run android:init   # once: generates src-tauri/gen/android
-$ bun run android        # on a device or emulator
-$ bun run ios:init       # once, on a mac: generates src-tauri/gen/ios
-$ bun run ios
+$ pixi run bun run --cwd apps/mobile android:init   # once: generate Android
+$ pixi run bun run --cwd apps/mobile android        # device or emulator
+$ pixi run bun run --cwd apps/mobile ios:init       # once, on a Mac
+$ pixi run bun run --cwd apps/mobile ios
 ```
 
 `src/generated/client.ts` is committed xtask output for the operations assigned

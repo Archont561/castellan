@@ -66,5 +66,5 @@ host manifests, and committed `DesktopClient`, `MobileClient` and
 `WebExtensionClient` classes. Shared operations appear in each selected
 class while domain-only operations do not leak to other faces. All generated
 clients extend `RpcClient` in `@castellan/core`, which owns request ids,
-envelopes, result checking and errors. CI runs `bun run codegen:check`, so a
+envelopes, result checking and errors. CI runs `pixi run codegen-check`, so a
 changed, missing, or newly untracked generated file fails before typecheck.

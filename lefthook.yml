@@ -1,11 +1,9 @@
-# Git hooks, installed by `lefthook install` (run for you by `bun install`
-# through the guarded `prepare` script).
+# Git hooks, installed by `pixi run hooks-install` (also run by
+# `pixi run install` through the guarded prepare script).
 #
-# Every hook body is a repo-root script, never a bare `biome`/`cargo` from
-# PATH: the same commands CI runs, from the same place. (The pixi-run
-# indirection geoquery needs is not used: the pixi dev-tool env (decision-8)
-# puts the same binaries on PATH inside `pixi run`/`pixi shell`, and the
-# hooks work identically with a plain rustup + bun.sh install.)
+# Pixi is deliberately the entry point for every hook command. Hooks must not
+# inherit an arbitrary cargo/bun/convco from the caller's PATH and disagree
+# with CI about which locked tool produced the verdict.
 
 # Stage what the hooks just fixed, so the commit contains the formatting the
 # hook applied and CI does not fail on bytes the hook never committed.
@@ -14,11 +12,11 @@ pre-commit:
   commands:
     fix-js:
       glob: "*.{ts,tsx,js,jsx,mjs,cjs,json,jsonc,svelte}"
-      run: bun x biome check --write --no-errors-on-unmatched {staged_files} && git add {staged_files}
+      run: pixi run bun x biome check --write --no-errors-on-unmatched {staged_files} && pixi run git add {staged_files}
       stage_fixed: true
     format-rs:
       glob: "{crates,apps}/**/*.rs"
-      run: cargo fmt --all && git add {staged_files}
+      run: pixi run cargo fmt --all && pixi run git add {staged_files}
       stage_fixed: true
 
 # The whole working tree is what CI will build; lint it, don't scope it.
@@ -26,19 +24,14 @@ pre-push:
   parallel: true
   commands:
     lint:
-      run: bun run lint
+      run: pixi run lint
     typecheck:
-      run: bun run all:typecheck
+      run: pixi run typecheck
 
-# Conventional commits only; the changelog is generated from these messages
-# (convco). When convco is installed it owns the check — the grep is a
-# fallback for contributors without it, not an appeal court: if convco
-# rejects a message, grep must not get the chance to accept it.
+# Conventional commits only; convco is part of the locked pixi environment,
+# so unlike the old PATH-sensitive hook there is no fallback implementation
+# that can make a different decision on another machine.
 commit-msg:
   commands:
     conventional:
-      run: >
-        if command -v convco >/dev/null 2>&1;
-        then convco check --from-stdin --strip < {1};
-        else grep -qE '^(feat|fix|docs|style|refactor|test|chore|perf|build|ci)(\(.+\))?!?: .+' {1};
-        fi
+      run: pixi run convco check --from-stdin --strip < {1}

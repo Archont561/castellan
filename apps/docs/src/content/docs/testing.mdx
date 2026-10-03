@@ -178,7 +178,7 @@ manual step.
 
 Three consumers share that one browser:
 
-- **App e2e** (`bun run all:e2e`, serial by design — two dev servers and
+- **App e2e** (`pixi run e2e`, serial by design — two dev servers and
   a browser build do not deserve to fight for RAM): desktop and mobile
   each boot their SvelteKit dev server (`--strictPort`, 5173/5174 so the
   faces can run back to back) and assert the shell renders *and* reports
@@ -194,7 +194,7 @@ Three consumers share that one browser:
   leaking into the rendered text — Svelte 5 stringifies `false` in text
   position, so `cond && "text"` needs to be an `{#if}`.
 - **Component tests** (`packages/ui`, `bun run test` there, part of
-  `bun run all:test`): each ui component mounted in the real browser
+  `pixi run test`): each ui component mounted in the real browser
   through the Playwright component-testing API. The one rule worth
   knowing: `mount()` resolves to the component's **root element**, not a
   wrapper — assert and click the returned locator directly, and query
@@ -202,8 +202,8 @@ Three consumers share that one browser:
 
 The same components carry **Storybook stories** — `.stories.svelte`
 files next to each component, written with `defineMeta` from
-`@storybook/addon-svelte-csf` — served by `bun run dev:storybook` and
-built by `bun run all:storybook` (what CI runs). The stories double as
+`@storybook/addon-svelte-csf` — served by `pixi run dev-storybook` and
+built by `pixi run storybook-build` (what CI runs). The stories double as
 type-checked code: svelte-check covers them like any other file.
 
 ### Agent-driven exploration
@@ -214,11 +214,11 @@ and writes **accessibility snapshots to disk** (`.playwright-cli/`,
 gitignored) instead of streaming page trees into context —
 
 ```console
-$ bunx playwright-cli install-browser chromium   # once per machine
-$ bunx playwright-cli open --browser chromium http://localhost:6006
-$ bunx playwright-cli snapshot                   # YAML with element refs
-$ bunx playwright-cli click e15                  # act on a ref
-$ bunx playwright-cli screenshot --filename=shot.png
+$ pixi run bunx playwright-cli install-browser chromium   # once per machine
+$ pixi run bunx playwright-cli open --browser chromium http://localhost:6006
+$ pixi run bunx playwright-cli snapshot                   # YAML with element refs
+$ pixi run bunx playwright-cli click e15                  # act on a ref
+$ pixi run bunx playwright-cli screenshot --filename=shot.png
 ```
 
 It ships its own Playwright, so its browser comes from

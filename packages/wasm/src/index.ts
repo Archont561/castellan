@@ -6,7 +6,7 @@
  * in the app, one implementation, two targets. Build it from the repo root:
  *
  * ```console
- * $ bun run wasm
+ * $ pixi run wasm
  * ```
  *
  * which runs `wasm-pack build crates/wasm --target bundler` into `src/pkg/`.
@@ -32,7 +32,7 @@ let loaded: Promise<CastellanWasm> | undefined;
  *
  * Throws with a readable message when the package has not been built — the
  * one failure mode worth naming, because "bun install then import" without
- * "bun run wasm" is an easy state to reach and a confusing one to debug.
+ * "pixi run wasm" is an easy state to reach and a confusing one to debug.
  */
 export function loadWasm(): Promise<CastellanWasm> {
   loaded ??= (async () => {
@@ -43,7 +43,7 @@ export function loadWasm(): Promise<CastellanWasm> {
       return await import("./pkg/castellan_wasm.js");
     } catch {
       throw new Error(
-        "@castellan/wasm: the WASM build is missing. Run `bun run wasm` at the repository root, then retry."
+        "@castellan/wasm: the WASM build is missing. Run `pixi run wasm` at the repository root, then retry."
       );
     }
   })();
