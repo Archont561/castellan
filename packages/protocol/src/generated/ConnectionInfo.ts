@@ -9,7 +9,7 @@ export type ConnectionInfo = {
 /**
  * Connection identifier, stable for the connection's lifetime.
  */
-id: number, 
+id: bigint, 
 /**
  * Which face is connected.
  */
@@ -35,4 +35,4 @@ last_request: string | null,
 /**
  * When the connection opened, unix seconds.
  */
-connected_at: number, };
+connected_at: bigint, };
