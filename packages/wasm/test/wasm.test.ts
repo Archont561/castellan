@@ -18,7 +18,7 @@
  * grows wasm-ESM interop, that test fails, and the right response is to
  * delete it and this comment, not to "fix" the wrapper.
  *
- * Requires `bun run wasm` first; the package's turbo task graph
+ * Requires `pixi run wasm` first; the package's turbo task graph
  * (`test` dependsOn `build`) guarantees the ordering.
  */
 import { describe, expect, test } from "bun:test";

@@ -43,9 +43,9 @@ The five facts an agent needs before touching the repository are in
 ## Tooling notes
 
 - `skills` (devDependency) — the agent-skills CLI, matching the
-  pixi-sandbox setup. `bunx skills install <source>` writes skills into
+  pixi-sandbox setup. `pixi run bunx skills install <source>` writes skills into
   `.agents/skills/` with `skills-lock.json` tracking sources and hashes;
   the repository commits no skills yet, so the dependency is capability,
   not content.
-- `bun run backlog` serves the kanban board locally; `bun run dev:docs`
+- `pixi run backlog` serves the kanban board locally; `pixi run dev-docs`
   serves this site.

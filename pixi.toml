@@ -25,8 +25,39 @@ convco = "0.7.*"
 [feature.web.dependencies]
 bun = "==1.3.11"
 
+# Pixi is the repository's command API. Keep implementation detail in the bun
+# scripts and Cargo workspace, but enter both through `pixi run` so hooks, CI,
+# agents, and contributors always resolve the locked environment first.
 [tasks]
 bun = "bun"
+bunx = "bunx"
+cargo = "cargo"
+convco = "convco"
+install = "bun install"
+install-frozen = "bun install --frozen-lockfile"
+gates = "bun run gates"
+codegen = "bun run codegen"
+codegen-check = "bun run codegen:check"
+wasm = "bun run wasm"
+lint = "bun run lint"
+lint-workspace = "bun run all:lint"
+lint-workflows = "bun run lint:workflows"
+lint-commits = "bun run lint:commits"
+typecheck = "bun run all:typecheck"
+test = "bun run all:test"
+e2e = "bun run all:e2e"
+storybook-build = "bun run all:storybook"
+docs-build = "bun run docs:build"
+advisories = "bun run all:advisories"
+fmt-rust-check = "cargo fmt --all --check"
+playwright-install-deps = "bunx playwright install-deps chromium"
+hooks-install = "bun x lefthook install"
+backlog = "bun run backlog"
+dev-desktop = "bun run dev:desktop"
+dev-mobile = "bun run dev:mobile"
+dev-extension = "bun run dev:ext"
+dev-docs = "bun run dev:docs"
+dev-storybook = "bun run dev:storybook"
 
 [tasks.xtask]
 cmd = "cargo run -q -p castellan-xtask -- {{ subcommand }} {{ rest }}"

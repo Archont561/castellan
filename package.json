@@ -31,13 +31,13 @@
     "dev:storybook": "bun run --cwd packages/ui storybook",
     "docs:build": "bun --bun run --cwd apps/docs build",
     "backlog": "backlog",
-    "hooks:install": "lefthook install",
+    "hooks:install": "pixi run hooks-install",
     "lint:workflows": "actionlint .github/workflows/*.yml",
     "lint:commits": "convco check",
     "all:e2e": "turbo run e2e --concurrency=1",
     "browsers:offline": "bun run scripts/offline-browsers.ts",
     "all:storybook": "turbo run build:storybook",
-    "prepare": "sh -c 'if [ -d .git ]; then lefthook install; fi'"
+    "prepare": "sh -c 'if [ -d .git ]; then pixi run hooks-install; fi'"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.14",

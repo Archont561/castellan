@@ -8,8 +8,8 @@ drift — the classic KeePass breakage — cannot happen.
 ## Run
 
 ```console
-$ bun run dev            # chromium, loads the unpacked extension
-$ bun run dev:firefox
+$ pixi run dev-extension                              # Chromium
+$ pixi run bun run --cwd apps/extension dev:firefox  # Firefox
 ```
 
 ## Layout
