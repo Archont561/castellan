@@ -40,6 +40,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The stock runner image ships a dozen-plus GB of toolchains this
+      # repo never touches -- dotnet, the Android SDK, ghc, CodeQL -- and
+      # what stays free is not enough for the gates below: the Rust
+      # workspace builds in debug, two Tauri shells included, on top of
+      # the target/ restored by the cargo cache, and PR #6's Test step
+      # died with `No space left on device` at the archive step of the
+      # app libs. A contributor's machine is not quota'd like a runner,
+      # so the reclaim lives here in CI, not in the gates.
+      - name: Free runner disk space
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+
       # Tauri's Linux builds need the webkit stack; without it
       # `cargo check --workspace` (which covers apps/*/src-tauri) cannot run.
       # apt, not conda: these are the system libraries the app links against
@@ -160,7 +171,23 @@ jobs:
             /\(fail\)/ {
               printf "::error title=bun test::%s\n", $0
             }
-          ' "$RUNNER_TEMP/test-output.log" | head -10 || true
+          ' "$RUNNER_TEMP/test-output.log" > "$RUNNER_TEMP/annotations"
+
+          # Zero annotations means no test failed -- the build itself did,
+          # and cargo reports that in plain `error:` lines (PR #6: exit
+          # 101, nothing matched above, the cause `No space left on
+          # device` mid-archive). This digest is the one AGENTS.md's
+          # "Reading a failed CI run" says to read before fetching the log.
+          [ -s "$RUNNER_TEMP/annotations" ] || awk '
+            /^error/ {
+              printf "::error title=cargo::%s\n", $0
+            }
+            /warning: build failed/ {
+              printf "::error title=cargo::%s\n", $0
+            }
+          ' "$RUNNER_TEMP/test-output.log" > "$RUNNER_TEMP/annotations"
+
+          head -10 "$RUNNER_TEMP/annotations" || true
 
       # Browser system libraries for the prebundled chromium (the browser
       # binary itself arrives with `bun install` via the root
