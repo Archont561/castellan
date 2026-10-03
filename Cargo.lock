@@ -486,6 +486,7 @@ dependencies = [
  "keepass",
  "proptest",
  "rstest",
+ "rust-argon2",
  "secrecy",
  "thiserror 2.0.21",
  "zeroize",

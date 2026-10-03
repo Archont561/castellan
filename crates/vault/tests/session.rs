@@ -3,10 +3,14 @@
 //! `now` as a parameter, so these tests script time as literal values
 //! instead of sleeping, and the apps pass `SystemTime::now()` in production.
 //!
-//! The corpus cases run against the committed fixtures (see `fixtures/`):
-//! real files authored by KeePass clients, not databases this crate built.
+//! The corpus cases run against the generated KDBX 4.1 fixtures
+//! (`common/mod.rs`: one factory, a case table, exact expectations) plus
+//! the two committed anchors in `fixtures/` — the KeePassXC-authored 4.1
+//! file and the KDBX 3.1 read-compatibility file, which no generator can
+//! author.
 
-use std::path::PathBuf;
+mod common;
+
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
 
@@ -42,13 +46,6 @@ impl SessionClock for ScriptedClock {
     }
 }
 
-/// Where the committed corpus lives.
-fn corpus(name: &str) -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures")
-        .join(name)
-}
-
 /// Records every event the session emits, for asserting what faces would see.
 #[derive(Clone, Default)]
 struct EventLog {
@@ -70,110 +67,41 @@ impl EventLog {
     }
 }
 
-/// A session unlocked against the Argon2id corpus fixture, ready to be
+/// A session unlocked against the generated Argon2id case, ready to be
 /// poked — the pytest-fixture pattern, via rstest. Fresh per test: a test
-/// that locks its session cannot leak into the next one.
+/// that locks its session cannot leak into the next one. The vault's path
+/// comes along because the lock tests assert `last_path` against it.
 #[fixture]
-fn unlocked_session() -> VaultSession {
+fn unlocked_session() -> (VaultSession, std::path::PathBuf) {
+    let fixture = common::build(common::case("argon2id-aes-gzip"), "session-fixture");
     let session = VaultSession::new();
     session
-        .unlock(
-            &corpus("test_db_kdbx4_with_password_argon2id.kdbx"),
-            Some("demopass"),
-            None,
-        )
-        .expect("the corpus fixture must unlock");
-    session
+        .unlock(&fixture.vault, fixture.password, None)
+        .expect("the generated fixture must unlock");
+    (session, fixture.vault)
 }
 
 // ── The corpus: real files, real keys (AC-1) ─────────────────────────────────
 
-/// Key material for one corpus fixture: what unlocks it, and what the
-/// projection should find inside — the worked example the case matrix
-/// asserts against, read off the files themselves.
-struct CorpusCase {
+/// What a committed anchor fixture is and what the projection should find
+/// inside — read off the files themselves, because no generator wrote
+/// them (that is their whole point).
+struct AnchorCase {
     file: &'static str,
-    password: Option<&'static str>,
-    keyfile: Option<&'static str>,
+    password: &'static str,
     expected_titles: &'static [&'static str],
 }
 
-const CORPUS: &[CorpusCase] = &[
-    CorpusCase {
-        file: "test_db_kdbx4_with_password_argon2.kdbx",
-        password: Some("demopass"),
-        keyfile: None,
-        expected_titles: &["Test", ""],
-    },
-    CorpusCase {
-        file: "test_db_kdbx4_with_password_argon2id.kdbx",
-        password: Some("demopass"),
-        keyfile: None,
-        expected_titles: &["Test", ""],
-    },
-    CorpusCase {
-        file: "test_db_kdbx4_with_password_argon2id_chacha20.kdbx",
-        password: Some("demopass"),
-        keyfile: None,
-        expected_titles: &["test"],
-    },
-    CorpusCase {
-        file: "test_db_kdbx4_with_password_argon2id_twofish.kdbx",
-        password: Some("demopass"),
-        keyfile: None,
-        expected_titles: &["test"],
-    },
-    CorpusCase {
-        file: "test_db_kdbx4_with_password_argon2_chacha20.kdbx",
-        password: Some("demopass"),
-        keyfile: None,
-        expected_titles: &["test"],
-    },
-    CorpusCase {
-        file: "test_db_kdbx4_with_password_argon2_twofish.kdbx",
-        password: Some("demopass"),
-        keyfile: None,
-        expected_titles: &["test"],
-    },
-    CorpusCase {
-        file: "test_db_kdbx4_with_password_aes.kdbx",
-        password: Some("demopass"),
-        keyfile: None,
-        expected_titles: &["ASDF"],
-    },
-    CorpusCase {
-        file: "test_db_kdbx4_with_password_deleted_entry.kdbx",
-        password: Some("demopass"),
-        keyfile: None,
-        expected_titles: &["Test", "", "deleted entry"],
-    },
-    CorpusCase {
-        file: "test_db_kdbx4_with_totp_entry.kdbx",
-        password: Some("test"),
-        keyfile: None,
-        expected_titles: &["this entry has totp"],
-    },
-    CorpusCase {
+const ANCHORS: &[AnchorCase] = &[
+    AnchorCase {
         file: "test_db_kdbx41_features.kdbx",
-        password: Some("demopass"),
-        keyfile: None,
+        password: "demopass",
+        // Authored by KeePassXC 2.7.12 — the external-authority anchor.
         expected_titles: &["tagged-entry-41", "ayyyyo"],
     },
-    CorpusCase {
-        file: "test_db_kdbx41_with_password_aes.kdbx",
-        password: Some("demopass"),
-        keyfile: None,
-        expected_titles: &[
-            "entry with no quality check",
-            "entry with named custom icon",
-            "entry that was moved",
-            "entry with custom data",
-        ],
-    },
-    CorpusCase {
+    AnchorCase {
         file: "test_db_with_password.kdbx",
-        password: Some("demopass"),
-        keyfile: None,
+        password: "demopass",
         // KDBX 3.1 — reading it is part of the compatibility promise.
         expected_titles: &[
             "Sample Entry",
@@ -184,42 +112,52 @@ const CORPUS: &[CorpusCase] = &[
             "asdf",
         ],
     },
-    CorpusCase {
-        file: "test_db_kdbx4_with_keyfile.kdbx",
-        password: None,
-        keyfile: Some("test_key.key"),
-        expected_titles: &["Test"],
-    },
-    CorpusCase {
-        file: "test_db_kdbx4_with_keyfile_v2.kdbx",
-        password: Some("demopass"),
-        keyfile: Some("test_db_kdbx4_with_keyfile_v2.keyx"),
-        expected_titles: &["secret"],
-    },
 ];
 
 #[rstest]
-#[case(&CORPUS[0])]
-#[case(&CORPUS[1])]
-#[case(&CORPUS[2])]
-#[case(&CORPUS[3])]
-#[case(&CORPUS[4])]
-#[case(&CORPUS[5])]
-#[case(&CORPUS[6])]
-#[case(&CORPUS[7])]
-#[case(&CORPUS[8])]
-#[case(&CORPUS[9])]
-#[case(&CORPUS[10])]
-#[case(&CORPUS[11])]
-#[case(&CORPUS[12])]
-#[case(&CORPUS[13])]
-fn unlocks_every_corpus_file_and_projects_its_entries(#[case] case: &CorpusCase) {
+#[case(&common::GENERATED_CORPUS[0])]
+#[case(&common::GENERATED_CORPUS[1])]
+#[case(&common::GENERATED_CORPUS[2])]
+#[case(&common::GENERATED_CORPUS[3])]
+#[case(&common::GENERATED_CORPUS[4])]
+#[case(&common::GENERATED_CORPUS[5])]
+#[case(&common::GENERATED_CORPUS[6])]
+#[case(&common::GENERATED_CORPUS[7])]
+#[case(&common::GENERATED_CORPUS[8])]
+#[case(&common::GENERATED_CORPUS[9])]
+#[case(&common::GENERATED_CORPUS[10])]
+#[case(&common::GENERATED_CORPUS[11])]
+fn unlocks_every_generated_case_and_projects_its_entries(#[case] case: &common::KdbxCase) {
+    let fixture = common::build(case, "unlock-matrix");
     let session = VaultSession::new();
-    let keyfile = case.keyfile.map(corpus);
 
     session
-        .unlock(&corpus(case.file), case.password, keyfile.as_deref())
-        .expect("a corpus fixture must unlock with its documented key");
+        .unlock(&fixture.vault, fixture.password, fixture.keyfile.as_deref())
+        .expect("a generated case must unlock with its specified key");
+
+    assert_eq!(session.status(), VaultStatus::Unlocked);
+    let entries = session
+        .entries()
+        .expect("an unlocked session lists entries");
+    let mut titles: Vec<&str> = entries.iter().map(|entry| entry.title.as_str()).collect();
+    titles.sort_unstable();
+    assert_eq!(
+        titles,
+        case.expected_titles(),
+        "projected titles for {}",
+        case.name
+    );
+}
+
+#[rstest]
+#[case(&ANCHORS[0])]
+#[case(&ANCHORS[1])]
+fn unlocks_the_committed_anchors_and_projects_their_entries(#[case] case: &AnchorCase) {
+    let session = VaultSession::new();
+
+    session
+        .unlock(&common::anchor(case.file), Some(case.password), None)
+        .expect("an anchor fixture must unlock with its documented key");
 
     assert_eq!(session.status(), VaultStatus::Unlocked);
     let entries = session
@@ -233,23 +171,12 @@ fn unlocks_every_corpus_file_and_projects_its_entries(#[case] case: &CorpusCase)
 }
 
 #[rstest]
-#[case(
-    "test_db_kdbx4_with_password_argon2id.kdbx",
-    "demopass",
-    "not the password"
-)]
-// KDBX 3 fails at decryption rather than the key check — wrong key all
-// the same, and the user's question ("is it the password?") is identical.
-#[case("test_db_with_password.kdbx", "demopass", "also not the password")]
-fn a_wrong_password_fails_with_the_stable_bad_credentials_code(
-    #[case] file: &str,
-    #[case] good: &str,
-    #[case] bad: &str,
-) {
+fn a_wrong_password_fails_with_the_stable_bad_credentials_code() {
+    let fixture = common::build(common::case("argon2id-aes-gzip"), "wrong-password");
     let session = VaultSession::new();
 
     let error = session
-        .unlock(&corpus(file), Some(bad), None)
+        .unlock(&fixture.vault, Some("not the password"), None)
         .expect_err("a wrong key must not unlock");
 
     assert!(
@@ -261,29 +188,43 @@ fn a_wrong_password_fails_with_the_stable_bad_credentials_code(
     // And the right key still works afterwards — the failed attempt left
     // no half-open state behind.
     session
-        .unlock(&corpus(file), Some(good), None)
+        .unlock(&fixture.vault, fixture.password, None)
+        .expect("the correct key must unlock after a failed attempt");
+}
+
+// KDBX 3 fails at decryption rather than the key check — wrong key all
+// the same, and the user's question ("is it the password?") is identical.
+#[rstest]
+fn a_wrong_password_on_kdbx3_fails_the_same_stable_way() {
+    let path = common::anchor("test_db_with_password.kdbx");
+    let session = VaultSession::new();
+
+    let error = session
+        .unlock(&path, Some("also not the password"), None)
+        .expect_err("a wrong key must not unlock a KDBX 3 vault");
+
+    assert!(
+        matches!(error, VaultError::Credentials),
+        "wrong KDBX 3 key must map to Credentials, got {error:?}"
+    );
+    assert_eq!(error.error_code(), Some(RpcErrorCode::BadCredentials));
+    session
+        .unlock(&path, Some("demopass"), None)
         .expect("the correct key must unlock after a failed attempt");
 }
 
 #[rstest]
 fn a_password_is_not_the_keyfiles_key() {
+    let fixture = common::build(common::case("keyfile-only-raw32"), "keyfile-only");
     let session = VaultSession::new();
 
     let error = session
-        .unlock(
-            &corpus("test_db_kdbx4_with_keyfile.kdbx"),
-            Some("demopass"),
-            None,
-        )
+        .unlock(&fixture.vault, Some("demopass"), None)
         .expect_err("a password cannot open a keyfile-only vault");
     assert_eq!(error.error_code(), Some(RpcErrorCode::BadCredentials));
 
     session
-        .unlock(
-            &corpus("test_db_kdbx4_with_keyfile.kdbx"),
-            None,
-            Some(corpus("test_key.key").as_path()),
-        )
+        .unlock(&fixture.vault, None, fixture.keyfile.as_deref())
         .expect("the keyfile must unlock it");
     assert_eq!(session.status(), VaultStatus::Unlocked);
 }
@@ -291,28 +232,31 @@ fn a_password_is_not_the_keyfiles_key() {
 // ── Locking and the wipe (AC-2) ──────────────────────────────────────────────
 
 #[rstest]
-fn lock_wipes_the_session_and_answers_with_vault_locked(unlocked_session: VaultSession) {
-    assert!(unlocked_session.lock(LockReason::User));
+fn lock_wipes_the_session_and_answers_with_vault_locked(
+    unlocked_session: (VaultSession, std::path::PathBuf),
+) {
+    let (session, vault) = unlocked_session;
+    assert!(session.lock(LockReason::User));
 
-    assert_eq!(unlocked_session.status(), VaultStatus::Locked);
-    let error = unlocked_session
+    assert_eq!(session.status(), VaultStatus::Locked);
+    let error = session
         .entries()
         .expect_err("a locked session has no entries to list");
     assert_eq!(error.error_code(), Some(RpcErrorCode::VaultLocked));
     // The UI remembers which file to offer: locked, not amnesiac.
-    assert_eq!(
-        unlocked_session.last_path(),
-        Some(corpus("test_db_kdbx4_with_password_argon2id.kdbx"))
-    );
+    assert_eq!(session.last_path(), Some(vault));
 }
 
 #[rstest]
-fn locking_an_already_locked_session_is_a_no_op(unlocked_session: VaultSession) {
-    unlocked_session.lock(LockReason::User);
+fn locking_an_already_locked_session_is_a_no_op(
+    unlocked_session: (VaultSession, std::path::PathBuf),
+) {
+    let (session, _) = unlocked_session;
+    session.lock(LockReason::User);
 
     let log = EventLog::new();
-    unlocked_session.subscribe(log.sink());
-    assert!(!unlocked_session.lock(LockReason::User));
+    session.subscribe(log.sink());
+    assert!(!session.lock(LockReason::User));
 
     assert!(log.events().is_empty(), "no state change, no event");
 }
@@ -337,13 +281,10 @@ fn unlock_and_lock_fire_the_status_events_faces_listen_for() {
     let log = EventLog::new();
     session.subscribe(log.sink());
 
+    let fixture = common::build(common::case("argon2id-aes-gzip"), "inline-unlock");
     session
-        .unlock(
-            &corpus("test_db_kdbx4_with_password_argon2id.kdbx"),
-            Some("demopass"),
-            None,
-        )
-        .expect("the corpus fixture must unlock");
+        .unlock(&fixture.vault, fixture.password, None)
+        .expect("the generated fixture must unlock");
     session.lock(LockReason::User);
 
     assert_eq!(
@@ -358,17 +299,15 @@ fn a_failed_unlock_fires_nothing() {
     let log = EventLog::new();
     session.subscribe(log.sink());
 
-    let _ = session.unlock(
-        &corpus("test_db_kdbx4_with_password_argon2id.kdbx"),
-        Some("wrong"),
-        None,
-    );
+    let fixture = common::build(common::case("argon2id-aes-gzip"), "failed-unlock");
+    let _ = session.unlock(&fixture.vault, Some("wrong"), None);
 
     assert!(log.events().is_empty());
 }
 
 #[rstest]
-fn subscribers_can_leave_and_stop_hearing(unlocked_session: VaultSession) {
+fn subscribers_can_leave_and_stop_hearing(unlocked_session: (VaultSession, std::path::PathBuf)) {
+    let (unlocked_session, _) = unlocked_session;
     let staying = EventLog::new();
     let leaving = EventLog::new();
     let id = unlocked_session.subscribe(leaving.sink());
@@ -382,27 +321,24 @@ fn subscribers_can_leave_and_stop_hearing(unlocked_session: VaultSession) {
 }
 
 #[rstest]
-fn unlocking_over_an_open_session_replaces_it_and_both_events_fire(unlocked_session: VaultSession) {
+fn unlocking_over_an_open_session_replaces_it_and_both_events_fire(
+    unlocked_session: (VaultSession, std::path::PathBuf),
+) {
+    let (session, _) = unlocked_session;
+    let replacement = common::build(common::case("aeskdf-aes"), "replacement-vault");
     let log = EventLog::new();
-    unlocked_session.subscribe(log.sink());
+    session.subscribe(log.sink());
 
-    unlocked_session
-        .unlock(
-            &corpus("test_db_kdbx4_with_password_aes.kdbx"),
-            Some("demopass"),
-            None,
-        )
-        .expect("the second corpus fixture must unlock");
+    session
+        .unlock(&replacement.vault, replacement.password, None)
+        .expect("the second vault must unlock");
 
     // The old vault locks (its key material drops), then the new one opens.
     assert_eq!(
         log.events(),
         vec![Event::DatabaseLocked, Event::DatabaseUnlocked]
     );
-    assert_eq!(
-        unlocked_session.last_path(),
-        Some(corpus("test_db_kdbx4_with_password_aes.kdbx"))
-    );
+    assert_eq!(session.last_path(), Some(replacement.vault));
 }
 
 // ── Soft lock tiers (AC-3): blur / wake / idle, configured by policy ─────────
@@ -421,13 +357,10 @@ fn timed_session() -> (VaultSession, std::sync::Arc<ScriptedClock>) {
     let clock = std::sync::Arc::new(ScriptedClock::at(T0));
     let session =
         VaultSession::with_clock(std::sync::Arc::clone(&clock) as std::sync::Arc<dyn SessionClock>);
+    let fixture = common::build(common::case("argon2id-aes-gzip"), "inline-unlock");
     session
-        .unlock(
-            &corpus("test_db_kdbx4_with_password_argon2id.kdbx"),
-            Some("demopass"),
-            None,
-        )
-        .expect("the corpus fixture must unlock");
+        .unlock(&fixture.vault, fixture.password, None)
+        .expect("the generated fixture must unlock");
     (session, clock)
 }
 
@@ -627,12 +560,9 @@ fn unlocking_again_after_a_hard_lock_still_works(
 
     // There is no quick-unlock tier yet (task-41); the password is the
     // only way back in, and it works.
+    let fixture = common::build(common::case("argon2id-aes-gzip"), "after-hard-lock");
     session
-        .unlock(
-            &corpus("test_db_kdbx4_with_password_argon2id.kdbx"),
-            Some("demopass"),
-            None,
-        )
+        .unlock(&fixture.vault, fixture.password, None)
         .expect("a password unlock must work after a hard lock");
     assert_eq!(session.status(), VaultStatus::Unlocked);
 }

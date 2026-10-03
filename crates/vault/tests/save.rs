@@ -1,7 +1,10 @@
 //! The save contract (task-8, decision-3): copy-aside before any write,
-//! temp-then-rename, the original untouched on failure. These tests copy
-//! corpus fixtures into unique temp directories and save through the vault
-//! crate's front door — the only save path that exists.
+//! temp-then-rename, the original untouched on failure. These tests build
+//! generated fixtures into unique temp directories (the factory lives in
+//! `common/mod.rs`) and save through the vault crate's front door — the
+//! only save path that exists.
+
+mod common;
 
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
@@ -9,37 +12,13 @@ use std::time::SystemTime;
 use castellan_vault::{TEMP_SUFFIX, aside_name, open};
 use rstest::{fixture, rstest};
 
-/// Where the committed corpus lives.
-fn corpus(name: &str) -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures")
-        .join(name)
-}
-
-/// A unique scratch directory per call: tests run concurrently, and the
-/// copy-aside contract is exactly the kind of thing a shared path would
-/// make flaky.
-fn scratch(tag: &str) -> PathBuf {
-    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-    let unique = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    let dir = std::env::temp_dir().join(format!(
-        "castellan-save-tests-{}-{tag}-{unique}",
-        std::process::id()
-    ));
-    std::fs::create_dir_all(&dir).expect("scratch dir");
-    dir
-}
-
-/// A corpus fixture copied into a scratch directory, ready to be saved
-/// over — the committed fixture itself is never written to.
+/// A generated vault in a scratch directory, ready to be saved over —
+/// built by the factory, never a file the repo committed.
 #[fixture]
 fn working_vault() -> (PathBuf, Vec<u8>) {
-    let dir = scratch("working");
-    let path = dir.join("vault.kdbx");
-    std::fs::copy(corpus("test_db_kdbx4_with_password_argon2id.kdbx"), &path)
-        .expect("copy fixture");
-    let bytes = std::fs::read(&path).expect("read fixture");
-    (path, bytes)
+    let fixture = common::build(common::case("argon2id-aes-gzip"), "working");
+    let bytes = std::fs::read(&fixture.vault).expect("read the built vault");
+    (fixture.vault, bytes)
 }
 
 /// The temp sibling a save at `path` writes before renaming.
@@ -86,7 +65,7 @@ fn saving_writes_a_new_file_and_keeps_the_pre_save_bytes_aside(working_vault: (P
 #[rstest]
 fn a_save_with_no_previous_file_on_disk_writes_fresh_without_an_aside() {
     use keepass::{Database, DatabaseKey};
-    let dir = scratch("first-save");
+    let dir = common::scratch("first-save");
     let path = dir.join("brand-new.kdbx");
     let mut database = Database::new();
     database.root_mut().add_entry();
@@ -113,9 +92,9 @@ fn a_save_with_no_previous_file_on_disk_writes_fresh_without_an_aside() {
 /// backups of a file it never wrote.
 #[rstest]
 fn a_kdbx3_vault_is_read_compatible_but_save_refuses_cleanly() {
-    let dir = scratch("kdbx3");
+    let dir = common::scratch("kdbx3");
     let path = dir.join("old.kdbx");
-    std::fs::copy(corpus("test_db_with_password.kdbx"), &path).expect("copy fixture");
+    std::fs::copy(common::anchor("test_db_with_password.kdbx"), &path).expect("copy anchor");
     let original = std::fs::read(&path).expect("read fixture");
 
     let mut handle = open(&path, Some("demopass"), None).expect("KDBX 3 opens: read compat");

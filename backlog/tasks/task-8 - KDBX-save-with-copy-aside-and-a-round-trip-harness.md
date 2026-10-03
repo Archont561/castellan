@@ -5,7 +5,7 @@ status: Done
 assignee:
   - '@me'
 created_date: '2026-10-01 20:40'
-updated_date: '2026-10-03 12:58'
+updated_date: '2026-10-03 13:40'
 labels:
   - vault
   - security
@@ -29,7 +29,7 @@ The save path under decision-3's rule: copy the existing file aside (timestamped
 - [x] #1 Save writes a valid KDBX 4 that KeePassXC and Strongbox open without warnings
 - [x] #2 The copy-aside exists before any write; a failed save leaves the original untouched
 - [x] #3 Round-trip harness compares every parsed field (incl. custom data, icons, history) and fails on any loss
-- [x] #4 Harness runs in CI against the corpus; corpus files are committed fixtures
+- [x] #4 Harness runs in CI against the corpus: generated from a reviewed case table (tests/common/mod.rs) plus two committed anchor fixtures (KeePassXC-authored 4.1, KDBX 3.1) that no generator can author
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -42,6 +42,8 @@ keepass-rs save behind a save() that does copy→write→verify; harness as an i
 
 <!-- SECTION:NOTES:BEGIN -->
 Started 2026-10-03. Corpus: KeePassXC-authored + keepass-rs-maintainer fixtures from sseemayer/keepass-rs v0.15.0 tests/resources (MIT), committed under crates/vault/tests/fixtures/ with provenance README. Save per doc-3 section 2: copy-aside (timestamped, beside the vault) -> temp write -> atomic rename; failed save leaves original byte-identical. Harness: corpus cases + field-by-field comparison + proptest over generated databases.
+
+Corpus collapsed 2026-10-03 (user direction): the twelve keepass-rs-authored matrix fixtures (cipher/KDF/keyfile/deleted/TOTP variants) are replaced by the case-driven KDBX 4.1 factory in tests/common/mod.rs — one generator, a GENERATED_CORPUS table, exact expected titles by construction. Two anchors stay committed because they carry what a generator cannot: test_db_kdbx41_features.kdbx (KeePassXC 2.7.12 — external authorship) and test_db_with_password.kdbx (KDBX 3.1 — keepass-rs cannot write 3.x). The factory needs rust-argon2 (renamed rust_argon2; its lib name collides with the workspace's RustCrypto argon2) as a vault dev-dependency, because KdfConfig's Argon2d/Argon2id version field is that crate's type. Suite counts unchanged in spirit: session 39, save 9, roundtrip 15 (12 generated cases + the KeePassXC anchor + the fold characterization + the 50-case property).
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary

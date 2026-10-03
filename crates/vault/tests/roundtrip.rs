@@ -7,37 +7,24 @@
 //! attachments, the recycle bin's deleted-objects — and reports every
 //! difference it finds, named. A corpus case fails on ANY loss; the
 //! proptest generates arbitrary databases and asserts the same invariant,
-//! so a loss that no committed fixture happens to carry is still caught.
+//! so a loss that no corpus case happens to carry is still caught. The
+//! corpus itself is generated (`common/mod.rs`: the config matrix, keyfile
+//! shapes, structural features) plus the KeePassXC-authored anchor — the
+//! one file a generator cannot write for us.
 //!
 //! The one field deliberately not compared is `Meta::generator`: it names
 //! the program that wrote the file last, and *should* change when this
 //! program saves. Everything else must survive.
 
+mod common;
+
 use std::collections::BTreeMap;
-use std::path::PathBuf;
 
 use keepass::Database;
 use keepass::DatabaseKey;
 use keepass::db::{AutoType, Entry, EntryRef, GroupRef, History, Value};
 use proptest::prelude::*;
 use rstest::rstest;
-
-/// Where the committed corpus lives.
-fn corpus(name: &str) -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures")
-        .join(name)
-}
-
-/// A unique scratch path per call.
-fn scratch(tag: &str) -> PathBuf {
-    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-    let unique = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    std::env::temp_dir().join(format!(
-        "castellan-roundtrip-{}-{tag}-{unique}.kdbx",
-        std::process::id()
-    ))
-}
 
 /// Parse a file with keepass directly — the harness's reader, deliberately
 /// not the vault crate's handle: the comparator needs `&Database`, and the
@@ -367,104 +354,32 @@ fn compare_autotype(
 
 // ── The corpus: real files, every field, on every save ───────────────────────
 
-/// One corpus file and the key that opens it.
-struct CorpusFile {
-    file: &'static str,
-    password: Option<&'static str>,
-    keyfile: Option<&'static str>,
-}
-
-/// The KDBX 4 corpus: every cipher/KDF combination, keyfile shapes, TOTP,
-/// recycle-bin state, and the KeePassXC-2.7.12-authored 4.1 file. The KDBX
-/// 3 fixture has its own test in `save.rs` (read-compat, refuse to save).
-const CORPUS: &[CorpusFile] = &[
-    CorpusFile {
-        file: "test_db_kdbx4_with_password_argon2.kdbx",
-        password: Some("demopass"),
-        keyfile: None,
-    },
-    CorpusFile {
-        file: "test_db_kdbx4_with_password_argon2id.kdbx",
-        password: Some("demopass"),
-        keyfile: None,
-    },
-    CorpusFile {
-        file: "test_db_kdbx4_with_password_argon2id_chacha20.kdbx",
-        password: Some("demopass"),
-        keyfile: None,
-    },
-    CorpusFile {
-        file: "test_db_kdbx4_with_password_argon2id_twofish.kdbx",
-        password: Some("demopass"),
-        keyfile: None,
-    },
-    CorpusFile {
-        file: "test_db_kdbx4_with_password_argon2_chacha20.kdbx",
-        password: Some("demopass"),
-        keyfile: None,
-    },
-    CorpusFile {
-        file: "test_db_kdbx4_with_password_argon2_twofish.kdbx",
-        password: Some("demopass"),
-        keyfile: None,
-    },
-    CorpusFile {
-        file: "test_db_kdbx4_with_password_aes.kdbx",
-        password: Some("demopass"),
-        keyfile: None,
-    },
-    CorpusFile {
-        file: "test_db_kdbx4_with_password_deleted_entry.kdbx",
-        password: Some("demopass"),
-        keyfile: None,
-    },
-    // Authored by KeePassXC 2.7.12 — the anchor fixture.
-    CorpusFile {
-        file: "test_db_kdbx41_features.kdbx",
-        password: Some("demopass"),
-        keyfile: None,
-    },
-    CorpusFile {
-        file: "test_db_kdbx41_with_password_aes.kdbx",
-        password: Some("demopass"),
-        keyfile: None,
-    },
-    CorpusFile {
-        file: "test_db_kdbx4_with_keyfile.kdbx",
-        password: None,
-        keyfile: Some("test_key.key"),
-    },
-    CorpusFile {
-        file: "test_db_kdbx4_with_keyfile_v2.kdbx",
-        password: Some("demopass"),
-        keyfile: Some("test_db_kdbx4_with_keyfile_v2.keyx"),
-    },
-];
+// ── The corpus: every case, every field, on every save ───────────────────────
 
 #[rstest]
-#[case(&CORPUS[0])]
-#[case(&CORPUS[1])]
-#[case(&CORPUS[2])]
-#[case(&CORPUS[3])]
-#[case(&CORPUS[4])]
-#[case(&CORPUS[5])]
-#[case(&CORPUS[6])]
-#[case(&CORPUS[7])]
-#[case(&CORPUS[8])]
-#[case(&CORPUS[9])]
-#[case(&CORPUS[10])]
-#[case(&CORPUS[11])]
-fn every_corpus_file_round_trips_without_field_loss(#[case] case: &CorpusFile) {
-    let work = scratch("corpus");
-    std::fs::copy(corpus(case.file), &work).expect("copy fixture to scratch");
-    let keyfile = case.keyfile.map(corpus);
-    let pre_save_bytes = std::fs::read(&work).expect("read fixture copy");
+#[case(&common::GENERATED_CORPUS[0])]
+#[case(&common::GENERATED_CORPUS[1])]
+#[case(&common::GENERATED_CORPUS[2])]
+#[case(&common::GENERATED_CORPUS[3])]
+#[case(&common::GENERATED_CORPUS[4])]
+#[case(&common::GENERATED_CORPUS[5])]
+#[case(&common::GENERATED_CORPUS[6])]
+#[case(&common::GENERATED_CORPUS[7])]
+#[case(&common::GENERATED_CORPUS[8])]
+#[case(&common::GENERATED_CORPUS[9])]
+#[case(&common::GENERATED_CORPUS[10])]
+#[case(&common::GENERATED_CORPUS[11])]
+fn every_generated_case_round_trips_without_field_loss(#[case] case: &common::KdbxCase) {
+    let fixture = common::build(case, "roundtrip");
+    let original = parse(&fixture.vault, fixture.password, fixture.keyfile.as_deref());
+    let pre_save_bytes = std::fs::read(&fixture.vault).expect("read the built vault");
 
     // The front door, both ways: open, save, reopen.
     let mut handle =
-        castellan_vault::open(&work, case.password, keyfile.as_deref()).expect("fixture opens");
+        castellan_vault::open(&fixture.vault, fixture.password, fixture.keyfile.as_deref())
+            .expect("a generated case opens");
     let outcome = handle.save().expect("save must succeed");
-    castellan_vault::open(&work, case.password, keyfile.as_deref())
+    castellan_vault::open(&fixture.vault, fixture.password, fixture.keyfile.as_deref())
         .expect("the saved file reopens through the front door");
 
     // The copy-aside preserved the pre-save bytes.
@@ -475,13 +390,45 @@ fn every_corpus_file_round_trips_without_field_loss(#[case] case: &CorpusFile) {
     );
 
     // Field by field: nothing the parser can see was lost.
-    let original = parse(&corpus(case.file), case.password, keyfile.as_deref());
-    let saved = parse(&work, case.password, keyfile.as_deref());
+    let saved = parse(&fixture.vault, fixture.password, fixture.keyfile.as_deref());
     let diffs = compare_databases(&original, &saved);
     assert!(
         diffs.is_empty(),
         "{}: the round trip lost or changed fields:\n{}",
-        case.file,
+        case.name,
+        diffs.join("\n")
+    );
+}
+
+/// The external-authority anchor: bytes KeePassXC 2.7.12 wrote, which no
+/// generated case can stand in for. Same field-by-field contract, on the
+/// one file in the corpus that did not come from our own writer.
+#[rstest]
+fn the_keepassxc_authored_anchor_round_trips_without_field_loss() {
+    let work = common::scratch("anchor-roundtrip");
+    let vault = work.join("test_db_kdbx41_features.kdbx");
+    std::fs::copy(common::anchor("test_db_kdbx41_features.kdbx"), &vault)
+        .expect("copy the anchor into scratch");
+    let pre_save_bytes = std::fs::read(&vault).expect("read the anchor copy");
+    let original = parse(&vault, Some("demopass"), None);
+
+    let mut handle =
+        castellan_vault::open(&vault, Some("demopass"), None).expect("the anchor opens");
+    let outcome = handle.save().expect("save must succeed");
+    castellan_vault::open(&vault, Some("demopass"), None)
+        .expect("the saved anchor reopens through the front door");
+
+    let aside = outcome.aside.expect("a prior file means a copy-aside");
+    assert_eq!(
+        std::fs::read(&aside).expect("aside readable"),
+        pre_save_bytes
+    );
+
+    let saved = parse(&vault, Some("demopass"), None);
+    let diffs = compare_databases(&original, &saved);
+    assert!(
+        diffs.is_empty(),
+        "the anchor round trip lost or changed fields:\n{}",
         diffs.join("\n")
     );
 }
@@ -498,7 +445,7 @@ fn every_corpus_file_round_trips_without_field_loss(#[case] case: &CorpusFile) {
 fn whitespace_only_unprotected_values_fold_through_the_parser() {
     // A seed vault authored with keepass directly (the only writer of the
     // shape under test), then round-tripped through the front door.
-    let work = scratch("fold");
+    let work = common::scratch("fold").join("fold.kdbx");
     let mut seed = Database::new();
     {
         let mut root = seed.root_mut();
@@ -566,6 +513,16 @@ fn nonempty_text() -> impl Strategy<Value = String> {
     proptest::collection::vec(xml_char(), 1..24).prop_map(|chars| chars.into_iter().collect())
 }
 
+/// The database *name*: non-empty and not all-whitespace. keepass-rs's
+/// `cs_opt_string` reader folds an empty or whitespace-only
+/// `meta.database_name` to `None` (the same fold the characterization
+/// test below pins for field values), and no KeePass client produces a
+/// nameless-but-named database, so the strategy stays inside what the
+/// format holds.
+fn database_name() -> impl Strategy<Value = String> {
+    nonempty_text().prop_filter("not all-whitespace", |s| !s.trim().is_empty())
+}
+
 /// A single character the KDBX XML layer can hold without normalizing it
 /// away: XML 1.0 forbids most control characters, and its readers turn
 /// `\r` into `\n` — rules every KeePass client inherits, so the strategy
@@ -604,7 +561,7 @@ fn protected_text() -> impl Strategy<Value = String> {
 /// cover combinatorially.
 fn generated_database() -> impl Strategy<Value = Database> {
     (
-        nonempty_text(),
+        database_name(),
         proptest::collection::vec(
             (text(), proptest::collection::vec(entry_data(), 0..4)),
             0..3,
@@ -668,7 +625,7 @@ proptest! {
         database in generated_database(),
         password in text(),
     ) {
-        let work = scratch("proptest");
+        let work = common::scratch("proptest").join("generated.kdbx");
         let password = if password.is_empty() { "x".to_string() } else { password };
         {
             let mut file = std::fs::File::create(&work).expect("create seed");
