@@ -434,6 +434,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "castellan-ipc-server"
+version = "0.1.0"
+dependencies = [
+ "castellan-ipc",
+ "castellan-protocol",
+ "getrandom 0.4.3",
+ "hex",
+ "hmac",
+ "libc",
+ "proptest",
+ "rstest",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "castellan-mobile"
 version = "0.1.0"
 dependencies = [

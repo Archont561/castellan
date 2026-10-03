@@ -11,6 +11,8 @@
  * this file adds is a wake-up alarm so a TOTP countdown in the popup does
  * not go stale between requests.
  */
+
+import { faceFromBuildTarget, storageAssociation } from "@/src/association";
 import { WebExtensionClient } from "@/src/generated/client";
 import { isPingBackground, type PingBackgroundResponse } from "@/src/messages";
 import { nativeMessagingTransport } from "@/src/transport";
@@ -21,7 +23,17 @@ export default defineBackground(() => {
   // the port events are checked, no casts. The getter keeps the transport
   // testable — the transport takes a NativeMessaging it can be fed a fake
   // of, not the global itself.
-  const client = new WebExtensionClient(nativeMessagingTransport(() => browser.runtime));
+  //
+  // The association key lives in the extension's own local storage and the
+  // face comes from the build target, so a chromium build reports Chrome
+  // and a firefox build Firefox — the panel's label, not a credential.
+  const client = new WebExtensionClient(
+    nativeMessagingTransport(() => browser.runtime, {
+      face: faceFromBuildTarget(import.meta.env.BROWSER),
+      clientVersion: browser.runtime.getManifest().version,
+      association: storageAssociation(browser.storage.local)
+    })
+  );
 
   // The popup asks; the background answers through the extension-local
   // contract in src/messages.ts. Browser APIs deliver `unknown`, so the
