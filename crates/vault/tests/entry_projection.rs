@@ -37,7 +37,7 @@ fn sample_vault() -> VaultHandle {
         )
         .unwrap();
     drop(file);
-    let vault = castellan_vault::open(&path, "fixture password, never a real one", None)
+    let vault = castellan_vault::open(&path, Some("fixture password, never a real one"), None)
         .expect("a database this crate just saved must open back");
     let _ = std::fs::remove_file(&path);
     vault

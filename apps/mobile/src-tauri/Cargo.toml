@@ -28,6 +28,7 @@ tauri-build = { workspace = true }
 castellan-dispatch = { workspace = true }
 castellan-ipc = { workspace = true }
 castellan-protocol = { workspace = true }
+castellan-vault = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tauri = { workspace = true }

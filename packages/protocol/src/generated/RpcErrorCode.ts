@@ -7,4 +7,4 @@
  * TypeScript union. Transport and client-validation failures are local to
  * the TypeScript client and deliberately do not cross the wire.
  */
-export type RpcErrorCode = "vault_locked" | "no_such_entry" | "not_implemented";
+export type RpcErrorCode = "vault_locked" | "bad_credentials" | "vault_unreadable" | "no_such_entry" | "not_implemented";

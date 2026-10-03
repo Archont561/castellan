@@ -37,7 +37,13 @@ describe("RpcClient (properties)", () => {
     await fc.assert(
       fc.asyncProperty(
         fc.record({
-          code: fc.constantFrom("vault_locked", "no_such_entry", "not_implemented"),
+          code: fc.constantFrom(
+            "vault_locked",
+            "bad_credentials",
+            "vault_unreadable",
+            "no_such_entry",
+            "not_implemented"
+          ),
           message: fc.string({ maxLength: 64 })
         }),
         async (failure) => {
