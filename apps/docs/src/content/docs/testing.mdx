@@ -60,6 +60,21 @@ gets a property. When proptest finds a real bug, the seed it saved under
 `proptest-regressions/` is committed so the case replays for everyone;
 when the input was out of domain, fix the strategy and delete the seed.
 
+**Case files are generated, not committed.** A test case the toolchain
+can author itself is a row in a case table plus a factory that builds
+it — never a committed file. The vault crate's KDBX corpus is the
+worked example: twelve committed fixture binaries (the cipher/KDF/
+keyfile matrix) became `GENERATED_CORPUS` + `build()` in
+`crates/vault/tests/common/mod.rs`, a reviewed table whose expectations
+are exact by construction (the generator wrote every title it asserts),
+where a config-matrix case added later is a table row, not another
+binary in the repository. A committed case file is justified only by
+what no generator can author: external authorship (bytes another client
+wrote — the KeePassXC 2.7.12 anchor), or a format the toolchain cannot
+write (KDBX 3.1; keepass-rs emits 4.1 only). Before adding a fixture
+file, name what it carries that the factory could not — if the answer
+is nothing, it is a case, not a file.
+
 :::note[A property test caught a real gap]
 The first framing property was written against arbitrary bytes — and
 immediately found that `decode_frame` documented a non-UTF-8 rejection
@@ -143,9 +158,10 @@ lifetime.
 
 The backlog specifies its heaviest tests as properties: the KDBX
 round-trip harness (open, save, reopen, compare every parsed field, over
-a corpus of KeePassXC/Strongbox/KeePassDX-authored databases — task 8)
-and sync idempotence (replaying a sync message produces no changes —
-task 27). Those land in the same shape the existing properties use.
+a generated case table plus the two anchor fixtures no generator can
+author — task 8) and sync idempotence (replaying a sync message produces
+no changes — task 27). Those land in the same shape the existing
+properties use.
 
 ## Browser testing: one Playwright, one chromium
 
