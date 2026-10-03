@@ -3,11 +3,20 @@
 <p align="center">
   <a href="https://github.com/Archont561/castellan/actions/workflows/ci.yml"><img src="https://github.com/Archont561/castellan/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="./LICENSE-MIT"><img src="https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue.svg" alt="License: MIT OR Apache-2.0"></a>
-  <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/Rust-1.85%2B-orange.svg?logo=rust" alt="Rust"></a>
-  <a href="https://bun.sh"><img src="https://img.shields.io/badge/Bun-1.3.11-grey.svg?logo=bun" alt="Bun"></a>
+  <a href="https://www.conventionalcommits.org"><img src="https://img.shields.io/badge/Commits-Conventional%201.0.0-yellow.svg?logo=conventionalcommits" alt="Conventional Commits"></a>
+  <img src="https://img.shields.io/badge/Platforms-linux%20%7C%20macos%20%7C%20windows-brightgreen.svg?logo=linux" alt="Platforms">
+  <img src="https://img.shields.io/badge/Faces-desktop%20%7C%20mobile%20%7C%20extension-8ddc44.svg" alt="Faces">
+  <a href="https://github.com/Archont561/castellan/pulls"><img src="https://img.shields.io/badge/PRs-welcome-ff69b4.svg" alt="PRs Welcome"></a>
+</p>
+
+<p align="center">
+  <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/Rust-1.85%2B-dea584.svg?logo=rust" alt="Rust"></a>
+  <a href="https://bun.sh"><img src="https://img.shields.io/badge/Bun-1.3%2B-f9f1e5.svg?logo=bun" alt="Bun"></a>
+  <a href="https://tauri.app"><img src="https://img.shields.io/badge/Tauri-2-24c8d8.svg?logo=tauri" alt="Tauri 2"></a>
+  <a href="https://svelte.dev"><img src="https://img.shields.io/badge/Svelte-5-ff3e00.svg?logo=svelte" alt="Svelte 5"></a>
+  <a href="https://wxt.dev"><img src="https://img.shields.io/badge/WXT-0.20-34d399.svg" alt="WXT"></a>
   <a href="https://pixi.sh"><img src="https://img.shields.io/badge/Pixi-0.81%2B-yellow.svg?logo=condaforge" alt="Pixi"></a>
-  <img src="https://img.shields.io/badge/Faces-desktop%20%7C%20mobile%20%7C%20extension-brightgreen.svg" alt="Faces">
-  <a href="https://github.com/Archont561/castellan/pulls"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome"></a>
+  <img src="https://img.shields.io/badge/Protocol-v3-9b59b6.svg" alt="Protocol v3">
 </p>
 
 <p align="center">
@@ -27,10 +36,10 @@
 
 | Face | Stack | Status | Notes |
 |------|-------|--------|-------|
-| Desktop | Tauri 2 + SvelteKit (static, `ssr=false`) | 🟡 m-1 in development | Linux/macOS/Windows; vault session, unlock/lock and copy-aside saves landed; Linux builds need the [webkit system libraries](apps/desktop/README.md) |
-| Mobile | Tauri 2 (Android/iOS) + SvelteKit | 🟡 scaffolded | Same dispatcher, same protocol; runs on hardware cadence from m-2 (task-23) |
-| Extension — "Fob" | WXT, one codebase for chromium + gecko | 🟡 scaffolded | Native-messaging transport over the app's Unix socket / named pipe; MV3 service-worker reconnects |
-| CLI | Rust, over the same IPC socket | ⏳ planned (task-34) | `get`, `totp`, env injection, git credential helper |
+| 🖥️ Desktop | Tauri 2 + SvelteKit (static, `ssr=false`) | 🟡 m-1 in development | Linux/macOS/Windows; vault session, unlock/lock and copy-aside saves landed; Linux builds need the [webkit system libraries](apps/desktop/README.md) |
+| 📱 Mobile | Tauri 2 (Android/iOS) + SvelteKit | 🟡 scaffolded | Same dispatcher, same protocol; runs on hardware cadence from m-2 (task-23) |
+| 🧩 Extension — “Fob” | WXT, one codebase for chromium + gecko | 🟡 core landed | Protocol-v3 transport with the association handshake (enroll → challenge → HMAC proof); fill UX is m-1 (tasks 11–12) |
+| ⌨️ CLI | Rust, over the same IPC socket | ⏳ planned (task-34) | `get`, `totp`, env injection, git credential helper |
 
 Milestones: **m-0 foundation (done)** → **m-1 v0.1 daily driver** → m-2 hygiene + Android alpha →
 m-3 LAN device mesh → m-4 soft security key → m-5 v1.0 hardening. The whole roadmap lives in
@@ -47,10 +56,10 @@ only password manager for two weeks.
         │ invoke("rpc") │  native messaging    │ (byte-identical framing:
         └───────┬───────┴───── host = the app ─┘  4-byte LE length + JSON)
                 ▼                 binary, --native-host
-   ┌────────────────────────────────────────────────┐
-   │ protocol · dispatch · vault · otp · ipc        │ ← one Rust workspace
-   │ native-host · wasm · xtask                     │
-   └──────┬───────────────────────┬────────────────┘
+   ┌──────────────────────────────────────────────────────┐
+   │ protocol · dispatch · vault · otp · ipc · ipc-server │
+   │ manifests · native-host · wasm · xtask               │
+   └──────┬───────────────────────┬──────────────────────┘
           │ ts-rs (xtask codegen) │ wasm-pack
           ▼                       ▼
   packages/protocol         packages/wasm
@@ -66,8 +75,11 @@ a shape; this structure makes that disagreement a compile error instead of a sup
 
 **No localhost TCP, ever** (decision-2): browsers reach the app through a Unix domain socket
 (`$XDG_RUNTIME_DIR/castellan/castellan.sock`) or a Windows named pipe, with same-user enforcement
-via peer credentials — no firewall prompt, no port conflict, nothing for other local processes to
-query.
+via kernel peer credentials (`SO_PEERCRED` / `getpeereid`) — no firewall prompt, no port conflict,
+nothing for other local processes to query. In front of it sits the association handshake: a
+browser enrolls its key once (the user confirms in the panel), and every later connection proves
+possession with an HMAC over a fresh nonce. Refusal is *silence* — zero bytes — so an
+unassociated host learns nothing, not even why.
 
 ---
 
@@ -78,15 +90,20 @@ query.
 | 🔐 | **KeePass-compatible vault** | KDBX 4 open/save through keepass-rs; the unlock corpus includes a KeePassXC-2.7.12-authored anchor fixture |
 | 🛟 | **Copy-aside saves** | Every save copies the old file aside (timestamped) before writing a temp file and renaming; a failed save leaves the original byte-identical (decision-3) |
 | ⏱️ | **Lock tiers** | Soft lock on blur/wake/idle, hard lock after the horizon; derived keys zeroize on drop; events push so faces reflect lock state live |
-| 🧪 | **Round-trip harness** | Open → save → reopen → compare every parsed field, over a generated case table + anchor fixtures and a 50-case property — "drops a field" is a red build, not a lost database |
+| 🧪 | **Round-trip harness** | Open → save → reopen → compare every parsed field, over a generated case table + anchor fixtures and a 50-case property — “drops a field” is a red build, not a lost database |
 | 🧬 | **One protocol, derived** | `rpc_contract!` emits the Rust types and face membership; xtask emits committed TS wire types and scoped face clients |
 | 🚫 | **No TCP, same user only** | UDS/named-pipe native channel with peer-credential checks; unassociated extensions get silence until the user confirms them |
+| 🤝 | **Association handshake** | Enroll once over the credential-checked local socket; every later connection claims its key id and answers a nonce challenge with HMAC-SHA256 — the material never crosses the wire twice (protocol v3) |
+| 🧭 | **Connected-browsers panel** | Live connections with face, version and last request; a per-connection kill switch; remembered keys; enrollment prompts — visible instead of silent |
+| 🔧 | **Manifest installer** | One pass writes Chrome/Edge/Brave/Vivaldi/Firefox native-messaging manifests from `host.json` (Linux/macOS; the Windows layout table is complete, its registry write lands with a Windows CI lane); the audit flags stale manifests and repair rewrites them idempotently, reporting what it fixed |
 | 🕵️ | **Secrets stay app-side** | `EntrySummary` carries no secret material; the extension never holds the database; WASM never links the vault crate |
 | 📦 | **Offline-capable toolchain** | Every dev tool pinned through `pixi.lock`; cargo runs offline against vendored crates on an airlocked machine |
 
 ---
 
 ## ⚡ Quick Start
+
+### 1. Bootstrap the toolchain
 
 Prerequisites: [bun](https://bun.sh) 1.3.x (the only JS runtime — no node anywhere) and Rust with
 the pinned toolchain (`rust-toolchain.toml`; rustup picks it up automatically). Linux desktop
@@ -102,11 +119,17 @@ pixi install                  # optional: the whole dev-tool env at once
 bun install                   # link the workspace (+ git hooks)
 bun run codegen               # derive TS types from the Rust protocol
 bun run wasm                  # build the shared-logic WASM package
-bun run gates                 # lint + typecheck + test, every language
+```
+
+### 2. Run the gates
+
+```bash
+bun run gates                 # turbo: lint + typecheck + test, every language
+bun run codegen:check         # fail on stale or untracked generated output
 cargo test --workspace        # or drive Rust directly
 ```
 
-Faces:
+### 3. Run a face
 
 ```bash
 bun run dev:desktop           # tauri dev (apps/desktop)
@@ -122,22 +145,41 @@ bun run dev:docs              # the docs site (apps/docs, Astro + Starlight)
 
 ---
 
-## 🏗️ Repository Architecture
+## 📖 Planning & Knowledge
+
+Two systems with a hard boundary between them:
+
+- **[`backlog/`](backlog/)** — delivery state in the [backlog.md](https://backlog.md) format:
+  50 tasks across six milestones, 10 decision records, 20 planning/spec/research/spike docs.
+  Run `bun run backlog` for the board.
+- **[`.knowledge/`](.knowledge/)** — durable knowledge in Google's Open Knowledge Format:
+  35 documents across six categories. This is the *why*: threat model, biometric-unlock
+  architecture, the passkey enforcement rule, keepass-rs and LocalSend findings, the naming
+  research behind Castellan/Fob. The five facts an agent needs before touching the repo are in
+  [`.knowledge/CONTEXT.md`](.knowledge/CONTEXT.md).
+
+Naming: product **Castellan** (the keeper of the castle keys), browser companion **Fob** (the
+thing you carry that grants access). Both were checked against the password-manager landscape in
+October 2026.
+
+## 📂 Repository Architecture
 
 | Path | Description |
 |------|-------------|
 | `apps/desktop` | Tauri 2 + SvelteKit — the desktop face; one `rpc` command, unlock/lock/status commands, event forwarding |
 | `apps/mobile` | Tauri 2 (iOS/Android) + SvelteKit — the mobile face; same dispatcher, same shell shape |
-| `apps/extension` | WXT extension ("Fob"), one codebase for chromium + gecko; native-messaging transport; passkey interception skeleton |
+| `apps/extension` | WXT extension (“Fob”), one codebase for chromium + gecko; protocol-v3 native-messaging transport with the association handshake; passkey interception skeleton |
 | `apps/docs` | The documentation site (Astro + Starlight, a bun workspace; deploy lands with task-44) |
-| `crates/protocol` | The one RPC contract: `rpc_contract!` emits paired request/result types and each operation's client faces |
+| `crates/protocol` | The one RPC contract: `rpc_contract!` emits paired request/result types, each operation's client faces, and the association/panel wire types |
 | `crates/dispatch` | The one transport-independent dispatcher every native face calls |
 | `crates/otp` | otpauth parsing + RFC 6238 TOTP (with the RFC's own test vectors) |
 | `crates/vault` | KDBX core: open, entry projection, passphrase generation, the in-memory session with lock tiers, copy-aside save, the round-trip harness |
 | `crates/ipc` | The native channel's framing + the well-known socket path (std-only, no async runtime) |
+| `crates/ipc-server` | The app-side socket server: connection multiplexing, the association handshake (enroll/prompt/proof), silence on refusal, the connected-browsers panel data |
+| `crates/manifests` | The native-messaging manifest installer: browser detection, the one-pass write, the staleness audit, idempotent repair |
 | `crates/native-host` | The byte pump each browser spawns (the app binary, `--native-host`) |
 | `crates/wasm` | The WASM face of shared logic; `packages/wasm` wraps it |
-| `crates/xtask` | Codegen: Rust contract → generated TS wire types, native-host manifests, scoped face clients |
+| `crates/xtask` | Codegen: Rust contract → generated TS wire types, native-host manifests + the installer's identity file, scoped face clients |
 | `packages/protocol` | Generated TS wire types (committed; `bun run codegen` regenerates) |
 | `packages/core` | Transport-independent client mechanics + the `Transport` seam; generated app clients extend it |
 | `packages/tauri` | The tested `invoke("rpc")` transport shared by desktop and mobile, incl. event subscription |
@@ -160,7 +202,7 @@ bun run lint:commits          # convco: history is conventional
 bun run backlog               # the kanban board (backlog.md)
 cargo test --workspace        # rust suites directly
 cargo run -p castellan-xtask -- codegen
-./scripts/restore.sh          # restore the offline environment (see the airlock note in AGENTS.md)
+./scripts/restore.sh          # restore the offline environment (see the airlock note below)
 ```
 
 `turbo` runs the monorepo and `bun run <verb>` fans out to every package. The Rust workspace is
@@ -174,8 +216,10 @@ generated output before review.
 matrices ↔ example tests over explicit lists, proptest ↔ fast-check. Case files are generated
 from reviewed case tables, never committed — except the two anchors no generator can author (the
 KeePassXC-written file and the KDBX 3.1 fixture). Rust lints run `clippy -D warnings` +
-`missing_docs` + `unsafe_code = "forbid"`; TS runs biome + tsc/svelte-check on strict shared
-bases. Browser tests ride one pinned Playwright (1.58.2) and one prebundled chromium that
+`missing_docs` + `unsafe_code = "deny"` — with exactly one sanctioned exception, the
+peer-credential `getsockopt` in the IPC server, each function carrying a SAFETY case (see the
+`[workspace.lints]` comment in the root manifest). TS runs biome + tsc/svelte-check on strict
+shared bases. Browser tests ride one pinned Playwright (1.58.2) and one prebundled chromium that
 `bun install` downloads.
 
 > [!IMPORTANT]
@@ -189,23 +233,6 @@ in root `[workspace.dependencies]`, and a row in `crates/README.md`. A TS packag
 under `packages/` — `bun install` links it. A protocol operation is one entry in `rpc_contract!`
 plus one arm in `crates/dispatch`; app shells never match on `RpcMethod`.
 
-## 📖 Planning & Knowledge
-
-Two systems with a hard boundary between them:
-
-- **[`backlog/`](backlog/)** — delivery state in the [backlog.md](https://backlog.md) format:
-  50 tasks across six milestones, 10 decision records, 20 planning/spec/research/spike docs.
-  Run `bun run backlog` for the board.
-- **[`.knowledge/`](.knowledge/)** — durable knowledge in Google's Open Knowledge Format:
-  35 documents across six categories. This is the *why*: threat model, biometric-unlock
-  architecture, the passkey enforcement rule, keepass-rs and LocalSend findings, the naming
-  research behind Castellan/Fob. The five facts an agent needs before touching the repo are in
-  [`.knowledge/CONTEXT.md`](.knowledge/CONTEXT.md).
-
-Naming: product **Castellan** (the keeper of the castle keys), browser companion **Fob** (the
-thing you carry that grants access). Both were checked against the password-manager landscape in
-October 2026.
-
 ## 🧬 What came from where
 
 The monorepo setup is copied and adjusted from
@@ -217,7 +244,7 @@ The monorepo setup is copied and adjusted from
 | bun as the only JS runtime; turbo + biome as workspace devDeps; no node | geoquery |
 | the `crates/package.json` **turbo façade** — Rust workspace as one task-graph node | geoquery |
 | ts-rs codegen through an `xtask` crate into committed `packages/*/src/generated` | geoquery |
-| root `[workspace.dependencies]` with documented ranges; `[workspace.lints]` (`unsafe_code = "forbid"`) | geoquery |
+| root `[workspace.dependencies]` with documented ranges; `[workspace.lints]` (`unsafe_code = "deny"`, one documented exception) | geoquery |
 | strict shared TS config bases (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, …) | geoquery |
 | lefthook hooks whose bodies are the commands CI runs; conventional-commit `commit-msg` | geoquery |
 | single-job CI that reads as the gate; three separate caches | geoquery |
@@ -229,7 +256,7 @@ The monorepo setup is copied and adjusted from
 Adjusted for this project: the Rust root is a virtual manifest (nothing packages a root artifact);
 pixi came back as a tool belt, not a runtime; the Tauri app crates are workspace members under
 `apps/*/src-tauri`; a `codegen` turbo task and the generated-dir dependency edge; the WASM face
-(`crates/wasm` + `packages/wasm`) is new.
+(`crates/wasm` + `packages/wasm`), the IPC server and the manifest installer are new.
 
 ## 🔖 Changelog & Release
 
