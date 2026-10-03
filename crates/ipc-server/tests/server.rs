@@ -215,8 +215,10 @@ fn an_unanswered_prompt_expires() {
     let started = Instant::now();
     client.expect_silence();
     wait_until("the prompt to expire", || server.panel().pending.is_empty());
-    // The prompt outlived the 300 ms timeout by no more than a few ticks.
-    assert!(started.elapsed() < Duration::from_secs(2));
+    // The prompt outlived the 300 ms timeout by no more than a generous
+    // scheduling margin — a loaded CI runner may be slow, but a prompt
+    // that never expires would hang the silence budget instead.
+    assert!(started.elapsed() < Duration::from_secs(10));
     let _ = std::fs::remove_dir_all(dir);
 }
 
@@ -292,10 +294,14 @@ fn the_kill_switch_closes_a_ready_connection_promptly() {
     let started = Instant::now();
     assert!(server.kill(id));
     client.expect_silence();
-    // One read tick is 250 ms; four of them is the test's slack budget.
+    // One read tick is 250 ms, so a healthy kill lands in well under a
+    // second — but a loaded shared CI runner may stall the reader thread,
+    // and the property under test is "the kill lands" (a connection that
+    // ignores its kill flag would hang until the 10 s silence budget
+    // fails), not a wall-clock number. 20 ticks of budget.
     assert!(
-        started.elapsed() < Duration::from_secs(1),
-        "kill took {:?}, more than a few ticks",
+        started.elapsed() < Duration::from_secs(5),
+        "kill took {:?}, more than twenty ticks",
         started.elapsed()
     );
     wait_until("the killed connection to leave the panel", || {

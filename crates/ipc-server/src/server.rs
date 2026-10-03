@@ -693,9 +693,13 @@ impl FrameReader {
             match stream.read(&mut self.header[self.header_read..]) {
                 Ok(0) => return Err(std::io::Error::from(ErrorKind::UnexpectedEof)),
                 Ok(n) => self.header_read += n,
+                // A tick elapsed (the kill-switch check), or a signal
+                // interrupted the blocking read: resume, never treat a
+                // spurious EINTR as a broken stream.
                 Err(error)
                     if error.kind() == ErrorKind::WouldBlock
-                        || error.kind() == ErrorKind::TimedOut =>
+                        || error.kind() == ErrorKind::TimedOut
+                        || error.kind() == ErrorKind::Interrupted =>
                 {
                     return Ok(None);
                 }
@@ -721,9 +725,13 @@ impl FrameReader {
             match stream.read(filled) {
                 Ok(0) => return Err(std::io::Error::from(ErrorKind::UnexpectedEof)),
                 Ok(n) => self.payload_read += n,
+                // A tick elapsed (the kill-switch check), or a signal
+                // interrupted the blocking read: resume, never treat a
+                // spurious EINTR as a broken stream.
                 Err(error)
                     if error.kind() == ErrorKind::WouldBlock
-                        || error.kind() == ErrorKind::TimedOut =>
+                        || error.kind() == ErrorKind::TimedOut
+                        || error.kind() == ErrorKind::Interrupted =>
                 {
                     return Ok(None);
                 }
