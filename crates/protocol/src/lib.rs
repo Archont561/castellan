@@ -566,6 +566,9 @@ pub enum ConnectionState {
 #[ts(export)]
 pub struct ConnectionInfo {
     /// Connection identifier, stable for the connection's lifetime.
+    /// Pinned to `number` on the field (not via xtask's export config) so
+    /// every export path emits the same bytes — see [`RpcRequest::id`].
+    #[ts(type = "number")]
     pub id: u64,
     /// Which face is connected.
     pub face: FaceKind,
@@ -580,6 +583,8 @@ pub struct ConnectionInfo {
     /// payload — the panel must not become a side channel.
     pub last_request: Option<String>,
     /// When the connection opened, unix seconds.
+    /// Pinned to `number` — see [`RpcRequest::id`].
+    #[ts(type = "number")]
     pub connected_at: u64,
 }
 
@@ -592,6 +597,8 @@ pub struct RememberedKey {
     /// The label chosen at enrollment ("Chrome on this machine").
     pub label: String,
     /// When the user confirmed the key, unix seconds.
+    /// Pinned to `number` — see [`RpcRequest::id`].
+    #[ts(type = "number")]
     pub added_at: u64,
 }
 

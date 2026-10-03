@@ -8,8 +8,10 @@ import type { FaceKind } from "./FaceKind";
 export type ConnectionInfo = { 
 /**
  * Connection identifier, stable for the connection's lifetime.
+ * Pinned to `number` on the field (not via xtask's export config) so
+ * every export path emits the same bytes — see [`RpcRequest::id`].
  */
-id: bigint, 
+id: number, 
 /**
  * Which face is connected.
  */
@@ -34,5 +36,6 @@ state: ConnectionState,
 last_request: string | null, 
 /**
  * When the connection opened, unix seconds.
+ * Pinned to `number` — see [`RpcRequest::id`].
  */
-connected_at: bigint, };
+connected_at: number, };
