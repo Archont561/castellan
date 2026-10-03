@@ -119,6 +119,19 @@ no per-script wrappers, so a new script never needs a pixi line (the
   was out of domain, fix the strategy and delete the seed. fast-check
   prints the failing seed itself — re-run with `{ seed }`; `bun test
   --seed` does not reach it.
+- **Case files are generated, not committed.** A test case the toolchain
+  can author itself is a row in a case table plus a factory that builds
+  it — never a committed file. The worked example is
+  `crates/vault/tests/common/mod.rs`: twelve committed fixture binaries
+  (the cipher/KDF/keyfile matrix) became `GENERATED_CORPUS` + `build()`,
+  a reviewed table whose expectations are exact by construction, because
+  the generator wrote every title it asserts — and a config-matrix case
+  added later is a table row, not another binary in the repo. A committed
+  case file is justified only by what no generator can author: external
+  authorship (bytes another client wrote — the KeePassXC 2.7.12 anchor),
+  or a format the toolchain cannot write (KDBX 3.1; keepass-rs emits 4.1
+  only). Before adding a fixture file, name what it carries that the
+  factory could not; if the answer is nothing, it is a case, not a file.
 - **Styling is UnoCSS, from a foundation plus a look.** `@castellan/utils/uno`
   exports `unoPreset()`: the tokens (`--bg`, `--accent`…, reachable as
   `bg-bg`/`text-accent` and overridable per subtree), the `*-tint-<n>`
