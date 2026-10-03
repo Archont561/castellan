@@ -9,8 +9,8 @@ default = [
 cargo-deny = "0.20.*"
 cargo-llvm-cov = "0.9.*"
 cargo-nextest = "0.9.*"
-rust = "==1.98.0"
-rust-std-wasm32-unknown-unknown = "==1.98.0"
+rust = "==1.98.1"
+rust-std-wasm32-unknown-unknown = "==1.98.1"
 # Exact, and it must equal the `wasm-bindgen` version Cargo.lock resolves:
 # wasm-pack uses a `wasm-bindgen` already on PATH only when the versions match
 # exactly, and otherwise downloads one (or falls back to `cargo install`) mid

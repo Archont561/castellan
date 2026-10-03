@@ -24,7 +24,7 @@
     "@floating-ui/dom": "^1.8.0",
     "@harshmandan/svaul": "^2.0.0",
     "@internationalized/date": "^3.12.4",
-    "bits-ui": "^2.19.4",
+    "bits-ui": "^2.19.5",
     "lucide-svelte": "^1.0.1"
   },
   "peerDependencies": {

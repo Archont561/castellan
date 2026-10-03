@@ -3,5 +3,5 @@
 # geoquery's pixi.toml states). rust-version in Cargo.toml is the floor the
 # dependency graph needs; this is the compiler the releases are built with.
 [toolchain]
-channel = "1.98.0"
+channel = "1.98.1"
 components = ["rustfmt", "clippy"]
