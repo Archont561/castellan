@@ -14,5 +14,6 @@ key_id: string,
 label: string, 
 /**
  * When the user confirmed the key, unix seconds.
+ * Pinned to `number` — see [`RpcRequest::id`].
  */
-added_at: bigint, };
+added_at: number, };
