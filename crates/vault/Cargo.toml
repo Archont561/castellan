@@ -31,3 +31,7 @@ zeroize = { workspace = true }
 [dev-dependencies]
 proptest = { workspace = true }
 rstest = { workspace = true }
+# The fixture factory constructs KdfConfig's Argon2d/Argon2id variants,
+# whose `version` field is keepass's argon2 — rust-argon2, renamed here
+# because its lib name collides with the workspace's RustCrypto argon2.
+rust_argon2 = { workspace = true }

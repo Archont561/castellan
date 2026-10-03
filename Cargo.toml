@@ -80,6 +80,12 @@ thiserror = ">=2.0,<3"
 # drop. getrandom feeds the passphrase generator; data-encoding is the base32
 # codec every otpauth seed arrives in.
 keepass = ">=0.15,<1"
+# keepass's KdfConfig carries rust-argon2's Version type. The crate's lib
+# name is `argon2` — the same name as the RustCrypto argon2 above — so the
+# key is the rename members import it under, and the table entry points it
+# at the real package name. Only the vault fixture factory needs it, as a
+# dev-dependency.
+rust_argon2 = { package = "rust-argon2", version = "3" }
 argon2 = ">=0.6,<0.7"
 zeroize = ">=1.9,<2"
 secrecy = ">=0.10,<0.11"
