@@ -27,10 +27,22 @@ const busy: PanelSnapshot = {
   pending: [{ key_id: "feedfacefeedface", label: "Firefox on this machine" }],
   remembered: [
     { key_id: "feedfacefeedface", label: "Chrome on this machine", added_at: 1_760_000_000 }
+  ],
+  manifest_problems: [
+    {
+      browser: "edge",
+      kind: "stale_path",
+      detail: "points at /old/place/castellan, the app now lives at /opt/castellan"
+    }
   ]
 };
 
-const quiet: PanelSnapshot = { connections: [], pending: [], remembered: [] };
+const quiet: PanelSnapshot = {
+  connections: [],
+  pending: [],
+  remembered: [],
+  manifest_problems: []
+};
 
 const noops = {
   onConfirm: (_keyId: string) => {},

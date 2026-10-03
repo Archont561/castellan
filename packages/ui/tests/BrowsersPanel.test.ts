@@ -26,6 +26,13 @@ const snapshot: PanelSnapshot = {
   pending: [{ key_id: "feedfacefeedface", label: "Firefox on this machine" }],
   remembered: [
     { key_id: "feedfacefeedface", label: "Chrome on this machine", added_at: 1_760_000_000 }
+  ],
+  manifest_problems: [
+    {
+      browser: "edge",
+      kind: "stale_path",
+      detail: "points at /old/place/castellan, the app now lives at /opt/castellan"
+    }
   ]
 };
 
@@ -97,8 +104,27 @@ test("reports allow, deny and kill through the callbacks", async ({ mount }) => 
   expect(killed).toEqual([1]);
 });
 
+test("surfaces stale manifests with their cause, ready for the repair button", async ({
+  mount
+}) => {
+  const panel = await mount(BrowsersPanel, {
+    props: { snapshot, onConfirm: () => {}, onDeny: () => {}, onKill: () => {} }
+  });
+
+  const problem = panel.locator(".problem");
+  await expect(problem).toHaveCount(1);
+  await expect(problem.locator(".face")).toHaveText("Edge");
+  await expect(problem.locator(".kind")).toHaveText("Manifest points at an old app path");
+  await expect(problem.locator(".detail")).toContainText("/old/place/castellan");
+});
+
 test("a quiet panel says so without lying about sections", async ({ mount }) => {
-  const quiet: PanelSnapshot = { connections: [], pending: [], remembered: [] };
+  const quiet: PanelSnapshot = {
+    connections: [],
+    pending: [],
+    remembered: [],
+    manifest_problems: []
+  };
   const panel = await mount(BrowsersPanel, {
     props: { snapshot: quiet, onConfirm: () => {}, onDeny: () => {}, onKill: () => {} }
   });
