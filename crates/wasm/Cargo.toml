@@ -24,6 +24,13 @@ wasm-bindgen = { workspace = true }
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[dev-dependencies]
+# The suite mirrors the protocol crate's own shape (matrices + agreement
+# property), so it rides the same pinned pair (AGENTS.md, "Tests live in
+# a tests/ directory").
+proptest = { workspace = true }
+rstest = { workspace = true }
+
 # wasm-pack otherwise downloads Binaryen during a release build. A network
 # fetch inside CI is neither pinned by pixi.lock nor available in the offline
 # development environment; Cargo's release profile still optimizes the small

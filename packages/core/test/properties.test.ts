@@ -1,60 +1,20 @@
 /**
  * The shared client's invariants, proven over arbitrary inputs. Generated
- * face methods are thin calls into this base, so request ids, errors and flat
- * payloads need one property suite rather than one suite per app.
+ * face methods are thin calls into this base, so request ids, errors and
+ * flat payloads need one property suite rather than one suite per app.
+ *
+ * Each property run builds its own client over its own scripted transport
+ * (from ./support.ts, where the pair is defined once) — a fixture's
+ * per-test lifecycle cannot reach inside an `fc.assert` run, and each run
+ * needs independent state anyway.
  */
 
 import { describe, expect, test } from "bun:test";
-import type { RpcRequest, RpcResponse } from "@castellan/protocol";
 import fc from "fast-check";
 
-import { CastellanError, RpcClient } from "@/src/client";
-import type { Transport } from "@/src/transport";
+import { CastellanError } from "@/src/client";
 
-class TestClient extends RpcClient {
-  async ping(): Promise<void> {
-    await this.call({ method: "ping" }, "ping");
-  }
-
-  async getEntries(origin: string): Promise<unknown[]> {
-    const result = await this.call({ method: "get_entries", origin }, "get_entries");
-    return result.entries;
-  }
-
-  async getTotp(entryId: string): Promise<{ code: string; secondsRemaining: number }> {
-    const result = await this.call({ method: "get_totp", entry_id: entryId }, "get_totp");
-    return { code: result.code, secondsRemaining: result.seconds_remaining };
-  }
-}
-
-class ScriptedTransport implements Transport {
-  readonly sent: RpcRequest[] = [];
-  readonly #answer: (req: RpcRequest) => RpcResponse;
-
-  constructor(answer: (req: RpcRequest) => RpcResponse) {
-    this.#answer = answer;
-  }
-
-  get connected(): boolean {
-    return true;
-  }
-
-  onEvent(): () => void {
-    return () => {};
-  }
-
-  request(req: RpcRequest): Promise<RpcResponse> {
-    this.sent.push(req);
-    return Promise.resolve(this.#answer(req));
-  }
-}
-
-const success = (req: RpcRequest): RpcResponse => {
-  if (req.method === "get_entries") {
-    return { id: req.id, result: { type: "get_entries", entries: [] }, error: null };
-  }
-  return { id: req.id, result: { type: "ping" }, error: null };
-};
+import { ScriptedTransport, success, TestClient } from "./support";
 
 describe("RpcClient (properties)", () => {
   test("assigns every request a distinct, dense id", async () => {
