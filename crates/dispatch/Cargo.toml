@@ -21,6 +21,10 @@ castellan-protocol = { workspace = true }
 castellan-vault = { workspace = true }
 
 [dev-dependencies]
+# The suite builds a tiny real vault through keepass's builder so the
+# dispatcher's tests exercise the session the way the apps do: unlock
+# through the vault crate's front door, dispatch against it.
+keepass = { workspace = true, features = ["save_kdbx4"] }
 # The suite's matrices and properties ride the workspace's pinned pair, the
 # same as ipc/otp/protocol/vault (AGENTS.md, "Tests live in a tests/
 # directory"): #[case] rows per contract operation, proptest for the

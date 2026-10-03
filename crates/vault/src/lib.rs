@@ -25,6 +25,14 @@ use keepass::{
 };
 use thiserror::Error;
 
+pub mod save;
+pub mod session;
+
+pub use save::{ASIDE_EXTENSION, SaveOutcome, TEMP_SUFFIX, aside_name};
+pub use session::{
+    EventSink, LockPolicy, LockReason, LockTrigger, SessionClock, SystemClock, VaultSession,
+};
+
 /// The custom field name that marks an entry as carrying a passkey.
 ///
 /// Stored as a custom field (value: the relying-party ID) so a round-trip
@@ -43,34 +51,77 @@ pub enum VaultError {
         /// Why it failed.
         source: std::io::Error,
     },
-    /// keepass-rs refused it: wrong password, corrupt file, unsupported
-    /// version. The message is passed through because keepass-rs's errors
-    /// are already the best explanation available.
+    /// The presented key did not open the database: wrong password, wrong
+    /// keyfile, or a keyfile where a password was offered. KeePass clients
+    /// show one prompt for all of these, and so does Castellan.
+    #[error("the key does not open this database")]
+    Credentials,
+    /// The file is not a vault this build can parse: corrupt, or a format
+    /// keepass-rs refuses. Distinct from [`VaultError::Credentials`] so the
+    /// UI can treat it as "pick another file" rather than "try again".
     #[error("cannot open database: {0}")]
     Keepass(#[from] keepass::db::DatabaseOpenError),
+    /// The operation needs an unlocked session and there is none.
+    #[error("the vault is locked")]
+    Locked,
+    /// Saving failed. The original file is untouched (copy-aside saves
+    /// write to a temp file and rename); the copy-aside, if one was made,
+    /// is a valid backup and stays.
+    #[error("cannot save database: {0}")]
+    Save(#[from] keepass::db::DatabaseSaveError),
 }
 
-/// An unlocked vault: a parsed database plus the path it came from.
+impl VaultError {
+    /// The stable protocol code for this failure, when it has one — the
+    /// string the UI switches on. File-level failures that are really
+    /// "this is not a vault you can open" collapse to
+    /// [`RpcErrorCode::VaultUnreadable`]; a save failure has no protocol
+    /// surface yet (task-12 assigns one).
+    #[must_use]
+    pub fn error_code(&self) -> Option<castellan_protocol::RpcErrorCode> {
+        use castellan_protocol::RpcErrorCode;
+        match self {
+            Self::Credentials => Some(RpcErrorCode::BadCredentials),
+            Self::Locked => Some(RpcErrorCode::VaultLocked),
+            Self::Io { .. } | Self::Keepass(_) => Some(RpcErrorCode::VaultUnreadable),
+            Self::Save(_) => None,
+        }
+    }
+}
+
+/// An unlocked vault: a parsed database, the path it came from, and the
+/// key it was opened with (retained so [`VaultHandle::save`] can re-encrypt
+/// without re-prompting; `DatabaseKey` is `ZeroizeOnDrop`, so the key wipes
+/// with the handle — locking is dropping).
 #[derive(Debug)]
 pub struct VaultHandle {
-    database: Database,
-    path: PathBuf,
+    pub(crate) database: Database,
+    pub(crate) key: DatabaseKey,
+    pub(crate) path: PathBuf,
 }
 
-/// Open a KDBX file with a password and an optional keyfile.
+/// Open a KDBX file with an optional password and an optional keyfile.
 ///
-/// Argon2id and the cipher choice are the file's business, negotiated by
-/// keepass-rs; this function is the one place a path becomes a vault.
+/// The password is deliberately `Option` on this boundary, not an empty
+/// string: to Argon2 an *empty* password is a present key component, so a
+/// keyfile-only vault can only be opened by passing `None`. The unlock
+/// prompt knows which boxes the user filled; this function mirrors that
+/// exactly. Argon2id and the cipher choice are the file's business,
+/// negotiated by keepass-rs; this function is the one place a path becomes
+/// a vault.
 pub fn open(
     path: &Path,
-    password: &str,
+    password: Option<&str>,
     keyfile: Option<&Path>,
 ) -> Result<VaultHandle, VaultError> {
     let mut source = std::fs::File::open(path).map_err(|source| VaultError::Io {
         path: path.to_path_buf(),
         source,
     })?;
-    let mut key = DatabaseKey::new().with_password(password);
+    let mut key = DatabaseKey::new();
+    if let Some(password) = password {
+        key = key.with_password(password);
+    }
     if let Some(keyfile) = keyfile {
         let mut file = std::fs::File::open(keyfile).map_err(|source| VaultError::Io {
             path: keyfile.to_path_buf(),
@@ -83,9 +134,22 @@ pub fn open(
                 source,
             })?;
     }
-    let database = Database::open(&mut source, key)?;
+    // A wrong key announces itself as a key error (KDBX 4's HMAC layer) or
+    // as a decryption failure (KDBX 3 has no separate key check). Both
+    // mean "this key does not open this file" — the one answer the unlock
+    // prompt needs. Everything else (a corrupt header, an unsupported
+    // version) stays a Keepass error and surfaces as vault-unreadable.
+    let database = match Database::open(&mut source, key.clone()) {
+        Ok(database) => database,
+        Err(keepass::db::DatabaseOpenError::Key(_))
+        | Err(keepass::db::DatabaseOpenError::Cryptography(_)) => {
+            return Err(VaultError::Credentials);
+        }
+        Err(source) => return Err(VaultError::Keepass(source)),
+    };
     Ok(VaultHandle {
         database,
+        key,
         path: path.to_path_buf(),
     })
 }

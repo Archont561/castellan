@@ -330,6 +330,16 @@ pub struct RpcRequest {
 pub enum RpcErrorCode {
     /// The vault exists but is locked.
     VaultLocked,
+    /// The presented master password / keyfile did not open the vault.
+    /// Carried by the app-side unlock flow (the extension cannot unlock —
+    /// secrets stay app-side), so the prompt can offer "try again" rather
+    /// than a generic failure.
+    BadCredentials,
+    /// The vault file exists but cannot be opened as a vault at all:
+    /// unreadable, corrupt, or an unsupported format. Distinct from
+    /// [`RpcErrorCode::BadCredentials`] so the UI treats it as fatal
+    /// ("pick another file") rather than retryable.
+    VaultUnreadable,
     /// The request named an entry that does not exist. Distinct from an empty
     /// list so the UI can say "nothing for this site" without guessing
     /// whether it queried the right database.
@@ -371,7 +381,7 @@ pub struct RpcResponse {
 /// polled: the extension's icon reflects the vault *live*, and the stale
 /// "reconnect to your database" class of failure cannot exist because there
 /// is no state to go stale.
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "snake_case")]
 #[ts(export)]
 pub enum Event {

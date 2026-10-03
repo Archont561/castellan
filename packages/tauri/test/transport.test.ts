@@ -12,6 +12,7 @@
 import { describe, expect, test } from "bun:test";
 import type {
   EntrySummary,
+  Event,
   NewEntry,
   RpcError,
   RpcMethod,
@@ -22,7 +23,7 @@ import type {
 import { createFixture } from "@castellan/utils/fixtures";
 import fc from "fast-check";
 
-import { createTauriTransport, type TauriInvoke } from "@/src/index";
+import { createTauriTransport, type TauriInvoke, type TauriListen } from "@/src/index";
 
 /** An `invoke` that answers from a script and records what it was asked. */
 class ScriptedInvoke {
@@ -47,12 +48,49 @@ class ScriptedInvoke {
   };
 }
 
+/** A `listen` under the transport: records the channel and handlers, and
+ * defers handing back the stop function until the test releases it — the
+ * real one resolves after a webview round-trip, and the disposer must
+ * behave in both orders. */
+class ScriptedListen {
+  readonly subscriptions: Array<{ channel: string; stopped: boolean }> = [];
+  #handlers: Array<(message: { payload: unknown }) => void> = [];
+  #resolvers: Array<() => void> = [];
+
+  readonly listen: TauriListen = <T>(event: string, handler: (message: { payload: T }) => void) => {
+    const subscription = { channel: event, stopped: false };
+    this.subscriptions.push(subscription);
+    this.#handlers.push(handler as (message: { payload: unknown }) => void);
+    return new Promise<() => void>((resolve) => {
+      this.#resolvers.push(() => {
+        resolve(() => {
+          subscription.stopped = true;
+        });
+      });
+    });
+  };
+
+  /** Deliver one event payload to every subscription's handler. */
+  fire(payload: unknown): void {
+    for (const handler of this.#handlers) handler({ payload });
+  }
+
+  /** Resolve the pending subscriptions; their stop functions go live. */
+  connect(): void {
+    for (const release of this.#resolvers.splice(0)) release();
+  }
+}
+
 /** A transport over a scripted invoke, fresh per test: each test's script
  * and call record are its own, and nothing leaks between tests. */
 const tauriHarness = createFixture(() => {
   const invoke = new ScriptedInvoke();
   return { invoke, transport: createTauriTransport(invoke.invoke) };
 });
+
+/** Microtasks flushed: whatever a resolved subscription promise queued
+ * inside the transport has run by the next macrotask. */
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 // ── Arbitraries: the request and response space, generated ──────────────────
 
@@ -126,7 +164,13 @@ const resultArbitraries = {
 } satisfies ResultArbitraries;
 
 const arbRpcError: fc.Arbitrary<RpcError> = fc.record({
-  code: fc.constantFrom("vault_locked", "no_such_entry", "not_implemented"),
+  code: fc.constantFrom(
+    "vault_locked",
+    "bad_credentials",
+    "vault_unreadable",
+    "no_such_entry",
+    "not_implemented"
+  ),
   message: text
 });
 
@@ -198,6 +242,84 @@ describe("createTauriTransport", () => {
         await failing.catch((error: Error) => {
           expect(error.message).toContain(reason);
         });
+      })
+    );
+  });
+});
+
+// ── The event pipe: session events in, callbacks out ─────────────────────────
+
+describe("onEvent", () => {
+  test("subscribes to the castellan channel and forwards its payloads", () => {
+    const invoke = new ScriptedInvoke();
+    const scripted = new ScriptedListen();
+    const transport = createTauriTransport(invoke.invoke, scripted.listen);
+
+    const seen: Event[] = [];
+    transport.onEvent((event) => seen.push(event));
+
+    expect(scripted.subscriptions.map((s) => s.channel)).toEqual(["castellan://event"]);
+    scripted.fire({ type: "database_unlocked" });
+    scripted.fire({ type: "database_locked" });
+    expect(seen).toEqual([{ type: "database_unlocked" }, { type: "database_locked" }]);
+  });
+
+  test("a disposer after the subscription resolves stops delivery and unsubscribes", async () => {
+    const invoke = new ScriptedInvoke();
+    const scripted = new ScriptedListen();
+    const transport = createTauriTransport(invoke.invoke, scripted.listen);
+
+    const seen: Event[] = [];
+    const dispose = transport.onEvent((event) => seen.push(event));
+    scripted.connect();
+    await settle();
+
+    dispose();
+    scripted.fire({ type: "entry_changed", id: "entry-1" });
+
+    expect(seen).toEqual([]);
+    expect(scripted.subscriptions[0]?.stopped).toBe(true);
+  });
+
+  test("a disposer before the subscription resolves unsubscribes on arrival", async () => {
+    const invoke = new ScriptedInvoke();
+    const scripted = new ScriptedListen();
+    const transport = createTauriTransport(invoke.invoke, scripted.listen);
+
+    const seen: Event[] = [];
+    const dispose = transport.onEvent((event) => seen.push(event));
+
+    // The webview round-trip is still in flight when the face goes away.
+    dispose();
+    scripted.fire({ type: "database_locked" });
+    scripted.connect();
+    await settle();
+
+    expect(seen).toEqual([]);
+    expect(scripted.subscriptions[0]?.stopped).toBe(true);
+  });
+
+  test("any protocol event crosses the channel as the same object", async () => {
+    // Property, not example: every event the host can push — lock state,
+    // entry churn — must reach the face untouched, the same identity the
+    // shell emitted.
+    const arbEvent: fc.Arbitrary<Event> = fc.oneof(
+      fc.constant({ type: "database_locked" } as Event),
+      fc.constant({ type: "database_unlocked" } as Event),
+      fc.record({ type: fc.constant("entry_changed"), id: text }) as fc.Arbitrary<Event>
+    );
+
+    await fc.assert(
+      fc.asyncProperty(arbEvent, async (event) => {
+        const invoke = new ScriptedInvoke();
+        const scripted = new ScriptedListen();
+        const transport = createTauriTransport(invoke.invoke, scripted.listen);
+
+        const seen: Event[] = [];
+        transport.onEvent((e) => seen.push(e));
+        scripted.fire(event);
+
+        expect(seen).toEqual([event]);
       })
     );
   });

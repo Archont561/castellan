@@ -17,14 +17,17 @@ workspace = true
 argon2 = { workspace = true }
 castellan-protocol = { workspace = true }
 getrandom = { workspace = true }
-keepass = { workspace = true }
+# save_kdbx4 is a *production* feature now, not a test-only one: the
+# copy-aside save path (decision-3) is this crate's public API. The
+# discipline the old "never in [dependencies]" comment guarded for is
+# enforced structurally instead — Database::save is not re-exported, and
+# the only public save is VaultHandle::save, which cannot skip the
+# copy-aside.
+keepass = { workspace = true, features = ["save_kdbx4"] }
 secrecy = { workspace = true }
 thiserror = { workspace = true }
 zeroize = { workspace = true }
 
 [dev-dependencies]
-# save_kdbx4 only here, never in [dependencies]: production code must keep
-# the copy-before-write discipline, while tests may build fixture files.
-keepass = { workspace = true, features = ["save_kdbx4"] }
 proptest = { workspace = true }
 rstest = { workspace = true }
