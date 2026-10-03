@@ -15,4 +15,4 @@ label: string,
 /**
  * When the user confirmed the key, unix seconds.
  */
-added_at: number, };
+added_at: bigint, };

@@ -136,8 +136,31 @@ jobs:
       - name: Build the docs site
         run: bun run docs:build
 
+      # Test output is tee'd to a file so a failure can be *surfaced*, not
+      # just failed: the next step turns cargo's failures section and bun's
+      # (fail) lines into `::error` annotations. "Which test failed" should
+      # never require log access — reviewers reading the PR check and
+      # sandboxes that cannot reach the Actions log hosts both get the
+      # answer inline.
       - name: Test
-        run: bun run all:test
+        run: |
+          set -o pipefail
+          bun run all:test 2>&1 | tee "$RUNNER_TEMP/test-output.log"
+
+      - name: Surface test failures as annotations
+        if: failure()
+        run: |
+          awk '
+            /^     Running/ { bin = $2 }
+            /^---- .* stdout ----$/ { name = $2 }
+            name && /panicked at/ {
+              printf "::error title=%s %s::%s\n", bin, name, $0
+              name = ""
+            }
+            /\(fail\)/ {
+              printf "::error title=bun test::%s\n", $0
+            }
+          ' "$RUNNER_TEMP/test-output.log" | head -10 || true
 
       # Browser system libraries for the prebundled chromium (the browser
       # binary itself arrives with `bun install` via the root
