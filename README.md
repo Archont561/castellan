@@ -1,261 +1,258 @@
 # Castellan
 
-Local-first secrets manager: a KeePass-compatible vault, an authenticator,
-and a soft security key, in one Rust core with three faces — desktop, mobile,
-and a browser extension — that all speak one protocol and share one logic.
+<p align="center">
+  <a href="https://github.com/Archont561/castellan/actions/workflows/ci.yml"><img src="https://github.com/Archont561/castellan/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="./LICENSE-MIT"><img src="https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue.svg" alt="License: MIT OR Apache-2.0"></a>
+  <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/Rust-1.85%2B-orange.svg?logo=rust" alt="Rust"></a>
+  <a href="https://bun.sh"><img src="https://img.shields.io/badge/Bun-1.3.11-grey.svg?logo=bun" alt="Bun"></a>
+  <a href="https://pixi.sh"><img src="https://img.shields.io/badge/Pixi-0.81%2B-yellow.svg?logo=condaforge" alt="Pixi"></a>
+  <img src="https://img.shields.io/badge/Faces-desktop%20%7C%20mobile%20%7C%20extension-brightgreen.svg" alt="Faces">
+  <a href="https://github.com/Archont561/castellan/pulls"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome"></a>
+</p>
 
-Monorepo setup **copied and adjusted from
-[Archont561/geoquery](https://github.com/Archont561/geoquery) and
-[Archont561/pixi-sandbox](https://github.com/Archont561/pixi-sandbox)** (see
-[What came from where](#what-came-from-where) for the exact ledger).
+<p align="center">
+  <strong>Local-first secrets manager — a KeePass-compatible vault, an authenticator, and a soft security key.</strong><br/>
+  One Rust core, three faces (desktop, mobile, browser extension), one protocol: they cannot disagree.
+</p>
 
-```
-┌────────────┐  ┌────────────┐  ┌──────────────────────┐
-│   desktop  │  │   mobile   │  │  extension ("Fob")   │
-│ Tauri+Kit  │  │ Tauri+Kit  │  │  WXT, all browsers   │
-└─────┬──────┘  └─────┬──────┘  └──────────┬───────────┘
-      │ invoke("rpc") │    native messaging │ (same protocol, same framing)
-      └───────┬───────┴───────────┬─────────┘
-              ▼                   ▼
-   ┌──────────────────────────────────────────┐
-   │ protocol · dispatch · vault · otp · ipc  │  ← one Rust workspace
-   │ native-host · wasm · xtask               │
-   └──────┬───────────────────────┬───────────┘
-          │ ts-rs (codegen)       │ wasm-pack
+---
+
+> [!NOTE]
+> Every face speaks **one RPC contract**, defined once in Rust: the TypeScript that describes it is
+> derived (`ts-rs` → committed generated code), and behavior that must not drift — otpauth parsing,
+> origin matching — is written once in Rust and linked natively or compiled to WASM. Adding an
+> operation is one entry in `rpc_contract!`, one arm in the dispatcher, then `bun run codegen`.
+
+## 🖥️ Face & Platform Support
+
+| Face | Stack | Status | Notes |
+|------|-------|--------|-------|
+| Desktop | Tauri 2 + SvelteKit (static, `ssr=false`) | 🟡 m-1 in development | Linux/macOS/Windows; vault session, unlock/lock and copy-aside saves landed; Linux builds need the [webkit system libraries](apps/desktop/README.md) |
+| Mobile | Tauri 2 (Android/iOS) + SvelteKit | 🟡 scaffolded | Same dispatcher, same protocol; runs on hardware cadence from m-2 (task-23) |
+| Extension — "Fob" | WXT, one codebase for chromium + gecko | 🟡 scaffolded | Native-messaging transport over the app's Unix socket / named pipe; MV3 service-worker reconnects |
+| CLI | Rust, over the same IPC socket | ⏳ planned (task-34) | `get`, `totp`, env injection, git credential helper |
+
+Milestones: **m-0 foundation (done)** → **m-1 v0.1 daily driver** → m-2 hygiene + Android alpha →
+m-3 LAN device mesh → m-4 soft security key → m-5 v1.0 hardening. The whole roadmap lives in
+[`backlog/`](backlog/); m-1's exit test is the dogfood gate — the author uses Castellan as their
+only password manager for two weeks.
+
+## 📦 Architecture
+
+```text
+  ┌────────────┐   ┌────────────┐   ┌──────────────────────┐
+  │  desktop   │   │   mobile   │   │  extension ("Fob")   │
+  │ Tauri+Kit  │   │ Tauri+Kit  │   │  WXT, all browsers   │
+  └─────┬──────┘   └─────┬──────┘   └──────────┬───────────┘
+        │ invoke("rpc") │  native messaging    │ (byte-identical framing:
+        └───────┬───────┴───── host = the app ─┘  4-byte LE length + JSON)
+                ▼                 binary, --native-host
+   ┌────────────────────────────────────────────────┐
+   │ protocol · dispatch · vault · otp · ipc        │ ← one Rust workspace
+   │ native-host · wasm · xtask                     │
+   └──────┬───────────────────────┬────────────────┘
+          │ ts-rs (xtask codegen) │ wasm-pack
           ▼                       ▼
   packages/protocol         packages/wasm
-  (generated types)         (shared logic in the browser)
+  (generated wire types)    (shared logic in the browser)
           │                       │
-          └─────► packages/core ◄─┘   (one base, generated face clients)
+          └────► packages/core ◄──┘  (one client base + generated face clients)
 ```
 
-## The promise this repo is built around
+**Same scoped logic in every face.** A message is defined once (Rust), the TypeScript that
+describes it is derived and committed, and shared behavior is linked natively (apps) or compiled
+to WASM (extension). The KeePass ecosystem's worst failure modes are two halves disagreeing about
+a shape; this structure makes that disagreement a compile error instead of a support ticket.
 
-**Same scoped logic in every face.** A message is defined once (Rust), the
-TypeScript that describes it is derived (`ts-rs` → generated + committed),
-and behavior that must not drift — otpauth parsing, origin matching — is
-written once in Rust and either linked natively (apps) or compiled to WASM
-(extension). The KeePass ecosystem's worst failure modes are two halves
-disagreeing about a shape; this structure makes that disagreement a compile
-error instead of a support ticket.
+**No localhost TCP, ever** (decision-2): browsers reach the app through a Unix domain socket
+(`$XDG_RUNTIME_DIR/castellan/castellan.sock`) or a Windows named pipe, with same-user enforcement
+via peer credentials — no firewall prompt, no port conflict, nothing for other local processes to
+query.
 
-## Layout
+---
 
-| Path | What it is |
-| --- | --- |
-| `apps/desktop` | Tauri 2 + SvelteKit (static adapter, `ssr=false`) — the desktop face |
-| `apps/mobile` | Tauri 2 (iOS/Android) + SvelteKit — the mobile face; same dispatcher |
-| `apps/extension` | WXT extension, one codebase for chromium + gecko; native-messaging transport; passkey interception skeleton at `document_start`, MAIN world |
-| `apps/docs` | this project's documentation site (Astro + Starlight, a bun workspace) |
-| `crates/protocol` | the one RPC contract; its macro emits paired request/result types and each operation's client faces |
-| `crates/dispatch` | the one transport-independent operation dispatcher used by every native face |
-| `crates/otp` | otpauth parsing + RFC 6238 TOTP (with the RFC's own test vectors) |
-| `crates/vault` | KDBX core: open, entry projection, passphrase generation |
-| `crates/ipc` | the one native channel: framing + well-known socket path (std-only) |
-| `crates/native-host` | the byte pump each browser spawns (the app binary, `--native-host`) |
-| `crates/wasm` | the WASM face of shared logic; `packages/wasm` wraps it |
-| `crates/xtask` | codegen: Rust contract → generated TS wire types and desktop/mobile/web-extension clients |
-| `packages/protocol` | generated TS wire types (committed; regenerate with `bun run codegen`) |
-| `packages/core` | transport-independent client mechanics + the `Transport` seam; generated app clients extend it |
-| `packages/tauri` | the tested `invoke("rpc")` transport shared by desktop and mobile |
-| `packages/ui` | shared Svelte components and the native-face vault surface — with Storybook stories and Playwright component tests beside them |
-| `packages/wasm` | npm wrapper around the wasm-pack output |
-| `packages/utils` | the shared tsconfig bases + the bun test fixtures (`createFixture`) + the build/test presets (bunup `libPreset`, playwright `e2ePreset`) |
+## 🚀 Key Features
 
-## Quickstart
+| Icon | Feature | Description |
+|------|---------|-------------|
+| 🔐 | **KeePass-compatible vault** | KDBX 4 open/save through keepass-rs; the unlock corpus includes a KeePassXC-2.7.12-authored anchor fixture |
+| 🛟 | **Copy-aside saves** | Every save copies the old file aside (timestamped) before writing a temp file and renaming; a failed save leaves the original byte-identical (decision-3) |
+| ⏱️ | **Lock tiers** | Soft lock on blur/wake/idle, hard lock after the horizon; derived keys zeroize on drop; events push so faces reflect lock state live |
+| 🧪 | **Round-trip harness** | Open → save → reopen → compare every parsed field, over a generated case table + anchor fixtures and a 50-case property — "drops a field" is a red build, not a lost database |
+| 🧬 | **One protocol, derived** | `rpc_contract!` emits the Rust types and face membership; xtask emits committed TS wire types and scoped face clients |
+| 🚫 | **No TCP, same user only** | UDS/named-pipe native channel with peer-credential checks; unassociated extensions get silence until the user confirms them |
+| 🕵️ | **Secrets stay app-side** | `EntrySummary` carries no secret material; the extension never holds the database; WASM never links the vault crate |
+| 📦 | **Offline-capable toolchain** | Every dev tool pinned through `pixi.lock`; cargo runs offline against vendored crates on an airlocked machine |
 
-Prerequisites, either way: [bun](https://bun.sh) 1.3.x (the only JS runtime
-— no node anywhere) and Rust with the pinned toolchain
-(`rust-toolchain.toml` — rustup picks it up automatically), plus for Linux
-desktop builds the [Tauri system libraries](apps/desktop/README.md).
+---
 
-The one-command alternative is [pixi](https://pixi.sh) (decision-8):
-`pixi install` provisions that whole toolchain — bun, rust with clippy
-and rustfmt, the wasm32 std, wasm-pack, convco, actionlint, cargo-deny,
-cargo-nextest, cargo-llvm-cov — pinned through the committed `pixi.lock`.
-Pixi manages tools only; scripts stay behind `bun run` either way.
+## ⚡ Quick Start
 
-```console
-$ pixi install                 # optional: the whole dev-tool env at once
-$ bun install                  # link the workspace
-$ bun run codegen              # derive TS types from the Rust protocol
-$ bun run wasm                 # build the shared-logic WASM package
-$ bun run gates                # lint + typecheck + test, every language
-$ cargo test --workspace       # or drive Rust directly
+Prerequisites: [bun](https://bun.sh) 1.3.x (the only JS runtime — no node anywhere) and Rust with
+the pinned toolchain (`rust-toolchain.toml`; rustup picks it up automatically). Linux desktop
+builds additionally need the [Tauri system libraries](apps/desktop/README.md).
+
+The one-command alternative is [pixi](https://pixi.sh) (decision-8): `pixi install` provisions
+the whole toolchain — bun, rust with clippy and rustfmt, the wasm32 std, wasm-pack, convco,
+actionlint, cargo-deny — pinned through the committed `pixi.lock`. Pixi manages **tools only**;
+scripts stay behind `bun run` either way.
+
+```bash
+pixi install                  # optional: the whole dev-tool env at once
+bun install                   # link the workspace (+ git hooks)
+bun run codegen               # derive TS types from the Rust protocol
+bun run wasm                  # build the shared-logic WASM package
+bun run gates                 # lint + typecheck + test, every language
+cargo test --workspace        # or drive Rust directly
 ```
 
 Faces:
 
-```console
-$ bun run dev:desktop          # tauri dev (apps/desktop)
-$ bun run dev:mobile           # tauri dev (apps/mobile; see its README for android/ios init)
-$ bun run dev:ext              # wxt dev (chromium; :firefox for gecko)
-$ bun run dev:docs             # the documentation site (apps/docs/, Astro + Starlight)
+```bash
+bun run dev:desktop           # tauri dev (apps/desktop)
+bun run dev:mobile            # tauri dev (apps/mobile; see its README for android/ios init)
+bun run dev:ext               # wxt dev (chromium; :firefox for gecko)
+bun run dev:docs              # the docs site (apps/docs, Astro + Starlight)
 ```
 
-Validated in this scaffold: `cargo check`/`cargo test` green across the
-library crates (rstest fixtures/matrices and proptest properties included,
-zero warnings under `missing_docs` + `clippy::all`), cargo-deny clean
-(bans/licenses/sources/advisories, with one documented transitive
-unmaintained-crate ignore), the full TS gate green (biome, tsc/svelte-check,
-bun and Playwright component tests, including fast-check protocol/client
-properties), actionlint clean, the docs site building, and deterministic
-committed codegen.
-The Tauri app crates need the platform webkit libraries to compile
-(documented in `apps/desktop/README.md`).
+> [!TIP]
+> On a machine without the webkit stack (or offline), scope cargo to the library crates — the
+> session skill's standing commands: `cargo test --workspace --exclude castellan-desktop
+> --exclude castellan-mobile`. The Tauri shells compile in CI, which installs the GTK stack.
 
-## The task graph
+---
 
-`turbo` runs the monorepo; `bun run <verb>` at the root fans out to every
-package. The Rust workspace is **one node** in that graph, through the
-façade in `crates/package.json` (`@castellan/rust`) whose scripts `cd ..`
-and run cargo — so `bun run all:test` runs the TS suites *and*
-`cargo test --workspace`, exactly once, in the order the graph says.
-Codegen is a task too: generated consumers depend on
-`@castellan/rust#codegen`, and CI runs `bun run codegen:check` to regenerate
-then reject tracked changes or untracked outputs. A stale generated directory
-therefore fails before review instead of being hidden by typecheck.
+## 🏗️ Repository Architecture
 
-The library packages (protocol, core, utils) build with **bunup** through
-one shared preset — `libPreset` in `@castellan/utils/bunup` — ESM plus
-declarations into a gitignored `dist/`: proof today that each package
-bundles and emits types, and the publish artifact the day one ships.
-Workspace consumers still import `src/` directly (the dev loop stays
-rebuild-free), so bunup's `exports` auto-sync stays off. The `wasm` and
-`ui` packages keep their own builds: wasm-pack builds Rust, and Svelte
-components are compiled inside the apps that consume them.
+| Path | Description |
+|------|-------------|
+| `apps/desktop` | Tauri 2 + SvelteKit — the desktop face; one `rpc` command, unlock/lock/status commands, event forwarding |
+| `apps/mobile` | Tauri 2 (iOS/Android) + SvelteKit — the mobile face; same dispatcher, same shell shape |
+| `apps/extension` | WXT extension ("Fob"), one codebase for chromium + gecko; native-messaging transport; passkey interception skeleton |
+| `apps/docs` | The documentation site (Astro + Starlight, a bun workspace; deploy lands with task-44) |
+| `crates/protocol` | The one RPC contract: `rpc_contract!` emits paired request/result types and each operation's client faces |
+| `crates/dispatch` | The one transport-independent dispatcher every native face calls |
+| `crates/otp` | otpauth parsing + RFC 6238 TOTP (with the RFC's own test vectors) |
+| `crates/vault` | KDBX core: open, entry projection, passphrase generation, the in-memory session with lock tiers, copy-aside save, the round-trip harness |
+| `crates/ipc` | The native channel's framing + the well-known socket path (std-only, no async runtime) |
+| `crates/native-host` | The byte pump each browser spawns (the app binary, `--native-host`) |
+| `crates/wasm` | The WASM face of shared logic; `packages/wasm` wraps it |
+| `crates/xtask` | Codegen: Rust contract → generated TS wire types, native-host manifests, scoped face clients |
+| `packages/protocol` | Generated TS wire types (committed; `bun run codegen` regenerates) |
+| `packages/core` | Transport-independent client mechanics + the `Transport` seam; generated app clients extend it |
+| `packages/tauri` | The tested `invoke("rpc")` transport shared by desktop and mobile, incl. event subscription |
+| `packages/ui` | Shared Svelte components with Storybook stories and Playwright component tests beside them |
+| `packages/wasm` | npm wrapper around the wasm-pack output |
+| `packages/utils` | Shared tsconfig bases, the bun test fixtures (`createFixture`), build/test presets (bunup `libPreset`, playwright `e2ePreset`) |
 
-Browser tests ride the same graph, on one pinned Playwright (1.58.2,
-aligned with `@playwright/experimental-ct-svelte` for the ui package's
-component tests) and one prebundled chromium: `@playwright/browser-chromium`
-at the root downloads the binary during `bun install`, so e2e needs no
-manual browser step. Each app's `e2e` task drives its face — desktop and
-mobile through their dev servers, the extension loaded *built* into full
-Chromium — and the ui components have Storybook stories (`defineMeta`,
-`.stories.svelte` next to each component) built by
-`bun run all:storybook`.
+---
 
-## Codegen: how the two languages stay one protocol
+## 🛠️ Development & Quality Gates
 
-```console
-$ cargo run -p castellan-xtask -- codegen
+```bash
+bun run gates                 # turbo: lint + typecheck + test, every language
+bun run codegen && bun run codegen:check   # regenerate, then fail on uncommitted drift
+bun run wasm                  # rebuild the WASM package
+bun run all:e2e               # browser e2e: desktop, mobile, extension — serial
+bun run all:storybook         # build the ui package's Storybook (static)
+bun run lint:workflows        # actionlint over .github/workflows
+bun run lint:commits          # convco: history is conventional
+bun run backlog               # the kanban board (backlog.md)
+cargo test --workspace        # rust suites directly
+cargo run -p castellan-xtask -- codegen
+./scripts/restore.sh          # restore the offline environment (see the airlock note in AGENTS.md)
 ```
 
-`castellan-xtask` loads the operation metadata emitted beside
-`castellan-protocol`'s types. It exports wire DTOs and the WASM result
-projection with ts-rs, writes the barrel and protocol version, derives native
-host manifests from one metadata file, and generates scoped `DesktopClient`,
-`MobileClient` and `WebExtensionClient` classes into their apps. The output
-is committed: a protocol change shows both its wire diff and exactly which
-faces gained the call. Generator-owned directories are cleared first, and
-hand edits are overwritten by design.
+`turbo` runs the monorepo and `bun run <verb>` fans out to every package. The Rust workspace is
+**one node** in that graph, through the façade in `crates/package.json` (`@castellan/rust`) whose
+scripts `cd ..` and run cargo — so `bun run all:test` runs the TS suites *and*
+`cargo test --workspace`, exactly once, in the order the graph says. Generated consumers depend
+on `@castellan/rust#codegen`, and CI runs `bun run codegen:check` to reject stale or untracked
+generated output before review.
 
-## What came from where
+**Testing vocabulary (both languages, one shape):** `#[fixture]` ↔ `createFixture`, `#[case]`
+matrices ↔ example tests over explicit lists, proptest ↔ fast-check. Case files are generated
+from reviewed case tables, never committed — except the two anchors no generator can author (the
+KeePassXC-written file and the KDBX 3.1 fixture). Rust lints run `clippy -D warnings` +
+`missing_docs` + `unsafe_code = "forbid"`; TS runs biome + tsc/svelte-check on strict shared
+bases. Browser tests ride one pinned Playwright (1.58.2) and one prebundled chromium that
+`bun install` downloads.
 
-Copied from **geoquery** (the closer of the two references):
+> [!IMPORTANT]
+> **The offline airlock.** `./scripts/restore.sh` (plus the documented two-command workaround in
+> [AGENTS.md](AGENTS.md)) provisions the vendored-cargo, offline environment. Never commit the
+> `[source]` vendored-sources block into `.cargo/config.toml`; a new Rust dependency needs the
+> airlock — it only works if the crate is already vendored.
 
-| Pattern | Where |
-| --- | --- |
-| bun as the only JS runtime (`packageManager` pinned, turbo + biome as workspace devDeps, no node) | root `package.json` |
-| the `crates/package.json` **turbo façade** — Rust workspace as one task-graph node, scripts `cd ..` to the workspace root, `cache: false` per task | `crates/package.json`, `crates/turbo.json` |
-| ts-rs codegen through an `xtask` crate into `packages/*/src/generated` | `crates/xtask` |
-| root `[workspace.dependencies]` with documented version ranges; `[workspace.package]` metadata inheritance; `[workspace.lints]` (`unsafe_code = "forbid"`, `missing_docs`, clippy `all`) | root `Cargo.toml` |
-| strict shared TypeScript bases (ES2023, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `verbatimModuleSyntax`, `isolatedModules`) extended through package exports | `packages/utils/tsconfig/` |
-| biome config (vcs-aware, double quotes, no trailing commas, lineWidth 100) | `biome.json` |
-| lefthook hooks where every body is the command CI runs, `stage_fixed`, conventional-commit `commit-msg` | `lefthook.yml` |
-| single-job CI that reads as the gate, three separate caches, `cancel-in-progress` | `.github/workflows/ci.yml` |
-| dual MIT/Apache-2.0 licensing | `LICENSE-*` |
+**Adding things:** a crate is a directory under `crates/` with an inheriting `Cargo.toml`, a line
+in root `[workspace.dependencies]`, and a row in `crates/README.md`. A TS package is a directory
+under `packages/` — `bun install` links it. A protocol operation is one entry in `rpc_contract!`
+plus one arm in `crates/dispatch`; app shells never match on `RpcMethod`.
 
-Adjusted for this project:
+## 📖 Planning & Knowledge
 
-- **The Rust root is a virtual manifest.** geoquery's is also a package
-  because `pixi publish` needs `cargo install --path .`; nothing here
-  packages a Rust artifact, so the root stays `[workspace]`-only.
-- **Pixi came back — as a tool belt, not a runtime** (decision-8). geoquery's
-  `pixi.toml` exists for conda packaging, a Python SDK, and an offline sandbox
-  transport; this repo has none of those, so decision-5 dropped pixi entirely.
-  What brought a slimmer version back: the toolchain grew binaries npm cannot
-  carry (convco, actionlint, cargo-deny/nextest/llvm-cov, wasm-pack + the
-  wasm32 std) and per-tool install instructions are drift waiting to happen.
-  Scripts stay behind `bun run`, rust stays pinned by
-  `rust-toolchain.toml` (pixi mirrors the pin), and there is no pixi-run
-  indirection anywhere.
-- **The Tauri app crates are workspace members** living under `apps/*/src-tauri`
-  (geoquery has no apps of that kind); the member glob plus two names, with
-  the reason in the root `Cargo.toml`.
-- **A `codegen` turbo task** and the generated-dir dependency edge
-  (`@castellan/protocol` typecheck depends on `@castellan/rust#codegen`) —
-  geoquery's client was scaffolding-only when copied, so this edge is new.
-- **WASM**: geoquery has no wasm face; `crates/wasm` + `packages/wasm`
-  (wasm-pack → bundler target, ignored runtime artifacts, committed generated
-  declarations, lazy load) are new.
-- Cargo **nextest/llvm-cov** stay out of the gates (plain `cargo test` /
-  `coverage` tasks) so CI needs only bun + rust; both binaries ship in the
-  pixi env for local use — swap the gates over when CI wants it.
-- **convco** owns the commit-msg check when installed (grep fallback for
-  contributors without it) and **actionlint** lints the workflows — neither
-  ships a usable npm CLI, so both live in the pixi env (or arrive as release
-  binaries like cargo-deny's). **fast-check** + `@castellan/utils` (tsconfig
-  bases, test fixtures) give the TS suites the same property/fixture
-  vocabulary the Rust side has in proptest/rstest.
+Two systems with a hard boundary between them:
 
-Taken from **pixi-sandbox**: the manifest-header-comment house style (the
-*why* and the tradeoff live in the file, not the wiki), `deny.toml` as the
-license/bans/sources gate, the `backlog/` + `.knowledge/` systems
-(backlog.md tool + Google's OKF for the knowledge bundle), the `skills`
-devDependency (the agent-skills CLI), the **pixi dev-tool environment**
-(adopted late, decision-8 — tools only), and the **docs site template** —
-`apps/docs/` is pixi-sandbox's Astro + Starlight app adapted (its
-version-substitution rig stays behind until versioned pages exist), plus
-turbo only where the workspace graph earns it — this repo's graph does
-(three apps + six packages + one Rust node + the docs site), so turbo
-stays.
+- **[`backlog/`](backlog/)** — delivery state in the [backlog.md](https://backlog.md) format:
+  50 tasks across six milestones, 10 decision records, 20 planning/spec/research/spike docs.
+  Run `bun run backlog` for the board.
+- **[`.knowledge/`](.knowledge/)** — durable knowledge in Google's Open Knowledge Format:
+  35 documents across six categories. This is the *why*: threat model, biometric-unlock
+  architecture, the passkey enforcement rule, keepass-rs and LocalSend findings, the naming
+  research behind Castellan/Fob. The five facts an agent needs before touching the repo are in
+  [`.knowledge/CONTEXT.md`](.knowledge/CONTEXT.md).
 
-## Adding things
+Naming: product **Castellan** (the keeper of the castle keys), browser companion **Fob** (the
+thing you carry that grants access). Both were checked against the password-manager landscape in
+October 2026.
 
-- **A crate**: directory under `crates/` with a `Cargo.toml` that inherits
-  (`version.workspace = true`, `[lints] workspace = true`), a line in root
-  `[workspace.dependencies]`, a row in `crates/README.md`. The glob makes it
-  a member; no other edit.
-- **A TS package**: directory under `packages/` with a `package.json` and
-  `tsconfig.json` extending the base; `bun install` links it.
-- **A protocol operation**: one entry in `rpc_contract!` under
-  `crates/protocol` declares its request, correlated result and client faces;
-  one match arm in `crates/dispatch` implements it; `bun run codegen` updates
-  the committed wire types and each selected app client. App shells never
-  match on `RpcMethod`, and generated clients are never hand-edited.
+## 🧬 What came from where
 
-## Planning and knowledge
+The monorepo setup is copied and adjusted from
+[Archont561/geoquery](https://github.com/Archont561/geoquery) and
+[Archont561/pixi-sandbox](https://github.com/Archont561/pixi-sandbox).
 
-Two systems, inherited from the pixi-sandbox/geoquery pattern, with a hard
-boundary between them:
+| Pattern | Source |
+|---------|--------|
+| bun as the only JS runtime; turbo + biome as workspace devDeps; no node | geoquery |
+| the `crates/package.json` **turbo façade** — Rust workspace as one task-graph node | geoquery |
+| ts-rs codegen through an `xtask` crate into committed `packages/*/src/generated` | geoquery |
+| root `[workspace.dependencies]` with documented ranges; `[workspace.lints]` (`unsafe_code = "forbid"`) | geoquery |
+| strict shared TS config bases (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, …) | geoquery |
+| lefthook hooks whose bodies are the commands CI runs; conventional-commit `commit-msg` | geoquery |
+| single-job CI that reads as the gate; three separate caches | geoquery |
+| manifest-header-comment house style (the *why* lives in the file, not the wiki) | pixi-sandbox |
+| `deny.toml` as the license/bans/sources gate; `backlog/` + `.knowledge/` systems | pixi-sandbox |
+| the pixi dev-tool environment, tools only (decision-8) | pixi-sandbox |
+| the Astro + Starlight docs site template | pixi-sandbox |
 
-- **[`backlog/`](backlog/)** — delivery state in the
-  [backlog.md](https://backlog.md) format: **37 tasks** across six
-  milestones (m-0 foundation → m-5 v1.0), **7 decision records**, and
-  **11 planning/spec/research/spike docs**. The whole v0.1→v1.0 roadmap
-  lives here: v0.1 daily driver (autofill, TOTP, save path, tray), v0.2
-  hygiene + Android alpha, v0.3 the LAN device mesh (LocalSend interop),
-  v0.4 the soft security key (passkeys on every platform), 1.0 dev tools,
-  recovery, and hardening. Run `bun run backlog` for the kanban board.
-- **[`.knowledge/`](.knowledge/)** — durable knowledge in Google's
-  **Open Knowledge Format v0.2**: 24 concepts across six categories
-  (project, faces, security, features, infrastructure, research), each
-  carrying typed YAML front matter. This is the
-  *why*: threat model, biometric-unlock architecture, the passkey
-  enforcement rule, keepass-rs and LocalSend findings, the naming research
-  behind Castellan/Fob.
+Adjusted for this project: the Rust root is a virtual manifest (nothing packages a root artifact);
+pixi came back as a tool belt, not a runtime; the Tauri app crates are workspace members under
+`apps/*/src-tauri`; a `codegen` turbo task and the generated-dir dependency edge; the WASM face
+(`crates/wasm` + `packages/wasm`) is new.
 
-The boundary: backlog holds *what ships next and whether it shipped*;
-`.knowledge` holds *how it works and why it is built that way*. The five
-facts an agent needs before touching the repo are in
-[`.knowledge/CONTEXT.md`](.knowledge/CONTEXT.md).
+## 🔖 Changelog & Release
 
-## Naming
+Conventional commits only, enforced by the `commit-msg` hook; the changelog will be generated
+from them via convco. The release flow (versioning, tags, store submissions) is task-43 — no
+releases until m-1's dogfood gate passes.
 
-Product: **Castellan** (the keeper of the castle keys). Browser companion:
-**Fob** (the thing you carry that grants access — the soft security key).
-Both were checked against the password-manager landscape in October 2026:
-`Fob` is clean in-category, `Castellan` has only unrelated hobby projects.
-Before publishing: EUIPO/WIPO trademark search (classes 9, 42), GitHub org,
-`castellan` on crates.io/npm, and `castellan.app`.
+## 📜 License
+
+Dual-licensed under MIT OR Apache-2.0 — see [LICENSE-MIT](LICENSE-MIT) and
+[LICENSE-APACHE](LICENSE-APACHE). Third-party packages and vendored crates retain their
+upstream licenses (the vault test corpus carries its own attribution in
+`crates/vault/tests/fixtures/README.md`).
+
+## 🌟 Docs
+
+The documentation site lives in `apps/docs/` (Astro + Starlight):
+
+```bash
+bun run dev:docs               # live-reload dev server
+bun run docs:build             # the static build CI verifies
+```
+
+Publishing to GitHub Pages is task-44; the config is already shaped for it. Until then, the
+closest things to a handbook are [AGENTS.md](AGENTS.md) (the invariants), this README, and
+[`backlog/`](backlog/) + [`.knowledge/`](.knowledge/).
