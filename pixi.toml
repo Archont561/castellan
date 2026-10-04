@@ -95,7 +95,7 @@ default = ""
 # 2.36), and any laptop — and it must never resolve a package that needs a
 # newer glibc than the oldest airlock it will be restored into. 2.34 is
 # webkit2gtk4.1's own floor, so the gtk-shells feature lands exactly at it.
-[workspace.system-requirements]
+[system-requirements]
 libc = { family = "glibc", version = "2.34" }
 
 [workspace]
