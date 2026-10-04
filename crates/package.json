@@ -1,14 +1,14 @@
 {
   "name": "@castellan/rust",
   "private": true,
-  "//": "Façade so turbo can see the Rust workspace as ONE node in the repo-wide task graph. It carries no dependencies of its own — Cargo owns those. Every script enters cargo through scripts/cargo-env.sh, which runs the lane inside pixi's `shells` environment when that env is present locally (conda-forge gtk/webkit — the two-environment split, decision-13) and against the ambient toolchain otherwise (system gtk, e.g. CI's apt step). cargo-env.sh cds to the repository root before exec'ing, where Cargo reads the workspace Cargo.toml/deny.toml. `--workspace` is load-bearing: it covers the two Tauri app crates under apps/*/src-tauri as well as everything under crates/. Copied from geoquery's @geoquery/rust, with one addition: `codegen`, the task that derives packages/protocol/src/generated from castellan-protocol.",
+  "//": "Façade so turbo can see the Rust workspace as ONE node in the repo-wide task graph. It carries no dependencies of its own — Cargo owns those. Every script enters cargo through scripts/cargo-env.sh, which runs the lane inside pixi's `shells` environment when that env is present locally (conda-forge gtk/webkit — the two-environment split, decision-13) and against the ambient toolchain otherwise (system gtk, e.g. CI's apt step). cargo-env.sh cds to the repository root before exec'ing, where Cargo reads the workspace Cargo.toml/deny.toml. `--workspace` is load-bearing: it covers the two Tauri app crates under apps/*/src-tauri as well as everything under crates/. Copied from geoquery's @geoquery/rust, with two additions: `codegen`, the task that derives packages/protocol/src/generated from castellan-protocol, and the cargo-env.sh router itself. The test lane is geoquery's shape: `cargo nextest run` for unit/integration suites, then `cargo test --doc` for the doc-tests nextest does not run — both halves routed through scripts/cargo-env.sh.",
   "scripts": {
     "build": "../scripts/cargo-env.sh build --workspace",
-    "test": "../scripts/cargo-env.sh test --workspace",
+    "test": "../scripts/cargo-env.sh nextest run --workspace && ../scripts/cargo-env.sh test --doc --workspace",
     "lint": "../scripts/cargo-env.sh fmt --all --check && ../scripts/cargo-env.sh clippy --workspace --all-targets -- -D warnings && ../scripts/cargo-env.sh deny --workspace check bans licenses sources",
     "typecheck": "../scripts/cargo-env.sh check --workspace --all-targets",
     "codegen": "../scripts/cargo-env.sh run -p castellan-xtask -- codegen",
-    "cov": "../scripts/cargo-env.sh test --workspace",
+    "cov": "../scripts/cargo-env.sh llvm-cov nextest --workspace --lcov --output-path target/lcov.info",
     "fmt": "../scripts/cargo-env.sh fmt --all",
     "advisories": "../scripts/cargo-env.sh deny --workspace check advisories"
   }

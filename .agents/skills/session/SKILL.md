@@ -59,13 +59,15 @@ export CARGO_HOME="$PWD/.pixi-sandbox/cargo-home" CARGO_NET_OFFLINE=true
 bun install --frozen-lockfile --ignore-scripts  # the playwright postinstall would hit the CDN
 bun run browsers:offline                        # chromium from npm: ui tests + desktop/mobile e2e
 bun run all:test                                # turbo passes CARGO_HOME through (turbo.json)
-cargo test --offline --workspace --exclude castellan-desktop --exclude castellan-mobile
+cargo nextest run --offline --workspace --exclude castellan-desktop --exclude castellan-mobile
+cargo test --doc --offline --workspace --exclude castellan-desktop --exclude castellan-mobile
 ./node_modules/.bin/lefthook install            # hooks without pixi
 ```
 
-- `@castellan/rust#test` inside the turbo graph runs `cargo test --workspace` *without*
-  the excludes and needs the `shells` env (or system gtk) — its failure in the ambient
-  world is expected, not a regression; the direct command above is the baseline.
+- `@castellan/rust#test` inside the turbo graph runs `cargo nextest run --workspace`
+  plus the doc-test pass *without* the excludes and needs the `shells` env (or system
+  gtk) — its failure in the ambient world is expected, not a regression; the direct
+  commands above are the baseline.
 - A stale transport's `default` env may ship nodejs without openssl, so its `node` cannot
   load (libnode wants OpenSSL ≥ 3.2, Debian 12 has 3.0). Shim the system node ahead of it:
   `mkdir -p /tmp/jsbin && ln -sf "$(command -v node)" /tmp/jsbin/node`, then prepend
@@ -88,7 +90,8 @@ commit — `pixi run hooks-install` when pixi is usable, the lefthook line above
 
 ```bash
 bun run all:test                                                   # JS suites + codegen
-cargo test --offline --workspace --exclude castellan-desktop --exclude castellan-mobile
+cargo nextest run --offline --workspace --exclude castellan-desktop --exclude castellan-mobile
+cargo test --doc --offline --workspace --exclude castellan-desktop --exclude castellan-mobile
 ```
 
 Write the numbers down; they must rise with new work, never fall.

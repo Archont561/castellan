@@ -9,7 +9,7 @@ status: stable
 generated:
   by: agent/castellan-kb
   at: "2026-10-01T22:00:00Z"
-updated: "2026-10-02T08:30:00Z"
+updated: "2026-10-04T14:30:51Z"
 id: infrastructure/ci
 category: infrastructure
 refs:
@@ -48,9 +48,16 @@ sysroot.
 
 - **clippy -D warnings + missing_docs**: the workspace lints; a PR cannot
   land undocumented public API.
-- **cargo test**: example tests, rstest `#[fixture]`/`#[case]` matrices,
-  and proptest properties (rstest + proptest are the dev-only test
-  frameworks, declared in `[workspace.dependencies]`). Properties cover the
+- **cargo nextest (plus `cargo test --doc`)**: example tests, rstest
+  `#[fixture]`/`#[case]` matrices, and proptest properties (rstest +
+  proptest are the dev-only test frameworks, declared in
+  `[workspace.dependencies]`); the `@castellan/rust` facade runs
+  `cargo nextest run --workspace` for the unit/integration suites and a
+  separate `cargo test --doc` pass for the doc-tests nextest does not run —
+  geoquery's shape. The annotation step parses nextest's `FAIL`/`STDERR`
+  blocks and the doc-tests' libtest sections, after stripping turbo's
+  `@castellan/<pkg>:<task>:` stream labels (anchored patterns can never
+  match the labelled lines). Properties cover the
   invariants — framing round-trips, otpauth round-trips, passphrase shape —
   and are the specified shape for the harder promises ahead: the KDBX
   round-trip harness (task-8), sync idempotence (task-27). The TS mirror:

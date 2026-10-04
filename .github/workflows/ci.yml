@@ -155,11 +155,11 @@ jobs:
         run: pixi run docs-build
 
       # Test output is tee'd to a file so a failure can be *surfaced*, not
-      # just failed: the next step turns cargo's failures section and bun's
-      # (fail) lines into `::error` annotations. "Which test failed" should
-      # never require log access — reviewers reading the PR check and
-      # sandboxes that cannot reach the Actions log hosts both get the
-      # answer inline.
+      # just failed: the next step turns nextest's FAIL/STDERR blocks, the
+      # doc-test half's libtest sections, and bun's (fail) lines into
+      # `::error` annotations. "Which test failed" should never require log
+      # access — reviewers reading the PR check and sandboxes that cannot
+      # reach the Actions log hosts both get the answer inline.
       - name: Test
         run: |
           set -o pipefail
@@ -169,6 +169,24 @@ jobs:
         if: failure()
         run: |
           awk '
+            # turbo streams task output with a "@castellan/<pkg>:<task>: " label
+            # (and pkg#task for its own ERROR lines) — strip it first, or no
+            # anchored pattern below can ever match the teed log.
+            { sub(/^@castellan\/[^:]+[:#][^:]+: /, "") }
+            # nextest: the per-failure summary line and its panic block.
+            /^ *FAIL \[/ {
+              line = $0; sub(/^ +/, "", line)
+              printf "::error title=nextest::%s\n", line
+            }
+            /^--- (STDERR|STDOUT): .* ---$/ {
+              nid = $0
+              sub(/^--- (STDERR|STDOUT): /, "", nid); sub(/ ---$/, "", nid)
+            }
+            nid && /panicked at/ {
+              printf "::error title=%s::%s\n", nid, $0
+              nid = ""
+            }
+            # libtest: the doc-test half of the lane still prints this shape.
             /^     Running/ { bin = $2 }
             /^---- .* stdout ----$/ { name = $2 }
             name && /panicked at/ {
@@ -186,6 +204,7 @@ jobs:
           # device` mid-archive). This digest is the one AGENTS.md's
           # "Reading a failed CI run" says to read before fetching the log.
           [ -s "$RUNNER_TEMP/annotations" ] || awk '
+            { sub(/^@castellan\/[^:]+[:#][^:]+: /, "") }
             /^error/ {
               printf "::error title=cargo::%s\n", $0
             }

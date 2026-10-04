@@ -64,7 +64,8 @@ $ pixi run e2e                         # desktop/mobile/extension browser e2e
 $ pixi run storybook-build             # build the UI package's Storybook
 $ pixi run bunx playwright-cli open --browser chromium <url>
                                        # agent-driven browser
-$ pixi run cargo test --workspace      # Rust suites directly
+$ pixi run cargo nextest run --workspace   # Rust suites directly (doc-tests:
+$ pixi run cargo test --doc --workspace    # nextest does not run them)
 $ pixi run xtask codegen
 $ ./scripts/restore.sh                 # restore the offline environment
 ```
