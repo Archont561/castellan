@@ -1,7 +1,17 @@
+# default: every-day command API (bun-led gates; cargo against the ambient
+# toolchain or — via scripts/cargo-env.sh — delegated into shells).
+# shells: rust toolchain + the conda-forge gtk/webkit stack and NO JavaScript
+# runtime. The split is not cosmetic: conda-forge's bun builds all link
+# icu 75 while every brotli-compatible webkit2gtk4.1 build demands icu 78,
+# so one environment cannot hold both (decision-13).
 [environments]
 default = [
     "rust",
     "web",
+    "utils",
+]
+shells = [
+    "rust",
     "utils",
     "gtk-shells",
 ]
@@ -19,15 +29,35 @@ rust-std-wasm32-unknown-unknown = "==1.98.1"
 wasm-bindgen-cli = "==0.2.129"
 wasm-pack = "0.15.*"
 
+# Rust commands ride the feature, not the default environment: every
+# environment that carries the toolchain exposes them — `pixi run cargo`
+# in default, `pixi run -e shells cargo` where the gtk stack is present.
+[feature.rust.tasks]
+cargo = "cargo"
+fmt-rust-check = "cargo fmt --all --check"
+
+[feature.rust.tasks.xtask]
+cmd = "cargo run -q -p castellan-xtask -- {{ subcommand }} {{ rest }}"
+
+[[feature.rust.tasks.xtask.args]]
+arg = "subcommand"
+
+[[feature.rust.tasks.xtask.args]]
+arg = "rest"
+default = ""
+
 [feature.utils.dependencies]
 actionlint = "1.7.*"
 convco = "0.7.*"
 
 # Tauri's Linux native stack, from conda-forge instead of apt — so
 # `cargo check/clippy/test --workspace --all-targets` compiles
-# castellan-desktop/mobile (wry → gtk3 + webkit2gtk-4.1) in any pixi
-# environment, including this repo's offline airlocks. JavaScriptCoreGTK
-# ships inside the webkit2gtk4.1 package (same upstream tarball);
+# castellan-desktop/mobile (wry → gtk3 + webkit2gtk-4.1) with no system
+# packages, including in this repo's offline airlocks. It lives in the
+# `shells` environment because it can never share one with bun
+# (decision-13); rust lanes reach it through scripts/cargo-env.sh.
+# JavaScriptCoreGTK ships inside the webkit2gtk4.1 package
+# (same upstream tarball);
 # glib/cairo/pango/atk/gdk-pixbuf/libsoup arrive transitively through
 # gtk3 + webkit2gtk4.1, X11 needs nothing (tao's x11-dl is a runtime
 # dlopen), and conda's pkg-config activation exports PKG_CONFIG_PATH for
@@ -43,23 +73,8 @@ gtk3 = ">=3.24,<3.25"
 dbus = ">=1.15"
 librsvg = ">=2.58"
 
-# bun floats within 1.3.* so the solver can pick the icu/brotli line the
-# feature below commits linux-64 to — with an exact bun pin (and therefore
-# an exact icu/brotli), nothing to float, and webkit2gtk4.1 goes
-# unsatisfiable in the same environment.
 [feature.web.dependencies]
-bun = "1.3.*"
-
-# icu 78 + brotli 1.2 are the only lines that close this environment:
-# nodejs (every 25.2.1+ build) and bun demand libbrotlicommon 1.2.x, and
-# the brotli-1.2-era woff2 build (h6fa0586_4) is precisely what
-# webkit2gtk4.1's newer alma9 rebuilds (build _2 and up) link against —
-# those also sit on icu 78.3. The icu pin keeps bun/nodejs on their
-# icu-78-linked builds; the brotli pin keeps woff2/webkit on theirs.
-# Linux-64 only: webkit2gtk4.1 exists for no other platform.
-[feature.web.target.linux-64.dependencies]
-libbrotlicommon = "1.2.*"
-icu = "78.*"
+bun = "==1.3.11"
 
 # Pixi is the repository's command API. Keep implementation detail in the bun
 # scripts and Cargo workspace, but enter both through `pixi run` so hooks, CI,
@@ -67,7 +82,6 @@ icu = "78.*"
 [tasks]
 bun = "bun"
 bunx = "bunx"
-cargo = "cargo"
 convco = "convco"
 install = "bun install"
 install-frozen = "bun install --frozen-lockfile"
@@ -85,7 +99,6 @@ e2e = "bun run all:e2e"
 storybook-build = "bun run all:storybook"
 docs-build = "bun run docs:build"
 advisories = "bun run all:advisories"
-fmt-rust-check = "cargo fmt --all --check"
 playwright-install-deps = "bunx playwright install-deps chromium"
 hooks-install = "bun x lefthook install"
 backlog = "bun run backlog"
@@ -94,16 +107,6 @@ dev-mobile = "bun run dev:mobile"
 dev-extension = "bun run dev:ext"
 dev-docs = "bun run dev:docs"
 dev-storybook = "bun run dev:storybook"
-
-[tasks.xtask]
-cmd = "cargo run -q -p castellan-xtask -- {{ subcommand }} {{ rest }}"
-
-[[tasks.xtask.args]]
-arg = "subcommand"
-
-[[tasks.xtask.args]]
-arg = "rest"
-default = ""
 
 # Solve-time virtuals, declared instead of host-detected: the lock must
 # resolve identically on a CI runner (glibc 2.39), an airlock (as old as

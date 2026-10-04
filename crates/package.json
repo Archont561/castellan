@@ -1,15 +1,15 @@
 {
   "name": "@castellan/rust",
   "private": true,
-  "//": "Façade so turbo can see the Rust workspace as ONE node in the repo-wide task graph. It carries no dependencies of its own — Cargo owns those. Every script `cd ..` first because the Cargo workspace root is the repository root (crates/ has no Cargo.toml), and cargo-deny in particular reads Cargo.toml/deny.toml from the directory it runs in. `--workspace` is load-bearing: it covers the two Tauri app crates under apps/*/src-tauri as well as everything under crates/. Copied from geoquery's @geoquery/rust, with one addition: `codegen`, the task that derives packages/protocol/src/generated from castellan-protocol.",
+  "//": "Façade so turbo can see the Rust workspace as ONE node in the repo-wide task graph. It carries no dependencies of its own — Cargo owns those. Every script enters cargo through scripts/cargo-env.sh, which runs the lane inside pixi's `shells` environment when that env is present locally (conda-forge gtk/webkit — the two-environment split, decision-13) and against the ambient toolchain otherwise (system gtk, e.g. CI's apt step). cargo-env.sh cds to the repository root before exec'ing, where Cargo reads the workspace Cargo.toml/deny.toml. `--workspace` is load-bearing: it covers the two Tauri app crates under apps/*/src-tauri as well as everything under crates/. Copied from geoquery's @geoquery/rust, with one addition: `codegen`, the task that derives packages/protocol/src/generated from castellan-protocol.",
   "scripts": {
-    "build": "cd .. && cargo build --workspace",
-    "test": "cd .. && cargo test --workspace",
-    "lint": "cd .. && cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo deny --workspace check bans licenses sources",
-    "typecheck": "cd .. && cargo check --workspace --all-targets",
-    "codegen": "cd .. && cargo run -p castellan-xtask -- codegen",
-    "cov": "cd .. && cargo test --workspace",
-    "fmt": "cd .. && cargo fmt --all",
-    "advisories": "cd .. && cargo deny --workspace check advisories"
+    "build": "../scripts/cargo-env.sh build --workspace",
+    "test": "../scripts/cargo-env.sh test --workspace",
+    "lint": "../scripts/cargo-env.sh fmt --all --check && ../scripts/cargo-env.sh clippy --workspace --all-targets -- -D warnings && ../scripts/cargo-env.sh deny --workspace check bans licenses sources",
+    "typecheck": "../scripts/cargo-env.sh check --workspace --all-targets",
+    "codegen": "../scripts/cargo-env.sh run -p castellan-xtask -- codegen",
+    "cov": "../scripts/cargo-env.sh test --workspace",
+    "fmt": "../scripts/cargo-env.sh fmt --all",
+    "advisories": "../scripts/cargo-env.sh deny --workspace check advisories"
   }
 }

@@ -2,7 +2,9 @@ schema = 1
 branch_prefix = "sandbox"
 cargo_vendor = true
 
+# The transport carries both: default for the bun-led command API, shells
+# for rust lanes compiled against the conda gtk/webkit stack (decision-13).
 [[bundle]]
 name = "developer"
-environments = ["default"]
+environments = ["default", "shells"]
 platforms = ["linux-64"]
