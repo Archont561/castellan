@@ -9,7 +9,9 @@ invariants" file.
 ```
 apps/       desktop, mobile (Tauri 2 + SvelteKit), extension (WXT, "Fob"),
             docs (the documentation site — Astro + Starlight)
-crates/     the Rust workspace + the @castellan/rust turbo façade
+crates/     the Rust workspace: per-crate @castellan/rust-* turbo packages
+            (nextest/clippy per crate) + the @castellan/rust façade for the
+            workspace-wide Cargo invocations
 packages/   protocol (generated), core (client), ui (Svelte), wasm (wrapper),
             utils (tsconfig bases + the bun test fixtures)
 ```

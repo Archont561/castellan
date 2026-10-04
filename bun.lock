@@ -5,17 +5,17 @@
     "": {
       "name": "castellan",
       "devDependencies": {
-        "@biomejs/biome": "^2.5.14",
+        "@biomejs/biome": "^2.5.15",
         "@playwright/browser-chromium": "1.58.2",
         "@playwright/cli": "^0.1.22",
-        "@types/bun": "^1.3.11",
+        "@types/bun": "^1.4.2",
         "backlog.md": "^1.53.0",
         "bunup": "^0.16.32",
         "fast-check": "^4.10.2",
         "lefthook": "^2.1.16",
         "skills": "^1.7.0",
         "turbo": "^2.11.7",
-        "typescript": "^5.9.0",
+        "typescript": "^5.9.3",
         "unocss": "^66.10.5",
       },
     },
@@ -100,6 +100,71 @@
     },
     "crates": {
       "name": "@castellan/rust",
+    },
+    "crates/dispatch": {
+      "name": "@castellan/rust-dispatch",
+      "version": "0.0.0",
+      "dependencies": {
+        "@castellan/rust-protocol": "workspace:*",
+        "@castellan/rust-vault": "workspace:*",
+      },
+    },
+    "crates/ipc": {
+      "name": "@castellan/rust-ipc",
+      "version": "0.0.0",
+    },
+    "crates/ipc-server": {
+      "name": "@castellan/rust-ipc-server",
+      "version": "0.0.0",
+      "dependencies": {
+        "@castellan/rust-ipc": "workspace:*",
+        "@castellan/rust-protocol": "workspace:*",
+      },
+    },
+    "crates/manifests": {
+      "name": "@castellan/rust-manifests",
+      "version": "0.0.0",
+      "dependencies": {
+        "@castellan/rust-protocol": "workspace:*",
+      },
+    },
+    "crates/native-host": {
+      "name": "@castellan/rust-native-host",
+      "version": "0.0.0",
+      "dependencies": {
+        "@castellan/rust-ipc": "workspace:*",
+      },
+    },
+    "crates/otp": {
+      "name": "@castellan/rust-otp",
+      "version": "0.0.0",
+    },
+    "crates/protocol": {
+      "name": "@castellan/rust-protocol",
+      "version": "0.0.0",
+    },
+    "crates/vault": {
+      "name": "@castellan/rust-vault",
+      "version": "0.0.0",
+      "dependencies": {
+        "@castellan/rust-protocol": "workspace:*",
+      },
+    },
+    "crates/wasm": {
+      "name": "@castellan/rust-wasm",
+      "version": "0.0.0",
+      "dependencies": {
+        "@castellan/rust-otp": "workspace:*",
+        "@castellan/rust-protocol": "workspace:*",
+      },
+    },
+    "crates/xtask": {
+      "name": "@castellan/rust-xtask",
+      "version": "0.0.0",
+      "dependencies": {
+        "@castellan/rust-protocol": "workspace:*",
+        "@castellan/rust-wasm": "workspace:*",
+      },
     },
     "packages/core": {
       "name": "@castellan/core",
@@ -297,6 +362,26 @@
     "@castellan/protocol": ["@castellan/protocol@workspace:packages/protocol"],
 
     "@castellan/rust": ["@castellan/rust@workspace:crates"],
+
+    "@castellan/rust-dispatch": ["@castellan/rust-dispatch@workspace:crates/dispatch"],
+
+    "@castellan/rust-ipc": ["@castellan/rust-ipc@workspace:crates/ipc"],
+
+    "@castellan/rust-ipc-server": ["@castellan/rust-ipc-server@workspace:crates/ipc-server"],
+
+    "@castellan/rust-manifests": ["@castellan/rust-manifests@workspace:crates/manifests"],
+
+    "@castellan/rust-native-host": ["@castellan/rust-native-host@workspace:crates/native-host"],
+
+    "@castellan/rust-otp": ["@castellan/rust-otp@workspace:crates/otp"],
+
+    "@castellan/rust-protocol": ["@castellan/rust-protocol@workspace:crates/protocol"],
+
+    "@castellan/rust-vault": ["@castellan/rust-vault@workspace:crates/vault"],
+
+    "@castellan/rust-wasm": ["@castellan/rust-wasm@workspace:crates/wasm"],
+
+    "@castellan/rust-xtask": ["@castellan/rust-xtask@workspace:crates/xtask"],
 
     "@castellan/tauri": ["@castellan/tauri@workspace:packages/tauri"],
 

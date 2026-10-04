@@ -1,0 +1,13 @@
+{
+  "name": "@castellan/rust-vault",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Turbo package for the castellan-vault Cargo crate: per-crate nextest and clippy so `turbo run test/lint --affected` can select the changed crates and their dependents. Workspace-wide Cargo invocations stay on @castellan/rust.",
+  "scripts": {
+    "lint": "../../scripts/cargo-env.sh clippy -p castellan-vault --all-targets -- -D warnings",
+    "test": "../../scripts/cargo-env.sh nextest run -p castellan-vault && ../../scripts/cargo-env.sh test --doc -p castellan-vault"
+  },
+  "dependencies": {
+    "@castellan/rust-protocol": "workspace:*"
+  }
+}

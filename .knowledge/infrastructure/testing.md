@@ -9,7 +9,7 @@ status: stable
 generated:
   by: agent/castellan-kb
   at: "2026-10-01T19:00:00Z"
-updated: "2026-10-01T22:15:00Z"
+updated: "2026-10-04T15:26:34Z"
 id: infrastructure/testing
 category: infrastructure
 refs:
@@ -117,7 +117,7 @@ anywhere.
 Who uses that one browser:
 
 - **App e2e** — `e2e` scripts in desktop/mobile/extension, run by
-  `all:e2e` = `turbo run e2e --concurrency=1`. Serial on purpose: two
+  `e2e` = `turbo run e2e --concurrency=1`. Serial on purpose: two
   SvelteKit dev servers plus an extension build plus browsers will OOM
   small runners (proven the hard way — SIGKILLed dev server mid-run).
   Desktop (5173) and mobile (5174) use `--strictPort` webServers so a
@@ -131,7 +131,7 @@ Who uses that one browser:
   the extension ID is read from the service worker's URL after waiting
   for it.
 - **ui component tests** — `packages/ui`'s `test` script is
-  `playwright test` (so CT rides `all:test`/`gates` like every other
+  `playwright test` (so CT rides `test`/`gates` like every other
   suite). CT needs `playwright/index.html` + a real (comment-only is
   fine) `playwright/index.js` next to it — the runtime injects itself
   into that entry; its build cache is `playwright/.cache/` (gitignored
