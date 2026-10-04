@@ -43,8 +43,16 @@ gtk3 = ">=3.24,<3.25"
 dbus = ">=1.15"
 librsvg = ">=2.58"
 
+# bun rides the same icu/brotli as the webkit2gtk4.1 line inside one
+# environment (feature-gtk-shells note): webkit's tree hard-pins
+# libbrotlicommon 1.1.x (woff2 ==1.0.2 h54a6638_1) and icu 78.x, while the
+# bun 1.3.11 build demands 1.2.x + icu 75.x — a libre impossible two-sided
+# pin. Pin the shared libraries to webkit's line and let bun float within
+# 1.3.*; its own run deps keep it on a build linked against them.
 [feature.web.dependencies]
-bun = "==1.3.11"
+bun = "1.3.*"
+libbrotlicommon = "1.1.*"
+icu = "78.*"
 
 # Pixi is the repository's command API. Keep implementation detail in the bun
 # scripts and Cargo workspace, but enter both through `pixi run` so hooks, CI,
