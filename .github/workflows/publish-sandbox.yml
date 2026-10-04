@@ -135,6 +135,16 @@ jobs:
           rm -rf "$TRANSPORT"
           CARGO_VENDOR_ARG=
           if [ "$CARGO_VENDOR" = true ]; then CARGO_VENDOR_ARG=--cargo-vendor; fi
+          # pack has no verbosity flag as of 0.5.2, so the failure rescue is the
+          # captured log itself: a failing pack exits through the SAME publish
+          # step as a healthy run — after copying the captured output into the
+          # transport as pack-failed.log — so the diagnosis lands in a place an
+          # airlocked operator can actually reach (Actions' log CDN is outside
+          # that network; the same reason relock.yml comments failures onto its
+          # PR). This workflow is generated; this hand-off log is the one edit
+          # carried on top of the template.
+          PACK_LOG="$RUNNER_TEMP/pixi-sandbox-pack.log"
+          set +e
           "$SELF_BIN" pack \
             --repo-root . \
             --envs "$ENVIRONMENTS" \
@@ -142,13 +152,26 @@ jobs:
             --platform "$PLATFORM" \
             --fetch-tools \
             --self-bin "$SELF_BIN" \
-            $CARGO_VENDOR_ARG
-          "$SELF_BIN" doctor --branch-location "$TRANSPORT" --verify
+            $CARGO_VENDOR_ARG >"$PACK_LOG" 2>&1
+          PACK_RC=$?
+          set -e
+          if [ "$PACK_RC" -ne 0 ]; then
+            echo "::error::pack failed (exit $PACK_RC) — publishing pack-failed.log inside the transport; see the $BRANCH branch"
+            mkdir -p "$TRANSPORT"
+            cp "$PACK_LOG" "$TRANSPORT/pack-failed.log"
+            tail -n 30 "$PACK_LOG" || true
+          fi
+          # A failed pack skips verification — a partial transport would fail it for
+          # the wrong reason — but still reaches publish, carrying pack-failed.log.
+          if [ "$PACK_RC" -eq 0 ]; then
+            "$SELF_BIN" doctor --branch-location "$TRANSPORT" --verify
+          fi
           BASIC_AUTH=$(printf 'x-access-token:%s' "$PUSH_TOKEN" | base64 | tr -d '\r\n')
           export GIT_CONFIG_COUNT=1
           export GIT_CONFIG_KEY_0=http.extraheader
           export GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $BASIC_AUTH"
           "$SELF_BIN" publish --input-dir "$TRANSPORT" --branch-name "$BRANCH" --remote "$REMOTE"
+          exit "$PACK_RC"
 
       - name: Pack, verify, and publish
         if: runner.os == 'Windows'

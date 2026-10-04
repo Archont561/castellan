@@ -66,12 +66,17 @@ jobs:
       # is relock.yml's lane, not something CI papers over — and `cache`
       # keys the restored environment on pixi.lock itself. Do not activate it:
       # explicit `pixi run` calls below enforce the command boundary.
+      # environments: CI's own webkit/gtk still comes from apt, below, so this
+      # workflow asks pixi for the default environment alone — installing the
+      # `shells` env here would extract webkit2gtk4.1's whole tree into every
+      # job for nothing. Airlock transports carry shells instead (decision-13).
       - uses: prefix-dev/setup-pixi@d3f436a425481402e6a95a1d1fc10331c708cd9e # v0.10.2
         with:
           pixi-version: v0.81.0
           locked: true
           cache: true
           activate-environment: false
+          environments: default
 
       # conda-forge's rust ships an activation script that points cargo at
       # conda's gcc (x86_64-conda-linux-gnu-cc), which links against conda's

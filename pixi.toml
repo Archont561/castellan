@@ -1,8 +1,19 @@
+# default: every-day command API (bun-led gates; cargo against the ambient
+# toolchain or — via scripts/cargo-env.sh — delegated into shells).
+# shells: rust toolchain + the conda-forge gtk/webkit stack and NO JavaScript
+# runtime. The split is not cosmetic: conda-forge's bun builds all link
+# icu 75 while every brotli-compatible webkit2gtk4.1 build demands icu 78,
+# so one environment cannot hold both (decision-13).
 [environments]
 default = [
     "rust",
     "web",
     "utils",
+]
+shells = [
+    "rust",
+    "utils",
+    "gtk-shells",
 ]
 
 [feature.rust.dependencies]
@@ -18,9 +29,49 @@ rust-std-wasm32-unknown-unknown = "==1.98.1"
 wasm-bindgen-cli = "==0.2.129"
 wasm-pack = "0.15.*"
 
+# Rust commands ride the feature, not the default environment: every
+# environment that carries the toolchain exposes them — `pixi run cargo`
+# in default, `pixi run -e shells cargo` where the gtk stack is present.
+[feature.rust.tasks]
+cargo = "cargo"
+fmt-rust-check = "cargo fmt --all --check"
+
+[feature.rust.tasks.xtask]
+cmd = "cargo run -q -p castellan-xtask -- {{ subcommand }} {{ rest }}"
+
+[[feature.rust.tasks.xtask.args]]
+arg = "subcommand"
+
+[[feature.rust.tasks.xtask.args]]
+arg = "rest"
+default = ""
+
 [feature.utils.dependencies]
 actionlint = "1.7.*"
 convco = "0.7.*"
+
+# Tauri's Linux native stack, from conda-forge instead of apt — so
+# `cargo check/clippy/test --workspace --all-targets` compiles
+# castellan-desktop/mobile (wry → gtk3 + webkit2gtk-4.1) with no system
+# packages, including in this repo's offline airlocks. It lives in the
+# `shells` environment because it can never share one with bun
+# (decision-13); rust lanes reach it through scripts/cargo-env.sh.
+# JavaScriptCoreGTK ships inside the webkit2gtk4.1 package
+# (same upstream tarball);
+# glib/cairo/pango/atk/gdk-pixbuf/libsoup arrive transitively through
+# gtk3 + webkit2gtk4.1, X11 needs nothing (tao's x11-dl is a runtime
+# dlopen), and conda's pkg-config activation exports PKG_CONFIG_PATH for
+# the -sys build scripts. The conda rust toolchain's own cc wrapper links
+# against this stack correctly — the CI re-export to the system cc exists
+# only because CI's gtk currently comes from apt.
+# NOTE: webkit2gtk4.1 was migrated to conda-forge from cf-post-staging;
+# the pin window keeps to the staged 2.48 line.
+[feature.gtk-shells.target.linux-64.dependencies]
+pkg-config = ">=0.29"
+gtk3 = ">=3.24,<3.25"
+"webkit2gtk4.1" = ">=2.48,<2.50"
+dbus = ">=1.15"
+librsvg = ">=2.58"
 
 [feature.web.dependencies]
 bun = "==1.3.11"
@@ -31,7 +82,6 @@ bun = "==1.3.11"
 [tasks]
 bun = "bun"
 bunx = "bunx"
-cargo = "cargo"
 convco = "convco"
 install = "bun install"
 install-frozen = "bun install --frozen-lockfile"
@@ -49,7 +99,6 @@ e2e = "bun run all:e2e"
 storybook-build = "bun run all:storybook"
 docs-build = "bun run docs:build"
 advisories = "bun run all:advisories"
-fmt-rust-check = "cargo fmt --all --check"
 playwright-install-deps = "bunx playwright install-deps chromium"
 hooks-install = "bun x lefthook install"
 backlog = "bun run backlog"
@@ -59,15 +108,13 @@ dev-extension = "bun run dev:ext"
 dev-docs = "bun run dev:docs"
 dev-storybook = "bun run dev:storybook"
 
-[tasks.xtask]
-cmd = "cargo run -q -p castellan-xtask -- {{ subcommand }} {{ rest }}"
-
-[[tasks.xtask.args]]
-arg = "subcommand"
-
-[[tasks.xtask.args]]
-arg = "rest"
-default = ""
+# Solve-time virtuals, declared instead of host-detected: the lock must
+# resolve identically on a CI runner (glibc 2.39), an airlock (as old as
+# 2.36), and any laptop — and it must never resolve a package that needs a
+# newer glibc than the oldest airlock it will be restored into. 2.34 is
+# webkit2gtk4.1's own floor, so the gtk-shells feature lands exactly at it.
+[system-requirements]
+libc = { family = "glibc", version = "2.34" }
 
 [workspace]
 channels = [
