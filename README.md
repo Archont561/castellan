@@ -203,10 +203,13 @@ pixi run xtask codegen
 ./scripts/restore.sh          # restore the offline environment (see the airlock note below)
 ```
 
-`turbo` runs the monorepo and `bun run <verb>` fans out to every package. The Rust workspace is
-**one node** in that graph, through the façade in `crates/package.json` (`@castellan/rust`) whose
-scripts `cd ..` and run cargo — so `bun run all:test` runs the TS suites *and*
-`pixi run cargo test --workspace`, exactly once, in the order the graph says. Generated consumers depend
+`turbo` runs the monorepo and `bun run <verb>` fans out to every package. The Rust crates are
+**turbo packages of their own** (`@castellan/rust-*` in `crates/*/package.json`, pathway's
+shape): per-crate `nextest`/`clippy` tasks, selected by `turbo run test/lint --affected` and
+keyed on precise per-crate inputs. Workspace-wide Cargo invocations (rustfmt, cargo-deny,
+coverage, the Tauri app crates' clippy, codegen) stay on the façade in `crates/package.json`
+(`@castellan/rust`) — so `bun run test` runs the TS suites *and* every Rust crate's suite,
+in the order the graph says. Generated consumers depend
 on `@castellan/rust#codegen`, and CI runs `pixi run codegen-check` to reject stale or untracked
 generated output before review.
 

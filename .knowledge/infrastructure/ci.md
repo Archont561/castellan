@@ -9,7 +9,7 @@ status: stable
 generated:
   by: agent/castellan-kb
   at: "2026-10-01T22:00:00Z"
-updated: "2026-10-02T08:30:00Z"
+updated: "2026-10-04T15:26:34Z"
 id: infrastructure/ci
 category: infrastructure
 refs:
@@ -21,18 +21,20 @@ refs:
 One job, ordered gates, fast-fail: checkout → apt webkit/gtk (Tauri) →
 `setup-pixi --locked` without global activation → cargo caches (workspace
 `Cargo.lock` keyed) → `pixi run install-frozen` → codegen → WASM → rustfmt →
-actionlint → repository lint → workspace lint → typecheck → docs build →
-tests → e2e → Storybook → advisories. Every repository step is an explicit
-`pixi run <task>`, including lefthook's commands; system setup remains outside
-the project command API. The two lint steps are not redundant: `pixi run lint`
-is `biome check .` across the whole repository, while `pixi run
-lint-workspace` delegates to the per-package `lint` tasks — each package over
-its own `src`, plus `@castellan/rust`, which is where clippy `-D warnings` and
-`cargo deny check bans licenses sources` actually live.
-Running only the first is what kept the Rust lints unexecuted for the
-repository's whole life. `codegen:check` regenerates and then checks both
-tracked diffs and untracked files, so stale or omitted generated output fails
-before typecheck instead of being hidden by it.
+lint (one step) → typecheck → docs build → tests → e2e → Storybook →
+advisories. Every repository step is an explicit `pixi run <task>`, including
+lefthook's commands; system setup remains outside the project command API.
+The single Lint step is `pixi run lint` = `turbo run lint lint:biome
+lint:workflows`: the per-package `lint` tasks (TS packages' `biome check src`,
+per-crate `clippy -p … -D warnings` on the `@castellan/rust-*` packages, and
+`@castellan/rust`'s fmt-check + Tauri-app clippy + cargo-deny), the repo-wide
+biome pass, and actionlint over the workflows. The earlier shape — a
+repository-only lint step plus a separate `lint-workspace` step — collapsed
+when the Rust crates became turbo packages (2026-10-04); before that split
+existed at all, running only the repository lint is what kept the Rust lints
+unexecuted for the repository's whole life. `codegen:check` regenerates and
+then checks both tracked diffs and untracked files, so stale or omitted
+generated output fails before typecheck instead of being hidden by it.
 
 **Every gate tool comes from `pixi.lock`** (decision-10): bun, rust with
 clippy+rustfmt, the wasm32 std, wasm-pack, wasm-bindgen-cli, cargo-deny and
@@ -48,9 +50,18 @@ sysroot.
 
 - **clippy -D warnings + missing_docs**: the workspace lints; a PR cannot
   land undocumented public API.
-- **cargo test**: example tests, rstest `#[fixture]`/`#[case]` matrices,
-  and proptest properties (rstest + proptest are the dev-only test
-  frameworks, declared in `[workspace.dependencies]`). Properties cover the
+- **cargo nextest (plus `cargo test --doc`)**: example tests, rstest
+  `#[fixture]`/`#[case]` matrices, and proptest properties (rstest +
+  proptest are the dev-only test frameworks, declared in
+  `[workspace.dependencies]`); each crate's suite runs as its own turbo
+  package (`@castellan/rust-*`: `cargo nextest run -p <crate>` plus
+  `cargo test --doc -p <crate>` — nextest does not run doc-tests), keyed
+  on precise per-crate inputs and selected by `turbo run test --affected`
+  (pathway's shape); `@castellan/rust`'s `test:all` is the workspace-wide
+  bypass. The annotation step parses nextest's `FAIL`/`STDERR`
+  blocks and the doc-tests' libtest sections, after stripping turbo's
+  `@castellan/<pkg>:<task>:` stream labels (anchored patterns can never
+  match the labelled lines). Properties cover the
   invariants — framing round-trips, otpauth round-trips, passphrase shape —
   and are the specified shape for the harder promises ahead: the KDBX
   round-trip harness (task-8), sync idempotence (task-27). The TS mirror:

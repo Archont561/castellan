@@ -11,7 +11,7 @@ generated:
   by: agent/castellan-kb
   at: "2026-10-01T22:00:00Z"
 created: "2026-10-01T22:00:00Z"
-updated: "2026-10-02T10:30:00Z"
+updated: "2026-10-04T15:26:34Z"
 id: infrastructure/monorepo
 category: infrastructure
 refs:
@@ -20,10 +20,12 @@ refs:
 ---
 # Monorepo setup
 
-**Inherited** from Archont561/geoquery and Archont561/pixi-sandbox, with
-credit due in every derivative. The pattern: bun workspaces + turbo, the
-Rust workspace as one node in the JS task graph via a `crates/package.json`
-façade, biome, lefthook, cargo-deny, strict shared TypeScript bases
+**Inherited** from Archont561/geoquery, Archont561/pixi-sandbox and
+Archont561/pathway, with credit due in every derivative. The pattern: bun
+workspaces + turbo, the Rust crates as per-package turbo nodes
+(`@castellan/rust-*`, pathway's shape) beside the `crates/package.json`
+façade for workspace-wide Cargo invocations, biome, lefthook, cargo-deny,
+strict shared TypeScript bases
 (`@castellan/utils/tsconfig/*`, extended through the package exports),
 single-job CI, dual MIT/Apache-2.0.
 
@@ -62,8 +64,13 @@ single-job CI, dual MIT/Apache-2.0.
 
 - Bun as the only JS runtime; `packageManager` pinned; hooks and CI assume
   `bun run`.
-- The Rust façade package (`@castellan/rust`): `cache: false`, one node,
-  the JS graph never learns cargo.
+- The Rust façade package (`@castellan/rust`) for the invocations that must
+  stay one cargo call (fmt, deny, coverage, codegen, the Tauri app crates'
+  clippy — they need the gtk stack, so they cannot ride the per-crate
+  packages); per-crate `nextest`/`clippy` live on `@castellan/rust-*`
+  (pathway's per-package structure, adopted 2026-10-04) with precise
+  per-crate turbo inputs — cached, because they are pure Rust and
+  environment-independent, while the façade's tasks stay `cache: false`.
 - Workspace-level `[workspace.dependencies]` and `[workspace.lints]`;
 -missing_docs + clippy::all as workspace defaults.
 - Strict TS base config; biome without prettier; lefthook over husky.

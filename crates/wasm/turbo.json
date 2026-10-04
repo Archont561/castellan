@@ -1,0 +1,32 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "lint": {
+      "dependsOn": [],
+      "inputs": [
+        "src/**",
+        "tests/**",
+        "Cargo.toml",
+        "package.json",
+        "turbo.json",
+        "$TURBO_ROOT$/Cargo.toml",
+        "$TURBO_ROOT$/Cargo.lock"
+      ],
+      "outputs": []
+    },
+    "test": {
+      "dependsOn": [],
+      "inputs": [
+        "src/**",
+        "tests/**",
+        "Cargo.toml",
+        "package.json",
+        "turbo.json",
+        "$TURBO_ROOT$/Cargo.toml",
+        "$TURBO_ROOT$/Cargo.lock"
+      ],
+      "outputs": []
+    }
+  }
+}

@@ -13,8 +13,14 @@
     "PLAYWRIGHT_BROWSERS_PATH",
     "XDG_CACHE_HOME",
     "CARGO_HOME",
-    "CARGO_NET_OFFLINE"
+    "CARGO_NET_OFFLINE",
+    "CARGO_TARGET_*",
+    "RUSTFLAGS",
+    "RUSTDOCFLAGS"
   ],
+  "futureFlags": {
+    "affectedUsingTaskInputs": true
+  },
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -41,7 +47,7 @@
     },
     "cov": {
       "dependsOn": ["^build"],
-      "outputs": ["coverage.xml"]
+      "outputs": ["lcov.info"]
     },
     "fmt": {
       "cache": false
@@ -49,10 +55,13 @@
     "advisories": {
       "cache": false
     },
-    "//#lint": {
+    "//#lint:biome": {
       "inputs": ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts,json,jsonc,svelte}", "biome.json"]
     },
-    "//#fmt": {
+    "//#lint:workflows": {
+      "inputs": [".github/workflows/*.yml", ".github/workflows/*.yaml"]
+    },
+    "//#fmt:biome": {
       "cache": false
     }
   }

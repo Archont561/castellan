@@ -128,22 +128,17 @@ jobs:
       - name: Format check (rust)
         run: pixi run fmt-rust-check
 
-      # The workflows are code too: the same `pixi run lint-workflows` a
-      # contributor runs, on the actionlint the lockfile pins.
-      - name: Lint workflows
-        run: pixi run lint-workflows
-
+      # One lint verb, one path: `pixi run lint` is `turbo run lint
+      # lint:biome lint:workflows` — the per-package lint tasks (TS `biome
+      # check src`, per-crate `clippy -p … -D warnings` on @castellan/rust-*,
+      # and @castellan/rust's fmt-check + Tauri-app clippy + cargo-deny), the
+      # repo-wide biome pass (`lint:biome`, which also covers the docs app
+      # that has no lint task of its own), and actionlint over the workflows
+      # (`lint:workflows`). The old two-step split (repository lint, then
+      # workspace tasks) collapsed when the Rust crates became turbo
+      # packages.
       - name: Lint
         run: pixi run lint
-
-      # The step above is the repo-wide biome pass (`biome check .`), which
-      # the per-package `lint` tasks do not subsume -- they each check their
-      # own `src`, and the docs app has no lint task at all. This step is the
-      # other half, and the half CI has never run: `@castellan/rust`'s task
-      # is where `cargo clippy -- -D warnings` and `cargo deny check bans
-      # licenses sources` live.
-      - name: Lint (workspace tasks)
-        run: pixi run lint-workspace
 
       - name: Typecheck
         run: pixi run typecheck
@@ -155,11 +150,11 @@ jobs:
         run: pixi run docs-build
 
       # Test output is tee'd to a file so a failure can be *surfaced*, not
-      # just failed: the next step turns cargo's failures section and bun's
-      # (fail) lines into `::error` annotations. "Which test failed" should
-      # never require log access — reviewers reading the PR check and
-      # sandboxes that cannot reach the Actions log hosts both get the
-      # answer inline.
+      # just failed: the next step turns nextest's FAIL/STDERR blocks, the
+      # doc-test half's libtest sections, and bun's (fail) lines into
+      # `::error` annotations. "Which test failed" should never require log
+      # access — reviewers reading the PR check and sandboxes that cannot
+      # reach the Actions log hosts both get the answer inline.
       - name: Test
         run: |
           set -o pipefail
@@ -169,6 +164,24 @@ jobs:
         if: failure()
         run: |
           awk '
+            # turbo streams task output with a "@castellan/<pkg>:<task>: " label
+            # (and pkg#task for its own ERROR lines) — strip it first, or no
+            # anchored pattern below can ever match the teed log.
+            { sub(/^@castellan\/[^:]+[:#][^:]+: /, "") }
+            # nextest: the per-failure summary line and its panic block.
+            /^ *FAIL \[/ {
+              line = $0; sub(/^ +/, "", line)
+              printf "::error title=nextest::%s\n", line
+            }
+            /^--- (STDERR|STDOUT): .* ---$/ {
+              nid = $0
+              sub(/^--- (STDERR|STDOUT): /, "", nid); sub(/ ---$/, "", nid)
+            }
+            nid && /panicked at/ {
+              printf "::error title=%s::%s\n", nid, $0
+              nid = ""
+            }
+            # libtest: the doc-test half of the lane still prints this shape.
             /^     Running/ { bin = $2 }
             /^---- .* stdout ----$/ { name = $2 }
             name && /panicked at/ {
@@ -186,6 +199,7 @@ jobs:
           # device` mid-archive). This digest is the one AGENTS.md's
           # "Reading a failed CI run" says to read before fetching the log.
           [ -s "$RUNNER_TEMP/annotations" ] || awk '
+            { sub(/^@castellan\/[^:]+[:#][^:]+: /, "") }
             /^error/ {
               printf "::error title=cargo::%s\n", $0
             }

@@ -9,7 +9,9 @@ invariants" file.
 ```
 apps/       desktop, mobile (Tauri 2 + SvelteKit), extension (WXT, "Fob"),
             docs (the documentation site — Astro + Starlight)
-crates/     the Rust workspace + the @castellan/rust turbo façade
+crates/     the Rust workspace: per-crate @castellan/rust-* turbo packages
+            (nextest/clippy per crate) + the @castellan/rust façade for the
+            workspace-wide Cargo invocations
 packages/   protocol (generated), core (client), ui (Svelte), wasm (wrapper),
             utils (tsconfig bases + the bun test fixtures)
 ```
@@ -64,7 +66,8 @@ $ pixi run e2e                         # desktop/mobile/extension browser e2e
 $ pixi run storybook-build             # build the UI package's Storybook
 $ pixi run bunx playwright-cli open --browser chromium <url>
                                        # agent-driven browser
-$ pixi run cargo test --workspace      # Rust suites directly
+$ pixi run cargo nextest run --workspace   # Rust suites directly (doc-tests:
+$ pixi run cargo test --doc --workspace    # nextest does not run them)
 $ pixi run xtask codegen
 $ ./scripts/restore.sh                 # restore the offline environment
 ```

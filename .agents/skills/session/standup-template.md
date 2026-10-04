@@ -8,9 +8,9 @@ and keeping them out of `SKILL.md` means editing a template never touches the pr
 ```
 Session proposal — <date>
 
-Environment: restored; baseline <N> tests passing, <M> skipped.
-Toolchain: bun <version> at <path>, cargo <version> via rustup (<rustup home>),
-git identity restored <yes | no — .git/config was lost, ran the two config lines>.
+Environment: airlock restored — transport <current | stale: publisher red since <merge>, direct-binary fallback in use>; baseline <N> tests passing, <M> skipped.
+Toolchain: .pixi/envs/default (bun <version>, cargo <version>, convco <version>),
+pixi <usable | unusable this session>, hooks installed <yes | no — ran lefthook directly>.
 
 Backlog: <X> To Do, <Y> unblocked. Candidates, in recommended order:
 1. task-<n> (<priority>, <type>) — <one line: what it delivers and why now>

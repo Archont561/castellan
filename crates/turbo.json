@@ -2,14 +2,16 @@
   "$schema": "https://turborepo.com/schema.json",
   "extends": ["//"],
   "tasks": {
-    // Rust tasks are never replayed from the turbo cache: cargo's own
-    // fingerprinting (target/) is better at incremental builds than turbo's
-    // file hashing, and caching both is double the storage for half the
-    // confidence.
+    // Workspace-wide Rust invocations are never replayed from the turbo cache:
+    // cargo's own fingerprinting (target/) is the better incremental store, and
+    // `lint`/`typecheck` compile the Tauri app crates against the host's gtk
+    // stack — a verdict replayed onto a machine without it would lie. The
+    // per-crate lanes in crates/*/turbo.json are the opposite case: pure Rust,
+    // environment-independent, precisely keyed on their inputs — those ARE
+    // cached, which is what makes `turbo run test/lint --affected` cheap.
     "build": { "cache": false },
-    "test": { "cache": false },
-    "lint": { "cache": false },
     "typecheck": { "cache": false },
+    "lint": { "cache": false },
     "codegen": {
       "cache": false,
       "outputs": [
@@ -21,7 +23,12 @@
         "../apps/extension/native-hosts/generated/**"
       ]
     },
-    "cov": { "cache": false },
+    "cov": {
+      // cargo-env.sh cds to the repository root, so the report lands at
+      // crates/lcov.info (the package dir turbo attributes outputs to).
+      "cache": false,
+      "outputs": ["lcov.info"]
+    },
     "fmt": { "cache": false },
     "advisories": { "cache": false }
   }

@@ -8,19 +8,20 @@
   "workspaces": [
     "packages/*",
     "apps/*",
-    "crates"
+    "crates",
+    "crates/*"
   ],
   "scripts": {
-    "lint": "biome check .",
-    "fmt": "biome check --write .",
-    "all:build": "turbo run build",
-    "all:test": "turbo run test",
-    "all:typecheck": "turbo run typecheck",
-    "all:lint": "turbo run lint",
-    "all:cov": "turbo run cov",
-    "all:fmt": "turbo run fmt",
-    "all:advisories": "turbo run advisories",
-    "gates": "turbo run lint typecheck test",
+    "lint": "turbo run lint lint:biome lint:workflows",
+    "lint:biome": "biome check .",
+    "fmt": "turbo run fmt fmt:biome",
+    "fmt:biome": "biome check --write .",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "cov": "turbo run cov",
+    "advisories": "turbo run advisories",
+    "gates": "bun run lint && bun run typecheck && bun run test",
     "codegen": "cargo run -p castellan-xtask -- codegen",
     "codegen:check": "bun run codegen && git diff --exit-code -- packages/protocol/src/generated packages/wasm/src/generated apps/desktop/src/generated apps/mobile/src/generated apps/extension/src/generated apps/extension/native-hosts/generated && ! git ls-files --others --exclude-standard -- packages/protocol/src/generated packages/wasm/src/generated apps/desktop/src/generated apps/mobile/src/generated apps/extension/src/generated apps/extension/native-hosts/generated | grep .",
     "wasm": "sh -c 'wasm-pack build crates/wasm --target bundler --out-dir ../../packages/wasm/src/pkg --scope castellan; status=$?; rm -f packages/wasm/src/pkg/.gitignore; exit $status'",
@@ -34,10 +35,13 @@
     "hooks:install": "pixi run hooks-install",
     "lint:workflows": "actionlint .github/workflows/*.yml",
     "lint:commits": "convco check",
-    "all:e2e": "turbo run e2e --concurrency=1",
     "browsers:offline": "bun run scripts/offline-browsers.ts",
-    "all:storybook": "turbo run build:storybook",
-    "prepare": "sh -c 'if [ -d .git ]; then pixi run hooks-install; fi'"
+    "prepare": "sh -c 'if [ -d .git ]; then pixi run hooks-install; fi'",
+    "e2e": "turbo run e2e --concurrency=1",
+    "build:storybook": "turbo run build:storybook",
+    "test:rust": "bun run --cwd crates test:all",
+    "test:affected": "turbo run test --affected",
+    "lint:affected": "turbo run lint lint:biome lint:workflows --affected"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",
