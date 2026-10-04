@@ -3,6 +3,7 @@ default = [
     "rust",
     "web",
     "utils",
+    "gtk-shells",
 ]
 
 [feature.rust.dependencies]
@@ -21,6 +22,26 @@ wasm-pack = "0.15.*"
 [feature.utils.dependencies]
 actionlint = "1.7.*"
 convco = "0.7.*"
+
+# Tauri's Linux native stack, from conda-forge instead of apt — so
+# `cargo check/clippy/test --workspace --all-targets` compiles
+# castellan-desktop/mobile (wry → gtk3 + webkit2gtk-4.1) in any pixi
+# environment, including this repo's offline airlocks. JavaScriptCoreGTK
+# ships inside the webkit2gtk4.1 package (same upstream tarball);
+# glib/cairo/pango/atk/gdk-pixbuf/libsoup arrive transitively through
+# gtk3 + webkit2gtk4.1, X11 needs nothing (tao's x11-dl is a runtime
+# dlopen), and conda's pkg-config activation exports PKG_CONFIG_PATH for
+# the -sys build scripts. The conda rust toolchain's own cc wrapper links
+# against this stack correctly — the CI re-export to the system cc exists
+# only because CI's gtk currently comes from apt.
+# NOTE: webkit2gtk4.1 was migrated to conda-forge from cf-post-staging;
+# the pin window keeps to the staged 2.48 line.
+[feature.gtk-shells.target.linux-64.dependencies]
+pkg-config = ">=0.29"
+gtk3 = ">=3.24,<3.25"
+"webkit2gtk4.1" = ">=2.48,<2.50"
+dbus = ">=1.15"
+librsvg = ">=2.58"
 
 [feature.web.dependencies]
 bun = "==1.3.11"
