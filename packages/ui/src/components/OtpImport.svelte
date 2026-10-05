@@ -142,8 +142,8 @@ const importable = $derived(
 );
 </script>
 
-<section aria-busy={previewing || importing} class="import flex flex-col gap-3">
-  <h2 class={`c-section-title ${sectionTitleClass}`}>Import authenticator codes</h2>
+<section aria-busy={previewing || importing} aria-labelledby="otp-import-heading" class="import flex flex-col gap-3">
+  <h2 class={`c-section-title ${sectionTitleClass}`} id="otp-import-heading">Import authenticator codes</h2>
   <p class="text-muted">
     Paste otpauth:// links, a Google Authenticator export QR's text, or an Aegis / andOTP
     export — then review before anything is stored.

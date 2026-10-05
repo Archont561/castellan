@@ -5,7 +5,7 @@ test("lets a user review a batch and import only the accepted accounts", async (
   const panel = await mount(OtpImportHarness);
 
   await panel.getByLabel("Import payload").fill("otpauth://totp/anything");
-  await panel.getByRole("button", { name: "Preview" }).click();
+  await panel.getByRole("button", { name: "Preview", exact: true }).click();
 
   const review = panel.getByRole("list", { name: "Accounts to import" });
   await expect(review.getByRole("listitem")).toHaveCount(3);
@@ -13,7 +13,9 @@ test("lets a user review a batch and import only the accepted accounts", async (
   await panel.getByRole("checkbox", { name: "Import Example" }).uncheck();
   await panel.getByRole("button", { name: "Import 1 account" }).click();
 
-  await expect(panel.getByRole("status")).toHaveText("Imported 1 account.");
+  await expect(panel.getByRole("status", { name: "Imported 1 account." })).toHaveText(
+    "Imported 1 account."
+  );
   await expect(panel.getByRole("list", { name: "Imported accounts" })).toHaveText("GitHub:octocat");
   await expect(panel.getByLabel("Import requests")).toHaveText("1");
 });
@@ -35,7 +37,7 @@ test("announces an invalid import payload", async ({ mount }) => {
   const panel = await mount(OtpImportHarness);
 
   await panel.getByLabel("Import payload").fill("garbage");
-  await panel.getByRole("button", { name: "Preview" }).click();
+  await panel.getByRole("button", { name: "Preview", exact: true }).click();
 
   await expect(panel.getByRole("alert")).toContainText("not a recognized import");
   await expect(panel.getByRole("list", { name: "Accounts to import" })).toHaveCount(0);
@@ -45,9 +47,9 @@ test("keeps the most recent preview when requests resolve out of order", async (
   const panel = await mount(OtpImportHarness, { props: { scenario: "race" } });
 
   await panel.getByLabel("Import payload").fill("first");
-  await panel.getByRole("button", { name: "Preview" }).click();
+  await panel.getByRole("button", { name: "Preview", exact: true }).click();
   await panel.getByLabel("Import payload").fill("second");
-  await panel.getByRole("button", { name: "Preview" }).click();
+  await panel.getByRole("button", { name: "Preview", exact: true }).click();
 
   const review = panel.getByRole("list", { name: "Accounts to import" });
   await expect(review).toContainText("Current");
@@ -60,12 +62,17 @@ test("prevents a second import while the first is still pending", async ({ mount
   const panel = await mount(OtpImportHarness, { props: { scenario: "pending-import" } });
 
   await panel.getByLabel("Import payload").fill("one account");
-  await panel.getByRole("button", { name: "Preview" }).click();
+  await panel.getByRole("button", { name: "Preview", exact: true }).click();
   await panel.getByRole("button", { name: "Import 1 account" }).click();
 
-  await expect(panel).toHaveAttribute("aria-busy", "true");
+  await expect(panel.getByRole("region", { name: "Import authenticator codes" })).toHaveAttribute(
+    "aria-busy",
+    "true"
+  );
   await expect(panel.getByRole("button", { name: "Importing…" })).toBeDisabled();
   await panel.getByRole("button", { name: "Finish import" }).click();
-  await expect(panel.getByRole("status")).toHaveText("Imported 1 account.");
+  await expect(panel.getByRole("status", { name: "Imported 1 account." })).toHaveText(
+    "Imported 1 account."
+  );
   await expect(panel.getByLabel("Import requests")).toHaveText("1");
 });
