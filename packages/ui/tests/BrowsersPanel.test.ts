@@ -36,100 +36,72 @@ const snapshot: PanelSnapshot = {
   ]
 };
 
-// mount() resolves to the component's root element — the panel section.
-// Descendants are queried through it; the bare classes (.prompt,
-// .connection, .remembered) are the stable hooks.
+const noops = { onConfirm: () => {}, onDeny: () => {}, onKill: () => {} };
 
-test("shows a prompt for each enrollment waiting on the user", async ({ mount }) => {
-  const panel = await mount(BrowsersPanel, {
-    props: { snapshot, onConfirm: () => {}, onDeny: () => {}, onKill: () => {} }
-  });
+test("shows each browser enrollment waiting for a decision", async ({ mount }) => {
+  const panel = await mount(BrowsersPanel, { props: { snapshot, ...noops } });
+  const approvals = panel.getByRole("region", { name: "Waiting for approval" });
 
-  await expect(panel.locator(".prompt .label")).toHaveText("Firefox on this machine");
-  await expect(panel.getByRole("button", { name: "Allow" })).toBeVisible();
-  await expect(panel.getByRole("button", { name: "Deny" })).toBeVisible();
+  await expect(approvals.getByRole("listitem")).toHaveText("Firefox on this machine Allow Deny");
+  await expect(approvals.getByRole("button", { name: "Allow" })).toBeVisible();
+  await expect(approvals.getByRole("button", { name: "Deny" })).toBeVisible();
 });
 
-test("shows face, version, last request and a kill switch per connection", async ({ mount }) => {
-  const panel = await mount(BrowsersPanel, {
-    props: { snapshot, onConfirm: () => {}, onDeny: () => {}, onKill: () => {} }
-  });
+test("reports connected browser state without hiding unavailable metadata", async ({ mount }) => {
+  const panel = await mount(BrowsersPanel, { props: { snapshot, ...noops } });
+  const connections = panel.getByRole("list", { name: "Active connections" });
 
-  const rows = panel.locator(".connection");
-  await expect(rows).toHaveCount(2);
-
-  const chrome = rows.nth(0);
-  await expect(chrome.locator(".face")).toHaveText("Chrome");
-  await expect(chrome.locator(".version")).toHaveText("1.2.0");
-  await expect(chrome.locator(".last-request")).toHaveText("get_entries");
-  await expect(chrome.locator(".state")).toHaveText("ready");
-  await expect(chrome.getByRole("button", { name: "Disconnect Chrome" })).toBeVisible();
-
-  // A connection still handshaking shows what it has and no more.
-  const firefox = rows.nth(1);
-  await expect(firefox.locator(".face")).toHaveText("Firefox");
-  await expect(firefox.locator(".version")).toHaveText("unknown version");
-  await expect(firefox.locator(".last-request")).toHaveText("—");
-  await expect(firefox.locator(".state")).toHaveText("waiting");
+  await expect(connections.getByRole("listitem").filter({ hasText: "Chrome" })).toContainText(
+    "Chrome 1.2.0 ready get_entries"
+  );
+  await expect(connections.getByRole("button", { name: "Disconnect Chrome" })).toBeVisible();
+  await expect(connections.getByRole("listitem").filter({ hasText: "Firefox" })).toContainText(
+    "Firefox unknown version waiting —"
+  );
 });
 
-test("lists the remembered keys", async ({ mount }) => {
-  const panel = await mount(BrowsersPanel, {
-    props: { snapshot, onConfirm: () => {}, onDeny: () => {}, onKill: () => {} }
-  });
+test("shows remembered browsers and repairable manifest problems", async ({ mount }) => {
+  const panel = await mount(BrowsersPanel, { props: { snapshot, ...noops } });
 
-  await expect(panel.locator(".remembered .label")).toHaveText("Chrome on this machine");
-  await expect(panel.locator(".remembered .since")).toHaveText("since 2025-10-09");
+  await expect(panel.getByRole("list", { name: "Remembered browsers" })).toContainText(
+    "Chrome on this machine since 2025-10-09"
+  );
+  await expect(panel.getByRole("list", { name: "Manifest problems" })).toContainText(
+    "Edge Manifest points at an old app path"
+  );
 });
 
-test("reports allow, deny and kill through the callbacks", async ({ mount }) => {
+test("keyboard decisions and disconnect actions reach the face callbacks", async ({ mount }) => {
   const allowed: string[] = [];
   const denied: string[] = [];
-  const killed: number[] = [];
+  const disconnected: number[] = [];
   const panel = await mount(BrowsersPanel, {
     props: {
       snapshot,
       onConfirm: (keyId) => allowed.push(keyId),
       onDeny: (keyId) => denied.push(keyId),
-      onKill: (connectionId) => killed.push(connectionId)
+      onKill: (connectionId) => disconnected.push(connectionId)
     }
   });
 
-  await panel.getByRole("button", { name: "Allow" }).click();
-  await panel.getByRole("button", { name: "Deny" }).click();
+  await panel.getByRole("button", { name: "Allow" }).press("Enter");
+  await panel.getByRole("button", { name: "Deny" }).press("Space");
   await panel.getByRole("button", { name: "Disconnect Chrome" }).click();
 
   expect(allowed).toEqual(["feedfacefeedface"]);
   expect(denied).toEqual(["feedfacefeedface"]);
-  expect(killed).toEqual([1]);
+  expect(disconnected).toEqual([1]);
 });
 
-test("surfaces stale manifests with their cause, ready for the repair button", async ({
-  mount
-}) => {
+test("names the quiet connected-browser state", async ({ mount }) => {
   const panel = await mount(BrowsersPanel, {
-    props: { snapshot, onConfirm: () => {}, onDeny: () => {}, onKill: () => {} }
+    props: {
+      snapshot: { connections: [], pending: [], remembered: [], manifest_problems: [] },
+      ...noops
+    }
   });
 
-  const problem = panel.locator(".problem");
-  await expect(problem).toHaveCount(1);
-  await expect(problem.locator(".face")).toHaveText("Edge");
-  await expect(problem.locator(".kind")).toHaveText("Manifest points at an old app path");
-  await expect(problem.locator(".detail")).toContainText("/old/place/castellan");
-});
-
-test("a quiet panel says so without lying about sections", async ({ mount }) => {
-  const quiet: PanelSnapshot = {
-    connections: [],
-    pending: [],
-    remembered: [],
-    manifest_problems: []
-  };
-  const panel = await mount(BrowsersPanel, {
-    props: { snapshot: quiet, onConfirm: () => {}, onDeny: () => {}, onKill: () => {} }
-  });
-
-  await expect(panel.locator(".empty")).toHaveText("No browsers connected.");
-  await expect(panel.locator(".prompt")).toHaveCount(0);
-  await expect(panel.locator(".remembered")).toHaveCount(0);
+  await expect(panel.getByText("No browsers connected.")).toBeVisible();
+  await expect(panel.getByRole("region", { name: "Waiting for approval" })).toHaveCount(0);
+  await expect(panel.getByRole("list", { name: "Remembered browsers" })).toHaveCount(0);
 });

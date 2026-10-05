@@ -50,19 +50,30 @@ let payload = $state("");
 let rows = $state<Row[]>([]);
 let error = $state("");
 let summary = $state("");
+let previewing = $state(false);
+let importing = $state(false);
+let previewVersion = 0;
 
 async function runPreview(text: string): Promise<void> {
+  const version = ++previewVersion;
+  previewing = true;
   error = "";
   summary = "";
   try {
     const accounts = await preview(text);
+    // A later Preview action is the user's newer intent. A slow older
+    // response must not replace the review they are looking at now.
+    if (version !== previewVersion) return;
     rows = accounts.map((candidate) => ({
       candidate,
       accepted: candidate.otpauth !== null
     }));
   } catch (cause) {
+    if (version !== previewVersion) return;
     rows = [];
     error = String(cause);
+  } finally {
+    if (version === previewVersion) previewing = false;
   }
 }
 
@@ -103,6 +114,7 @@ async function fromScreen(): Promise<void> {
 }
 
 async function runImport(): Promise<void> {
+  if (importing) return;
   const selection = rows
     .filter((row) => row.accepted && row.candidate.otpauth !== null)
     .map((row) => ({
@@ -111,6 +123,7 @@ async function runImport(): Promise<void> {
       otpauth: row.candidate.otpauth as string
     }));
   if (selection.length === 0) return;
+  importing = true;
   error = "";
   try {
     const imported = await importAccounts(selection);
@@ -119,6 +132,8 @@ async function runImport(): Promise<void> {
     payload = "";
   } catch (cause) {
     error = String(cause);
+  } finally {
+    importing = false;
   }
 }
 
@@ -127,8 +142,8 @@ const importable = $derived(
 );
 </script>
 
-<section class="import flex flex-col gap-3">
-  <h2 class={`c-section-title ${sectionTitleClass}`}>Import authenticator codes</h2>
+<section aria-busy={previewing || importing} aria-labelledby="otp-import-heading" class="import flex flex-col gap-3">
+  <h2 class={`c-section-title ${sectionTitleClass}`} id="otp-import-heading">Import authenticator codes</h2>
   <p class="text-muted">
     Paste otpauth:// links, a Google Authenticator export QR's text, or an Aegis / andOTP
     export — then review before anything is stored.
@@ -161,18 +176,23 @@ const importable = $derived(
     {/if}
   </div>
 
+  {#if previewing}
+    <p role="status">Previewing accounts…</p>
+  {/if}
+
   {#if error}
-    <p class="import-error text-danger">{error}</p>
+    <p class="import-error text-danger" role="alert">{error}</p>
   {/if}
 
   {#if rows.length > 0}
-    <ul class="review m-0 flex list-none flex-col gap-1 p-0">
+    <ul aria-label="Accounts to import" class="review m-0 flex list-none flex-col gap-1 p-0">
       {#each rows as row, index (index)}
         <li class="candidate flex items-baseline gap-2">
           {#if row.candidate.otpauth !== null}
             <input
               aria-label={`Import ${row.candidate.issuer ?? row.candidate.account}`}
               bind:checked={row.accepted}
+              disabled={importing}
               type="checkbox"
             />
           {:else}
@@ -192,15 +212,19 @@ const importable = $derived(
     </ul>
     <button
       class={`import-action c-action ${actionClass}`}
-      disabled={importable === 0}
+      disabled={importable === 0 || importing}
       onclick={runImport}
       type="button"
     >
-      Import {importable} {importable === 1 ? "account" : "accounts"}
+      {#if importing}
+        Importing…
+      {:else}
+        Import {importable} {importable === 1 ? "account" : "accounts"}
+      {/if}
     </button>
   {/if}
 
   {#if summary}
-    <p class="summary">{summary}</p>
+    <p class="summary" role="status">{summary}</p>
   {/if}
 </section>

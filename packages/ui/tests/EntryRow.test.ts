@@ -11,20 +11,17 @@ const entry: EntrySummary = {
   has_passkey: true
 };
 
-// mount() resolves to the component's root element — for EntryRow that is
-// the row button itself, so the locator is asserted and clicked directly;
-// only the parts inside it (username, badges) are queried as descendants.
-
-test("shows the title, username and capability badges", async ({ mount }) => {
+test("shows an entry's identity and capabilities", async ({ mount }) => {
   const row = await mount(EntryRow, { props: { entry } });
 
-  await expect(row).toContainText("GitHub");
-  await expect(row.locator(".username")).toHaveText("ada@castellan.dev");
-  await expect(row.getByTitle("TOTP")).toHaveText("2FA");
-  await expect(row.getByTitle("Passkey")).toBeVisible();
+  await expect(row).toHaveRole("button");
+  await expect(row).toHaveAccessibleName(/GitHub/);
+  await expect(row).toContainText("ada@castellan.dev");
+  await expect(row.getByText("2FA", { exact: true })).toBeVisible();
+  await expect(row.getByRole("img", { name: "Passkey" })).toBeVisible();
 });
 
-test("omits what the entry does not have", async ({ mount }) => {
+test("does not invent absent account details or capabilities", async ({ mount }) => {
   const bare: EntrySummary = {
     ...entry,
     username: null,
@@ -33,18 +30,19 @@ test("omits what the entry does not have", async ({ mount }) => {
   };
   const row = await mount(EntryRow, { props: { entry: bare } });
 
-  await expect(row).toHaveText("GitHub");
-  await expect(row.locator(".username")).toHaveCount(0);
-  await expect(row.locator(".badge")).toHaveCount(0);
+  await expect(row).toHaveAccessibleName("GitHub");
+  await expect(row.getByText("2FA", { exact: true })).toHaveCount(0);
+  await expect(row.getByRole("img", { name: "Passkey" })).toHaveCount(0);
 });
 
-test("reports picks through the callback", async ({ mount }) => {
-  const picks: EntrySummary[] = [];
+test("keyboard activation selects the entry through its public callback", async ({ mount }) => {
+  const picked: EntrySummary[] = [];
   const row = await mount(EntryRow, {
-    props: { entry, onPick: (picked) => picks.push(picked) }
+    props: { entry, onPick: (selected) => picked.push(selected) }
   });
 
-  await row.click();
+  await row.focus();
+  await row.press("Enter");
 
-  expect(picks.map((picked) => picked.id)).toEqual([entry.id]);
+  expect(picked).toEqual([entry]);
 });

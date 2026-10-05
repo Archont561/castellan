@@ -17,16 +17,16 @@ against ahead of the app.
 
 | Crate | What it is |
 | --- | --- |
-| `protocol/` | the RPC contract macro, events, capability negotiation and origin matching. It drives generated wire types and face-scoped clients |
-| `dispatch/` | the one transport-independent RPC dispatcher; desktop, mobile, native messaging and the future CLI terminate here |
-| `otp/` | otpauth parsing + RFC 6238 TOTP (SHA-1; other algorithms refused with clear errors, not wrong codes) |
-| `vault/` | KDBX core: open, entry projection, passphrase generation. Save = copy-aside-then-write, because keepass-rs writing is experimental |
-| `ipc/` | the one native channel: 4-byte LE framing (Chromium's native-messaging wire format, byte for byte) + the well-known socket path. std-only |
-| `ipc-server/` | the app-side socket server: connection multiplexing by request id, the association handshake (enroll once, prove with HMAC thereafter), silence on every refusal, and the connected-browsers panel data |
-| `manifests/` | the native-messaging manifest installer: browser detection, the one-pass write for every installed browser, the staleness audit, idempotent repair |
-| `native-host/` | the process each browser spawns: a byte pump between the browser's stdio and the app's socket. Parses nothing, so it can never be the wrong version |
-| `wasm/` | the WASM face of shared logic (`castellan-otp` + `protocol::matching`) — what the extension runs, the apps link natively |
-| `xtask/` | code generation: derives TypeScript bindings plus desktop/mobile/web-extension clients from `protocol` |
+| [`protocol/`](protocol/README.md) | the RPC contract macro, events, capability negotiation and origin matching. It drives generated wire types and face-scoped clients |
+| [`dispatch/`](dispatch/README.md) | the one transport-independent RPC dispatcher; desktop, mobile, native messaging and the future CLI terminate here |
+| [`otp/`](otp/README.md) | otpauth parsing + RFC 6238 TOTP (SHA-1; other algorithms refused with clear errors, not wrong codes) |
+| [`vault/`](vault/README.md) | KDBX core: open, entry projection, passphrase generation. Save = copy-aside-then-write, because keepass-rs writing is experimental |
+| [`ipc/`](ipc/README.md) | the one native channel: 4-byte LE framing (Chromium's native-messaging wire format, byte for byte) + the well-known socket path. std-only |
+| [`ipc-server/`](ipc-server/README.md) | the app-side socket server: connection multiplexing by request id, the association handshake (enroll once, prove with HMAC thereafter), silence on every refusal, and the connected-browsers panel data |
+| [`manifests/`](manifests/README.md) | the native-messaging manifest installer: browser detection, the one-pass write for every installed browser, the staleness audit, idempotent repair |
+| [`native-host/`](native-host/README.md) | the process each browser spawns: a byte pump between the browser's stdio and the app's socket. Parses nothing, so it can never be the wrong version |
+| [`wasm/`](wasm/README.md) | the WASM face of shared logic (`castellan-otp` + `protocol::matching`) — what the extension runs, the apps link natively |
+| [`xtask/`](xtask/README.md) | code generation: derives TypeScript bindings plus desktop/mobile/web-extension clients from `protocol` |
 | `apps/desktop/src-tauri` | the desktop app crate: a Tauri `rpc` adapter into `castellan-dispatch` |
 | `apps/mobile/src-tauri` | the mobile app crate: the same thin adapter plus platform lifecycle/plugins |
 

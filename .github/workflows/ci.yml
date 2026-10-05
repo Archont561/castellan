@@ -9,7 +9,7 @@ on:
 permissions:
   contents: read
 
-# A new commit supersedes all work for the same PR/branch.  In particular this
+# A new commit supersedes all work for the same PR/branch. In particular this
 # prevents a browser/native lane for an obsolete commit consuming a runner.
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
@@ -20,7 +20,7 @@ jobs:
     name: workflow lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: prefix-dev/setup-pixi@d3f436a425481402e6a95a1d1fc10331c708cd9e # v0.10.2
         with:
           pixi-version: v0.81.0
@@ -34,7 +34,7 @@ jobs:
     name: biome and manifest checks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: prefix-dev/setup-pixi@d3f436a425481402e6a95a1d1fc10331c708cd9e # v0.10.2
         with:
           pixi-version: v0.81.0
@@ -42,15 +42,18 @@ jobs:
           cache: true
           activate-environment: false
           environments: default
-      # This is intentionally before apt, browser installation, and native builds.
-      - run: pixi run install-frozen
+      # This is intentionally before native builds and browser system setup.
+      - uses: ./.github/actions/install-workspace
       - run: pixi run bunx biome check .
 
   typecheck:
     name: typecheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # `turbo run typecheck` includes @castellan/rust, whose workspace-wide
+      # Cargo check compiles the two Tauri shells and therefore needs GTK/WebKit.
+      - uses: ./.github/actions/setup-native-build
       - uses: prefix-dev/setup-pixi@d3f436a425481402e6a95a1d1fc10331c708cd9e # v0.10.2
         with:
           pixi-version: v0.81.0
@@ -58,14 +61,14 @@ jobs:
           cache: true
           activate-environment: false
           environments: default
-      - run: pixi run install-frozen
+      - uses: ./.github/actions/install-workspace
       - run: pixi run typecheck
 
   rust-format:
     name: Rust format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: prefix-dev/setup-pixi@d3f436a425481402e6a95a1d1fc10331c708cd9e # v0.10.2
         with:
           pixi-version: v0.81.0
@@ -79,7 +82,7 @@ jobs:
     name: generated files
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: prefix-dev/setup-pixi@d3f436a425481402e6a95a1d1fc10331c708cd9e # v0.10.2
         with:
           pixi-version: v0.81.0
@@ -87,7 +90,7 @@ jobs:
           cache: true
           activate-environment: false
           environments: default
-      - run: pixi run install-frozen
+      - uses: ./.github/actions/install-workspace
       - run: pixi run codegen-check
       - run: pixi run wasm
       - run: pixi run git diff --exit-code -- packages/wasm/src/pkg/castellan_wasm.d.ts packages/wasm/src/pkg/castellan_wasm_bg.wasm.d.ts
@@ -97,11 +100,11 @@ jobs:
     needs: [workflow-lint, static-checks, typecheck, rust-format, generated-checks]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Install native build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # This job starts only after typecheck. The identical Cargo key restores
+      # the shell crates it compiled, then Cargo independently validates every
+      # artifact fingerprint before test/build reuse.
+      - uses: ./.github/actions/setup-native-build
       - uses: prefix-dev/setup-pixi@d3f436a425481402e6a95a1d1fc10331c708cd9e # v0.10.2
         with:
           pixi-version: v0.81.0
@@ -109,22 +112,7 @@ jobs:
           cache: true
           activate-environment: false
           environments: default
-      - run: echo "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=cc" >> "$GITHUB_ENV"
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
-      - uses: actions/cache@v4
-        with:
-          path: .turbo
-          key: ${{ runner.os }}-turbo-${{ github.sha }}
-          restore-keys: ${{ runner.os }}-turbo-
-      - run: pixi run install-frozen
+      - uses: ./.github/actions/install-workspace
       - run: pixi run lint
       - run: pixi run docs-build
       - name: Test
@@ -147,7 +135,7 @@ jobs:
     if: ${{ needs.build-and-test.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: prefix-dev/setup-pixi@d3f436a425481402e6a95a1d1fc10331c708cd9e # v0.10.2
         with:
           pixi-version: v0.81.0
@@ -155,7 +143,7 @@ jobs:
           cache: true
           activate-environment: false
           environments: default
-      - run: pixi run install-frozen
+      - uses: ./.github/actions/install-workspace
       - run: pixi run playwright-install-deps
       - run: pixi run e2e
 
@@ -164,7 +152,7 @@ jobs:
     needs: [static-checks, typecheck]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: prefix-dev/setup-pixi@d3f436a425481402e6a95a1d1fc10331c708cd9e # v0.10.2
         with:
           pixi-version: v0.81.0
@@ -172,7 +160,7 @@ jobs:
           cache: true
           activate-environment: false
           environments: default
-      - run: pixi run install-frozen
+      - uses: ./.github/actions/install-workspace
       - run: pixi run storybook-build
 
   advisories:
@@ -180,7 +168,7 @@ jobs:
     needs: [workflow-lint]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: prefix-dev/setup-pixi@d3f436a425481402e6a95a1d1fc10331c708cd9e # v0.10.2
         with:
           pixi-version: v0.81.0
@@ -188,5 +176,5 @@ jobs:
           cache: true
           activate-environment: false
           environments: default
-      - run: pixi run install-frozen
+      - uses: ./.github/actions/install-workspace
       - run: pixi run advisories

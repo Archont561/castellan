@@ -44,6 +44,6 @@ test("popup reports the absent native host honestly", async ({ page }) => {
   // No Castellan app is running in the test environment: connectNative
   // fails, the background answers { ok: false }, and the popup says so
   // instead of spinning on "Looking for Castellan…".
-  await expect(page.locator(".status")).toHaveText("Castellan is not running");
-  await expect(page.locator(".muted")).toContainText(/protocol v\d+/);
+  await expect(page.getByRole("status")).toHaveText("Castellan is not running");
+  await expect(page.getByText(/protocol v\d+/)).toBeVisible();
 });

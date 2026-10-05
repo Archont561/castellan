@@ -3,6 +3,14 @@ import type { EntrySummary } from "@castellan/protocol";
 
 import VaultHome from "@/src/components/VaultHome.svelte";
 
+type Scenario = "loaded" | "loading" | "empty" | "unavailable";
+
+interface Props {
+  scenario?: Scenario;
+}
+
+let { scenario = "loaded" }: Props = $props();
+
 const entry: EntrySummary = {
   id: "entry-1",
   title: "GitHub",
@@ -12,10 +20,19 @@ const entry: EntrySummary = {
   has_passkey: false
 };
 
+let finishEntryLoading = $state<(() => void) | undefined>();
+
 const client = {
-  async ping(): Promise<void> {},
+  async ping(): Promise<void> {
+    if (scenario === "unavailable") throw new Error("the native vault is unavailable");
+  },
   async getEntries(): Promise<EntrySummary[]> {
-    return [entry];
+    if (scenario === "loading") {
+      return new Promise((resolve) => {
+        finishEntryLoading = () => resolve([entry]);
+      });
+    }
+    return scenario === "empty" ? [] : [entry];
   },
   async getTotp(entryId: string): Promise<{ code: string; secondsRemaining: number }> {
     if (entryId !== entry.id) throw new Error(`no such entry: ${entryId}`);
@@ -36,3 +53,7 @@ const client = {
   actionClass="p-3"
   emptyMessage="No entries"
 />
+
+{#if finishEntryLoading}
+  <button onclick={finishEntryLoading} type="button">Finish entry loading</button>
+{/if}

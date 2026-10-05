@@ -1,0 +1,23 @@
+{
+  "skill_name": "playwright-visual-regression",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Our Svelte pricing card now has an annual-discount badge. Add a Playwright visual TDD test for the card’s regular and discounted states at 390px and 1440px. The repository already has component-test stories and a pinned Chromium setup. Do not make CI update snapshots automatically.",
+      "expected_output": "A focused plan and/or implementation that reuses the component-test setup, creates deterministic state fixtures and semantic screenshot names, covers both requested viewports and states, starts comparison strictly, and describes explicit reviewed baseline approval rather than automatic CI updates.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "This Playwright screenshot test flakes every few CI runs: the only changed pixels are the current time in the dashboard header and a chart that is sometimes still loading. Make it reliable, but keep the visual test meaningful.",
+      "expected_output": "A diagnosis and targeted test changes that fixture/freeze the timestamp, wait on a chart-specific readiness signal, avoid arbitrary sleeps and broad global tolerances, and only use a documented narrow mask if the time is genuinely irrelevant to the visual contract.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "The account settings screenshot comparison failed after my CSS change. I ran update snapshots and now it passes. What should I do before opening the PR?",
+      "expected_output": "A safe baseline-review workflow: rerun normal comparison, inspect expected/actual/diff/report, classify the change, inspect committed PNG scope and Git diff, keep artifacts out of Git, report viewport/project coverage, and do not treat a passing update run as approval.",
+      "files": []
+    }
+  ]
+}

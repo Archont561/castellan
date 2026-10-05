@@ -1,0 +1,35 @@
+name: Set up native Rust build
+description: Install Tauri's Linux build packages and restore Cargo artifacts for a native Rust lane.
+
+runs:
+  using: composite
+  steps:
+    # The Tauri shell crates use pkg-config to find the runner's webkit/gtk
+    # libraries. This is deliberately outside Pixi: they are platform ABI
+    # dependencies, while Pixi supplies the locked Rust toolchain.
+    - name: Install native build dependencies
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+    # Conda's compiler targets its own sysroot; link the Tauri shells against
+    # the runner's apt-provided GTK/WebKit libraries with the system compiler.
+    - name: Link with the system toolchain
+      shell: bash
+      run: echo "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=cc" >> "$GITHUB_ENV"
+
+    # Cargo validates fingerprints before reusing target artifacts. Keeping the
+    # cache keyed by the dependency graph lets the native typecheck lane warm
+    # the dependent build/test lane without accepting stale source output.
+    - name: Cache Cargo registry and build artifacts
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-${{ runner.arch }}-cargo-v2-${{ hashFiles('Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ runner.arch }}-cargo-v2-

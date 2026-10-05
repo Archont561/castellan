@@ -1,0 +1,14 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    // `@castellan/protocol` is a peer dependency because consuming faces
+    // provide it at runtime, but this package imports its generated types at
+    // compile time. Turbo cannot infer an edge from a peer dependency, so
+    // keep code generation ahead of every UI task that reads those types.
+    "build": { "dependsOn": ["@castellan/protocol#build"] },
+    "typecheck": { "dependsOn": ["@castellan/protocol#build"] },
+    "test": { "dependsOn": ["@castellan/protocol#build"] },
+    "build:storybook": { "dependsOn": ["@castellan/protocol#build"] }
+  }
+}

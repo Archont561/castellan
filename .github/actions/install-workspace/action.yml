@@ -1,0 +1,41 @@
+name: Install workspace
+description: Restore JavaScript, Turborepo, and Playwright downloads, then install the locked Bun workspace.
+
+runs:
+  using: composite
+  steps:
+    # Bun's global cache holds immutable package tarballs; node_modules stays out
+    # of the cache so Bun can recreate its workspace links for the checked-out ref.
+    - name: Cache Bun downloads
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.bun/install/cache
+        key: ${{ runner.os }}-${{ runner.arch }}-bun-v1-${{ hashFiles('bun.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ runner.arch }}-bun-v1-
+
+    # Turbo validates each entry against its task hash, so this cache can span
+    # commits safely. The configuration/version key prevents incompatible cache
+    # formats from being restored after a toolchain or task-graph change.
+    - name: Cache Turborepo task outputs
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: .turbo
+        key: ${{ runner.os }}-${{ runner.arch }}-turbo-v1-${{ hashFiles('bun.lock', 'package.json', 'turbo.json') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ runner.arch }}-turbo-v1-
+
+    # This dependency is intentionally trusted and downloads Chromium during
+    # `bun install`. Its revision is locked in bun.lock, so it is safe to reuse
+    # only when that lockfile has not changed.
+    - name: Cache Playwright browsers
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/ms-playwright
+        key: ${{ runner.os }}-${{ runner.arch }}-playwright-v1-${{ hashFiles('bun.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ runner.arch }}-playwright-v1-
+
+    - name: Install locked workspace dependencies
+      shell: bash
+      run: pixi run install-frozen

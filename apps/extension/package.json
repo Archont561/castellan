@@ -26,7 +26,7 @@
   "devDependencies": {
     "@castellan/utils": "workspace:*",
     "@playwright/test": "1.58.2",
-    "@wxt-dev/module-svelte": "^1.0.0",
+    "@wxt-dev/module-svelte": "^2.0.5",
     "svelte": "^5.28.0",
     "typescript": "^5.9.0",
     "unocss": "^66.10.5",

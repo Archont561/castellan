@@ -1,31 +1,38 @@
 import { expect, test } from "@playwright/experimental-ct-svelte";
-
 import VaultHomeHarness from "@/tests/fixtures/VaultHomeHarness.svelte";
 
-test("loads entries and generates a passphrase through the supplied face client", async ({
-  mount
-}) => {
-  const home = await mount(VaultHomeHarness);
+test("shows a loading state before the face client returns entries", async ({ mount }) => {
+  const home = await mount(VaultHomeHarness, { props: { scenario: "loading" } });
 
-  await expect(home.getByText("GitHub", { exact: true })).toBeVisible();
-  await expect(home.getByText("octocat", { exact: true })).toBeVisible();
-
-  await home.getByRole("button", { name: "Generate" }).click();
-  await expect(home.locator(".phrase")).toHaveText("amber-castle-river-lantern");
+  await expect(home.getByRole("status", { name: "Loading vault" })).toBeVisible();
+  await home.getByRole("button", { name: "Finish entry loading" }).click();
+  await expect(home.getByRole("button", { name: /GitHub/ })).toBeVisible();
 });
 
-test("picking a 2FA entry shows its live code from the client, and picking again hides it", async ({
+test("shows loaded entries, can reveal a selected TOTP code, and generates a passphrase", async ({
   mount
 }) => {
   const home = await mount(VaultHomeHarness);
 
-  const row = home.locator(".row", { hasText: "GitHub" });
-  await row.click();
-  // The code and ring come straight from the client's protocol-shaped
-  // answer — the harness returns them, the UI only draws.
-  await expect(home.locator(".totp-code code")).toHaveText("135791");
-  await expect(home.locator(".totp-code svg circle.progress")).toBeVisible();
+  const github = home.getByRole("button", { name: /GitHub/ });
+  await expect(github).toBeVisible();
+  await github.click();
+  await expect(home.getByText("135791", { exact: true })).toBeVisible();
+  await github.click();
+  await expect(home.getByText("135791", { exact: true })).toHaveCount(0);
 
-  await row.click();
-  await expect(home.locator(".totp-code")).toHaveCount(0);
+  await home.getByRole("button", { name: "Generate" }).press("Enter");
+  await expect(home.getByText("amber-castle-river-lantern", { exact: true })).toBeVisible();
+});
+
+test("names an empty vault after a successful response", async ({ mount }) => {
+  const home = await mount(VaultHomeHarness, { props: { scenario: "empty" } });
+
+  await expect(home.getByText("No entries", { exact: true })).toBeVisible();
+});
+
+test("announces that the vault client is unavailable", async ({ mount }) => {
+  const home = await mount(VaultHomeHarness, { props: { scenario: "unavailable" } });
+
+  await expect(home.getByRole("alert")).toContainText("the native vault is unavailable");
 });

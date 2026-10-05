@@ -13,6 +13,8 @@ node_modules/
 dist/
 .turbo/
 *.tsbuildinfo
+# Locally packaged, installable skill archives. Source lives under .agents/skills/.
+.skill-packages/
 
 # ── Faces' build outputs ─────────────────────────────────────────────────
 # SvelteKit static output (adapter-static), consumed by src-tauri.

@@ -37,6 +37,10 @@ async function preview(_payload: string): Promise<OtpImportCandidate[]> {
 async function importAccounts(accounts: OtpImportSelection[]): Promise<number> {
   return accounts.length;
 }
+
+async function previewFails(_payload: string): Promise<OtpImportCandidate[]> {
+  throw new Error("This export could not be read.");
+}
 </script>
 
 <!--
@@ -45,3 +49,4 @@ async function importAccounts(accounts: OtpImportSelection[]): Promise<number> {
   shows how a problem account is named instead of dropped.
 -->
 <Story name="Review" args={{ preview, importAccounts }} />
+<Story name="Preview fails" args={{ preview: previewFails, importAccounts }} />

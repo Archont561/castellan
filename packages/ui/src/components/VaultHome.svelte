@@ -40,6 +40,7 @@ let {
 let entries = $state<EntrySummary[]>([]);
 let passphrase = $state("");
 let error = $state("");
+let loading = $state(true);
 // The entry whose live code is open. Codes are per-entry and on demand
 // — a list that fetched codes for every row would turn one screen into
 // a seed-by-seed sweep of the vault.
@@ -56,6 +57,8 @@ onMount(async () => {
     entries = await client.getEntries(origin);
   } catch (cause) {
     error = String(cause);
+  } finally {
+    loading = false;
   }
 });
 
@@ -77,7 +80,9 @@ const host = $derived(origin.replace(/^https?:\/\//, "").split("/")[0]);
   </header>
 
   {#if error}
-    <p class="error text-danger">{error}</p>
+    <p class="error text-danger" role="alert">{error}</p>
+  {:else if loading}
+    <p aria-label="Loading vault" role="status">Loading vault…</p>
   {:else}
     <section>
       <h2 class={`c-section-title ${sectionTitleClass}`}>Entries for {host}</h2>

@@ -1,7 +1,7 @@
 ---
 type: Playbook
 title: "Castellan — CI"
-description: "The single gate, its caches, and the checks CI cannot perform (with their owners)."
+description: "The parallel CI gate, its caches, and the checks CI cannot perform (with their owners)."
 tags:
   - ci
   - quality
@@ -9,7 +9,7 @@ status: stable
 generated:
   by: agent/castellan-kb
   at: "2026-10-01T22:00:00Z"
-updated: "2026-10-04T15:26:34Z"
+updated: "2026-10-05T14:00:00Z"
 id: infrastructure/ci
 category: infrastructure
 refs:
@@ -18,12 +18,30 @@ refs:
 ---
 # CI
 
-One job, ordered gates, fast-fail: checkout → apt webkit/gtk (Tauri) →
-`setup-pixi --locked` without global activation → cargo caches (workspace
-`Cargo.lock` keyed) → `pixi run install-frozen` → codegen → WASM → rustfmt →
-lint (one step) → typecheck → docs build → tests → e2e → Storybook →
-advisories. Every repository step is an explicit `pixi run <task>`, including
-lefthook's commands; system setup remains outside the project command API.
+The CI DAG makes independent feedback concurrent: workflow lint, Biome, generated
+bindings, rustfmt, and the full typecheck begin independently; native
+build/test waits for those prerequisites, and E2E waits for the native lane.
+Storybook waits for the checks that prove its TypeScript inputs; advisories wait
+only for workflow lint. Every repository command is still an explicit
+`pixi run <task>`; system setup remains outside the project command API.
+
+`typecheck` is a native lane, not a JavaScript-only check: `turbo run
+typecheck` includes the `@castellan/rust` facade, whose `cargo check
+--workspace --all-targets` compiles both Tauri shells. It therefore installs
+GTK/WebKit and uses the system linker before invoking Turbo. The same native
+setup and Cargo cache are used by the dependent build/test lane, allowing a
+successful typecheck to warm the compilation that follows.
+
+The local `install-workspace` CI action restores three lock-keyed caches before
+`pixi run install-frozen`: Bun's immutable package download cache, Turbo's
+content-addressed task cache, and Playwright's browser registry. It intentionally
+does **not** cache `node_modules`; Bun recreates workspace links for the checked
+out revision. The native action restores the Cargo registry, git dependencies,
+and `target/`, keyed by `Cargo.lock`; Cargo validates fingerprints before it
+reuses a target artifact. Pixi's own lock-backed environment cache remains
+enabled in every job. Cache keys include OS and architecture, and cache-format
+prefixes make invalidation an explicit reviewable change.
+
 The single Lint step is `pixi run lint` = `turbo run lint lint:biome
 lint:workflows`: the per-package `lint` tasks (TS packages' `biome check src`,
 per-crate `clippy -p … -D warnings` on the `@castellan/rust-*` packages, and
@@ -90,7 +108,7 @@ sysroot.
 | Desktop/mobile production vite builds not in CI | e2e covers the dev-server build of both faces and the extension's *built* MV3 (its e2e script chains `wxt build`), but `vite build` output of the apps is still ungated; add when a release artifact matters |
 | Mirrored version pins (rust, bun) | Closed for the tool *list* — CI installs `pixi.lock` itself (decision-10) — but rust-toolchain.toml and `packageManager` still mirror two pins for the rustup + bun.sh route; the manifests name each other in comments, review checks they moved together |
 | `wasm-opt` still downloaded by wasm-pack | `wasm-bindgen-cli` is pinned in the environment, binaryen is not; the release profile fetches it, so the wasm gate is the one step that still needs the network (and the one that fails in a restored airlock) |
-| Tauri app crates (no webkit in CI) | release builds + the task-37 reproducible-build work |
+| Tauri production bundles | CI compiles the app crates, but release packaging and task-37 reproducible-build work own distributable artifacts |
 | Mobile on-device behavior (biometrics, providers) | hardware checklists, tasks 23/30/31/32 |
 | Extension in real browsers | Playwright suite runs, but store-review quirks are manual |
 | HIBP / LocalSend against the live world | integration smoke tests, manual before release |

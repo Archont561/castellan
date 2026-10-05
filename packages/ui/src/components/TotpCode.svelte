@@ -42,7 +42,7 @@ $effect(() => {
 </script>
 
 {#if error}
-  <p class="totp-error text-danger">{error}</p>
+  <p class="totp-error text-danger" role="alert">{error}</p>
 {:else if totp}
   <!-- Keyed by the answer object: every protocol answer remounts the
        ring, so its countdown restarts even when two consecutive answers
@@ -53,5 +53,5 @@ $effect(() => {
     </span>
   {/key}
 {:else}
-  <span class="totp-loading text-muted">······</span>
+  <span aria-label="Loading authenticator code" class="totp-loading text-muted" role="status">······</span>
 {/if}

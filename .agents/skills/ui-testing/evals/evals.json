@@ -1,0 +1,23 @@
+{
+  "skill_name": "ui-testing",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Add a Svelte DatePicker that opens from a labelled button, supports keyboard date selection, clears a selected date, and becomes read-only for viewers. The shared ui package has Svelte CSF stories and Playwright component tests. Tell me which tests to add before writing implementation.",
+      "expected_output": "A concise test model with meaningful states/transitions and a nonredundant test-level decision; a Storybook/component-first red-green-refactor plan using user-facing locators; explicit keyboard, focus, read-only, a11y, responsive/visual decisions; and no React APIs or E2E duplication.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Our Svelte customer search calls an external CRM after each keystroke. In production, a slow request for pol can finish after a faster request for poland and replace the newer result. Make this UI testable in CI, while preserving confidence that the CRM contract has not silently changed.",
+      "expected_output": "An MSW/deferred-response race test that proves stale results are ignored, deterministic component/page coverage, a reasoned choice for optional sanitized HAR replay versus a small contract/sandbox smoke test, secret-safety guidance, and no arbitrary timeout or normal CI live CRM dependency.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "A PR changes account settings spacing and also adds a password form. The page is protected, has admin and read-only roles, and visual tests fail after an update command. Give me the smallest maintainable test plan and explain how to review the failure.",
+      "expected_output": "A layered plan that keeps password-form behavior at component/page level, selects role boundaries and one critical protected journey, includes a11y/form states, chooses targeted responsive/visual coverage, requires screenshot diff review rather than blind update, and sequences TDD then refactor with focused suites.",
+      "files": []
+    }
+  ]
+}

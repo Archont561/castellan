@@ -3,45 +3,78 @@ import type { OtpImportCandidate, OtpImportSelection } from "@castellan/protocol
 
 import OtpImport from "@/src/components/OtpImport.svelte";
 
-// A scripted protocol pair: preview answers a fixed review (two
-// importable accounts, one refused), import records what it was handed
-// so the test can read the selection back out of the DOM.
+type Scenario = "review" | "race" | "pending-import";
+
+interface Props {
+  scenario?: Scenario;
+}
+
+let { scenario = "review" }: Props = $props();
+
+const candidates: OtpImportCandidate[] = [
+  {
+    issuer: "GitHub",
+    account: "octocat",
+    otpauth: "otpauth://totp/GitHub:octocat?secret=JBSWY3DPEHPK3PXP",
+    problem: null
+  },
+  {
+    issuer: "Example",
+    account: "alice",
+    otpauth: "otpauth://totp/Example:alice?secret=JBSWY3DPEHPK3PXP",
+    problem: null
+  },
+  {
+    issuer: "Legacy",
+    account: "bob",
+    otpauth: null,
+    problem: "HOTP accounts need counter support (task-42)"
+  }
+];
+
 let imported = $state<OtpImportSelection[] | null>(null);
+let importCalls = $state(0);
+let releaseFirstPreview = $state<(() => void) | undefined>();
+let finishImport = $state<(() => void) | undefined>();
 
 async function preview(payload: string): Promise<OtpImportCandidate[]> {
   if (payload.trim() === "garbage") {
     throw new Error("not a recognized import");
   }
-  return [
-    {
-      issuer: "GitHub",
-      account: "octocat",
-      otpauth: "otpauth://totp/GitHub:octocat?secret=JBSWY3DPEHPK3PXP",
-      problem: null
-    },
-    {
-      issuer: "Example",
-      account: "alice",
-      otpauth: "otpauth://totp/Example:alice?secret=JBSWY3DPEHPK3PXP",
-      problem: null
-    },
-    {
-      issuer: "Legacy",
-      account: "bob",
-      otpauth: null,
-      problem: "HOTP accounts need counter support (task-42)"
+
+  if (scenario === "race") {
+    if (payload === "first") {
+      return new Promise((resolve) => {
+        releaseFirstPreview = () =>
+          resolve([
+            { issuer: "Stale", account: "stale", otpauth: "otpauth://totp/Stale", problem: null }
+          ]);
+      });
     }
-  ];
+    if (payload === "second") {
+      return [
+        { issuer: "Current", account: "current", otpauth: "otpauth://totp/Current", problem: null }
+      ];
+    }
+  }
+
+  return scenario === "pending-import" ? candidates.slice(0, 1) : candidates;
 }
 
 async function importAccounts(accounts: OtpImportSelection[]): Promise<number> {
+  importCalls += 1;
+  if (scenario === "pending-import") {
+    return new Promise((resolve) => {
+      finishImport = () => {
+        imported = accounts;
+        resolve(accounts.length);
+      };
+    });
+  }
   imported = accounts;
   return accounts.length;
 }
 
-// The QR path, scripted: any image "decodes" to a fixed payload — the
-// component's contract is that whatever the face decodes is previewed,
-// and the decoder itself is the face's business (jsqr on desktop).
 async function decodeImage(_file: File): Promise<string | null> {
   return "decoded-from-qr";
 }
@@ -49,8 +82,19 @@ async function decodeImage(_file: File): Promise<string | null> {
 
 <OtpImport {decodeImage} {importAccounts} {preview} />
 
+<!-- Deterministic test controls resolve the in-browser fake service only after
+     the user flow has reached its pending state. -->
+{#if releaseFirstPreview}
+  <button onclick={releaseFirstPreview} type="button">Release stale preview</button>
+{/if}
+{#if finishImport}
+  <button onclick={finishImport} type="button">Finish import</button>
+{/if}
+
+<!-- The fixture exposes callback receipt as observable UI, not a test-side mock. -->
+<output aria-label="Import requests">{importCalls}</output>
 {#if imported !== null}
-  <ol class="imported-record">
+  <ol aria-label="Imported accounts">
     {#each imported as account (account.otpauth)}
       <li>{account.title}:{account.username}</li>
     {/each}
