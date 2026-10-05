@@ -28,7 +28,7 @@ onMount(async () => {
 -->
 <main class="w-240px p-[0.9rem] font-sans">
   <h1 class="mb-1 mt-0 text-[1.1rem]">Fob</h1>
-  <p class="status data-[state=up]:text-ok data-[state=down]:text-danger" data-state={state}>
+  <p class="status data-[state=up]:text-ok data-[state=down]:text-danger" data-state={state} role="status">
     <!-- {#if}, not `state === "…" && "…"`: Svelte 5 renders a bare `false`
          in text position as the string "false", so the && form leaks
          "false" lines into the popup — caught by the e2e suite. -->

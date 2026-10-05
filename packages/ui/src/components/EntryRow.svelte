@@ -29,6 +29,6 @@ let { entry, onPick }: Props = $props();
   {/if}
   <span class="badges flex gap-1">
     {#if entry.has_totp}<span class="badge c-badge" title="TOTP">2FA</span>{/if}
-    {#if entry.has_passkey}<span class="badge c-badge" title="Passkey">🔑</span>{/if}
+    {#if entry.has_passkey}<span aria-label="Passkey" class="badge c-badge" role="img">🔑</span>{/if}
   </span>
 </button>

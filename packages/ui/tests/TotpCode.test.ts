@@ -1,25 +1,50 @@
 import { expect, test } from "@playwright/experimental-ct-svelte";
-import TotpCodeFailingHarness from "@/tests/fixtures/TotpCodeFailingHarness.svelte";
-import TotpCodeHarness from "@/tests/fixtures/TotpCodeHarness.svelte";
+import TotpCode from "@/src/components/TotpCode.svelte";
 
-// The task-13 contract: the code and its remaining seconds come from
-// the protocol answer, the component only draws and — when the ring
-// runs out — asks again. The harness scripts a 1-second first answer,
-// so one real tick proves the whole refetch loop without flaking.
-test("shows the fetched code, then refetches when it expires", async ({ mount }) => {
-  const totp = await mount(TotpCodeHarness);
+test("refreshes the code when its displayed countdown expires", async ({ mount, page }) => {
+  await page.clock.install({ time: new Date("2026-10-05T12:00:00Z") });
+  const answers = [
+    { code: "111111", secondsRemaining: 1 },
+    { code: "222222", secondsRemaining: 30 }
+  ];
+  let calls = 0;
+  const totp = await mount(TotpCode, {
+    props: {
+      getCode: async () =>
+        answers[Math.min(calls++, answers.length - 1)] as (typeof answers)[number]
+    }
+  });
 
-  await expect(totp.locator("code")).toHaveText("111111");
-  // After the 1s window closes the component must come back with the
-  // scripted second answer — no local period guessing could produce it.
-  await expect(totp.locator("code")).toHaveText("222222", { timeout: 5000 });
+  await expect(totp.getByText("111111", { exact: true })).toBeVisible();
+  await page.clock.fastForward(1000);
+  await expect(totp.getByText("222222", { exact: true })).toBeVisible();
 });
 
-test("a failed fetch surfaces as text, not a blank", async ({ mount }) => {
-  const totp = await mount(TotpCodeFailingHarness);
+test("announces that a code is loading until the face client responds", async ({ mount }) => {
+  let complete: ((answer: { code: string; secondsRemaining: number }) => void) | undefined;
+  const totp = await mount(TotpCode, {
+    props: {
+      getCode: () =>
+        new Promise((resolve) => {
+          complete = resolve;
+        })
+    }
+  });
 
-  // The error paragraph is the component's entire render here, so the
-  // mount locator itself is the element under assertion.
-  await expect(totp).toContainText("the vault is locked");
-  await expect(totp).toHaveClass(/totp-error/);
+  await expect(totp.getByRole("status", { name: "Loading authenticator code" })).toBeVisible();
+  if (!complete) throw new Error("code loading did not start");
+  complete({ code: "123456", secondsRemaining: 30 });
+  await expect(totp.getByText("123456", { exact: true })).toBeVisible();
+});
+
+test("announces a failed code refresh", async ({ mount }) => {
+  const totp = await mount(TotpCode, {
+    props: {
+      getCode: async () => {
+        throw new Error("the vault is locked");
+      }
+    }
+  });
+
+  await expect(totp.getByRole("alert")).toContainText("the vault is locked");
 });

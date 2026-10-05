@@ -62,7 +62,7 @@ function dateOnly(unixSeconds: number): string {
   {#if snapshot.pending.length > 0}
     <section class="prompts" aria-label="Waiting for approval">
       <h2 class="prompt-title c-section-title text-[0.7em]">Wants to connect</h2>
-      <ul class="list-none p-0 m-0">
+      <ul aria-label="Pending browser approvals" class="list-none p-0 m-0">
         {#each snapshot.pending as key (key.key_id)}
           <li class="prompt flex items-center gap-2 py-[0.4rem]">
             <span class="label flex-1">{key.label}</span>
@@ -90,7 +90,7 @@ function dateOnly(unixSeconds: number): string {
   {#if snapshot.connections.length === 0}
     <p class="empty text-muted">No browsers connected.</p>
   {:else}
-    <ul class="list-none p-0 m-0">
+    <ul aria-label="Active connections" class="list-none p-0 m-0">
       {#each snapshot.connections as connection (connection.id)}
         <li class="connection flex items-center gap-2 py-[0.4rem]">
           <span class="face font-600">{faceLabel(connection.face)}</span>
@@ -121,7 +121,7 @@ function dateOnly(unixSeconds: number): string {
   {#if snapshot.manifest_problems.length > 0}
     <section class="manifests" aria-label="Native messaging manifests">
       <h2 class="manifest-title c-section-title text-[0.7em]">Needs repair</h2>
-      <ul class="list-none p-0 m-0">
+      <ul aria-label="Manifest problems" class="list-none p-0 m-0">
         {#each snapshot.manifest_problems as problem (problem.detail)}
           <li class="problem flex items-baseline gap-2 py-[0.25rem]">
             <span class="face font-600">{faceLabel(problem.browser)}</span>
@@ -138,7 +138,7 @@ function dateOnly(unixSeconds: number): string {
   {#if snapshot.remembered.length > 0}
     <section class="remembered-keys" aria-label="Remembered browsers">
       <h2 class="remembered-title c-section-title text-[0.7em]">Remembered</h2>
-      <ul class="list-none p-0 m-0">
+      <ul aria-label="Remembered browsers" class="list-none p-0 m-0">
         {#each snapshot.remembered as key (key.key_id)}
           <li class="remembered flex items-baseline gap-2 py-[0.25rem]">
             <span class="label">{key.label}</span>
