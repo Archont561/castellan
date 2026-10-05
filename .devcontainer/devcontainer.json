@@ -2,5 +2,14 @@
   "$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
   "name": "castellan",
   "image": "ghcr.io/prefix-dev/pixi:0.81.0",
+  "containerEnv": {
+    "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk-amd64",
+    "ANDROID_HOME": "/opt/android-sdk",
+    "ANDROID_SDK_ROOT": "/opt/android-sdk",
+    "NDK_HOME": "/opt/android-sdk/ndk/27.2.12479018"
+  },
+  "remoteEnv": {
+    "PATH": "/opt/android-sdk/platform-tools:/opt/android-sdk/cmdline-tools/latest/bin:${containerEnv:PATH}"
+  },
   "postCreateCommand": "bash .devcontainer/setup.sh"
 }

@@ -4,7 +4,7 @@
   "private": true,
   "description": "Turbo package for the castellan-ipc Cargo crate: per-crate nextest and clippy so `turbo run test/lint --affected` can select the changed crates and their dependents. Workspace-wide Cargo invocations stay on @castellan/rust.",
   "scripts": {
-    "lint": "../../scripts/cargo-env.sh clippy -p castellan-ipc --all-targets -- -D warnings",
-    "test": "../../scripts/cargo-env.sh nextest run -p castellan-ipc && ../../scripts/cargo-env.sh test --doc -p castellan-ipc"
+    "lint": "pixi run cargo clippy -p castellan-ipc --all-targets -- -D warnings",
+    "test": "pixi run cargo nextest run -p castellan-ipc && pixi run cargo test --doc -p castellan-ipc"
   }
 }

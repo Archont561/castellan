@@ -13,6 +13,8 @@ export default defineConfig({
   plugins: [UnoCSS(), sveltekit()],
   // Tauri's devUrl is the source; dev.config.ts validates and extracts it.
   server: {
+    host: "0.0.0.0",
+    allowedHosts: true,
     port: DEV_PORT,
     strictPort: true
   }

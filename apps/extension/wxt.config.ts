@@ -14,6 +14,10 @@ export default defineConfig({
     // own vite build, so the popup gets exactly the utilities the popup
     // uses and the content script pays for none of them.
     plugins: [UnoCSS()],
+    server: {
+      host: "0.0.0.0",
+      allowedHosts: true
+    },
     resolve: {
       // Svelte's package exports split client/server runtimes on the
       // "browser" condition, and WXT's multi-entry build resolves some

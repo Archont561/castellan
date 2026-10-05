@@ -47,7 +47,8 @@ If the transport is current, **pixi is the only environment entrypoint**:
 `pixi run --frozen test`, `pixi run --frozen gates`, `pixi run --frozen -- cargo check -p
 <crate>`, `pixi run hooks-install` (AGENTS.md carries the full task list). When the
 `shells` env is materialized it compiles the Tauri crates too, routed by
-`scripts/cargo-env.sh` (decision-13).
+the caller sets `PIXI_ENVIRONMENT=shells` and invokes `pixi run cargo`; Turbo
+passes that selector through to the task (decision-13).
 
 If the transport is stale (publisher red or lagging): **do not run pixi at all** — one
 call guts the restored env. The restored tools still match the pins, so work from the
