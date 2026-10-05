@@ -1,7 +1,8 @@
 <script lang="ts">
 import { tauriTransport } from "@castellan/tauri";
-import { VaultHome } from "@castellan/ui";
+import { OtpImport, VaultHome } from "@castellan/ui";
 import { DesktopClient } from "@/src/generated/client";
+import { captureScreen, decodeImage } from "@/src/lib/qr";
 
 const client = new DesktopClient(tauriTransport());
 </script>
@@ -21,3 +22,23 @@ const client = new DesktopClient(tauriTransport());
   emptyMessage="No entries yet — the vault core answers, and it is honestly empty."
   explainPassphrases
 />
+
+<!--
+  The authenticator import flow (task-13). Composition and metrics stay
+  at the face boundary, same as VaultHome above; the desktop face is
+  also the only one that wires the two QR acquisition callbacks — a
+  dropped screenshot and the screen-capture picker are desktop input
+  surfaces, while the parsing itself happens app-side behind
+  `preview_otp_import`.
+-->
+<div class="mx-auto max-w-640px px-6 pb-8">
+  <OtpImport
+    actionClass="rounded-8px px-4 py-2"
+    captureScreen={captureScreen}
+    decodeImage={decodeImage}
+    fieldClass="px-3 py-2 text-[0.9rem]"
+    importAccounts={(accounts) => client.importOtpAccounts(accounts)}
+    preview={(payload) => client.previewOtpImport(payload)}
+    sectionTitleClass="text-[1rem]"
+  />
+</div>

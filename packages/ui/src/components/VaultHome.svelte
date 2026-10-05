@@ -4,10 +4,12 @@ import { onMount } from "svelte";
 
 import EntryRow from "./EntryRow.svelte";
 import LockedShield from "./LockedShield.svelte";
+import TotpCode from "./TotpCode.svelte";
 
 interface VaultHomeClient {
   ping(): Promise<void>;
   getEntries(origin: string): Promise<EntrySummary[]>;
+  getTotp(entryId: string): Promise<{ code: string; secondsRemaining: number }>;
   generatePassphrase(words: number, separator: string): Promise<string>;
 }
 
@@ -38,6 +40,15 @@ let {
 let entries = $state<EntrySummary[]>([]);
 let passphrase = $state("");
 let error = $state("");
+// The entry whose live code is open. Codes are per-entry and on demand
+// — a list that fetched codes for every row would turn one screen into
+// a seed-by-seed sweep of the vault.
+let totpEntry = $state<EntrySummary | null>(null);
+
+function pick(entry: EntrySummary): void {
+  if (!entry.has_totp) return;
+  totpEntry = totpEntry?.id === entry.id ? null : entry;
+}
 
 onMount(async () => {
   try {
@@ -74,7 +85,16 @@ const host = $derived(origin.replace(/^https?:\/\//, "").split("/")[0]);
         <p class="text-muted">{emptyMessage}</p>
       {:else}
         {#each entries as entry (entry.id)}
-          <EntryRow {entry} />
+          <EntryRow {entry} onPick={pick} />
+          {#if totpEntry?.id === entry.id}
+            <!-- Keyed so switching entries remounts the fetcher: a code
+                 must never linger under another entry's title. -->
+            {#key entry.id}
+              <div class="totp-panel px-[0.8rem] py-[0.4rem]">
+                <TotpCode getCode={() => client.getTotp(entry.id)} />
+              </div>
+            {/key}
+          {/if}
         {/each}
       {/if}
     </section>

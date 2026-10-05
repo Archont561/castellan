@@ -40,6 +40,26 @@ export class DesktopClient extends RpcClient {
     return result.value;
   }
 
+  async previewOtpImport(
+    payload: RpcParams<"preview_otp_import">["payload"]
+  ): Promise<RpcResultFor<"preview_otp_import">["accounts"]> {
+    const result = await this.call(
+      { method: "preview_otp_import", payload },
+      "preview_otp_import"
+    );
+    return result.accounts;
+  }
+
+  async importOtpAccounts(
+    accounts: RpcParams<"import_otp_accounts">["accounts"]
+  ): Promise<RpcResultFor<"import_otp_accounts">["imported"]> {
+    const result = await this.call(
+      { method: "import_otp_accounts", accounts },
+      "import_otp_accounts"
+    );
+    return result.imported;
+  }
+
   async lockDatabase(): Promise<void> {
     await this.call(
       { method: "lock_database" },

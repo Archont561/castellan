@@ -419,6 +419,7 @@ dependencies = [
 name = "castellan-dispatch"
 version = "0.1.0"
 dependencies = [
+ "castellan-otp",
  "castellan-protocol",
  "castellan-vault",
  "keepass",
@@ -491,6 +492,8 @@ dependencies = [
  "hmac",
  "proptest",
  "rstest",
+ "serde",
+ "serde_json",
  "sha1",
  "thiserror 2.0.21",
 ]

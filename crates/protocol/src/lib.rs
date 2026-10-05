@@ -187,6 +187,39 @@ pub struct NewEntry {
     pub otpauth: Option<String>,
 }
 
+/// One account of an import payload, as the review UI renders it.
+///
+/// Mirrors `castellan-otp`'s candidate shape (the protocol crate depends
+/// on nothing in the workspace, so the mirror is deliberate): exactly one
+/// of `otpauth`/`problem` is set. An importable account carries the URI
+/// that will be stored; a refused one carries the reason — the review
+/// must show every account the payload carried, or a migration silently
+/// loses accounts.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct OtpImportCandidate {
+    /// The issuing service, when the payload names one.
+    pub issuer: Option<String>,
+    /// The account the code belongs to.
+    pub account: String,
+    /// The `otpauth://` URI to store, when this account is importable.
+    pub otpauth: Option<String>,
+    /// Why this account cannot be imported, when it cannot.
+    pub problem: Option<String>,
+}
+
+/// One account the user accepted in the import review.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct OtpImportSelection {
+    /// The entry title the review settled on.
+    pub title: String,
+    /// The account name, stored as the entry's username when present.
+    pub username: Option<String>,
+    /// The seed URI, exactly as previewed.
+    pub otpauth: String,
+}
+
 /// A generated TypeScript client surface.
 ///
 /// Operations declare their intended faces next to their wire shape. The
@@ -360,6 +393,32 @@ rpc_contract! {
             value: String,
         }
     }
+    /// Parse an import payload into reviewable accounts, without
+    /// touching the vault: pasted `otpauth://` URIs, a decoded QR's
+    /// `otpauth-migration://` batch, or an Aegis/andOTP export file.
+    /// Pure parsing — works locked, stores nothing.
+    PreviewOtpImport => "preview_otp_import" for [Desktop, Mobile] {
+        request {
+            /// The pasted text, decoded QR payload, or export file body.
+            payload: String,
+        }
+        response {
+            /// Every account the payload carried, importable or not.
+            accounts: Vec<OtpImportCandidate>,
+        }
+    }
+    /// Store a reviewed batch of TOTP accounts: one save (copy-aside),
+    /// one `entry_changed` event per new entry.
+    ImportOtpAccounts => "import_otp_accounts" for [Desktop, Mobile] {
+        request {
+            /// The accounts the user accepted in the review.
+            accounts: Vec<OtpImportSelection>,
+        }
+        response {
+            /// How many entries the vault gained.
+            imported: u32,
+        }
+    }
     /// Save an entry captured by the extension's save prompt.
     SaveEntry => "save_entry" for [WebExtension] {
         request {
@@ -426,6 +485,12 @@ pub enum RpcErrorCode {
     NoSuchEntry,
     /// The protocol knows the operation but this build cannot execute it yet.
     NotImplemented,
+    /// The request payload itself is unusable: an import payload in no
+    /// recognized format, a malformed `otpauth://` URI in a selection.
+    /// Distinct from [`RpcErrorCode::NotImplemented`] — the operation
+    /// ran, the input is the problem — so the UI can say "fix what you
+    /// pasted" instead of "this build cannot".
+    BadRequest,
 }
 
 /// The machine-readable half of a failure. Codes are stable strings the UI

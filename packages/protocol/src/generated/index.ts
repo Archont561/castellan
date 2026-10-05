@@ -12,6 +12,8 @@ export type { VaultStatus } from "./VaultStatus";
 export type { Hello } from "./Hello";
 export type { EntrySummary } from "./EntrySummary";
 export type { NewEntry } from "./NewEntry";
+export type { OtpImportCandidate } from "./OtpImportCandidate";
+export type { OtpImportSelection } from "./OtpImportSelection";
 export type { RpcMethod } from "./RpcMethod";
 export type { RpcRequest } from "./RpcRequest";
 export type { RpcErrorCode } from "./RpcErrorCode";

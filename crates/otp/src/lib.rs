@@ -15,6 +15,27 @@ use data_encoding::BASE32_NOPAD;
 use hmac::{Hmac, KeyInit, Mac};
 use thiserror::Error;
 
+pub mod import;
+pub mod migration;
+
+/// One account of an import payload, as the review UI sees it.
+///
+/// Exactly one of `otpauth`/`problem` is `Some`: an importable account
+/// carries the URI that will be stored, a refused one carries the reason
+/// it cannot be (yet). Both carry the name, because a batch review that
+/// hides what it skipped is how users lose accounts in a migration.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AccountCandidate {
+    /// The issuing service, when the payload names one.
+    pub issuer: Option<String>,
+    /// The account the code belongs to.
+    pub account: String,
+    /// The `otpauth://` URI to store, when this account is importable.
+    pub otpauth: Option<String>,
+    /// Why this account cannot be imported, when it cannot.
+    pub problem: Option<String>,
+}
+
 /// A parsed `otpauth://` seed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TotpConfig {
@@ -58,6 +79,19 @@ pub enum OtpError {
         /// The value that was not a number.
         value: String,
     },
+    /// An `otpauth-migration://` payload that cannot be decoded at all —
+    /// distinct from a payload whose *accounts* are individually refused.
+    #[error("cannot decode migration payload: {0}")]
+    BadMigration(String),
+    /// An export this build recognizes but cannot decrypt yet; the name
+    /// tells the user which tool's encrypted format it was.
+    #[error("{0} encrypted exports need a password; decryption arrives with task-24")]
+    EncryptedExport(String),
+    /// A payload in no format [`import::preview`] knows.
+    #[error(
+        "not a recognized import: expected otpauth://, otpauth-migration://, or an Aegis/andOTP JSON export"
+    )]
+    UnrecognizedImport,
 }
 
 /// Parse an `otpauth://totp/...` URI.
@@ -179,8 +213,57 @@ pub fn code_now(config: &TotpConfig, now_unix: u64) -> (String, u32) {
     (code, seconds_remaining)
 }
 
+/// Build a canonical `otpauth://totp/` URI from import parts.
+///
+/// The counterpart of [`parse`], used by the importers so every account
+/// — whatever payload it arrived in — is stored in the one format the
+/// whole product (and every other authenticator) reads back. Defaults
+/// are omitted: a URI with no `digits` or `period` parameter means 6 and
+/// 30 to every parser, including this crate's.
+#[must_use]
+pub fn otpauth_uri(
+    issuer: Option<&str>,
+    account: &str,
+    secret_base32: &str,
+    digits: u32,
+    period: u32,
+) -> String {
+    let label = match issuer {
+        Some(issuer) => format!("{}:{}", percent_encode(issuer), percent_encode(account)),
+        None => percent_encode(account),
+    };
+    let mut uri = format!("otpauth://totp/{label}?secret={secret_base32}");
+    if let Some(issuer) = issuer {
+        uri.push_str("&issuer=");
+        uri.push_str(&percent_encode(issuer));
+    }
+    if digits != 6 {
+        uri.push_str(&format!("&digits={digits}"));
+    }
+    if period != 30 {
+        uri.push_str(&format!("&period={period}"));
+    }
+    uri
+}
+
+/// Percent-encode a label or parameter value. Unreserved characters per
+/// RFC 3986 stay literal; everything else is escaped, which is stricter
+/// than most exporters but never wrong.
+fn percent_encode(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for byte in s.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                out.push(byte as char);
+            }
+            other => out.push_str(&format!("%{other:02X}")),
+        }
+    }
+    out
+}
+
 /// Decode the few percent-escapes that actually appear in otpauth URIs.
-fn percent_decode(s: &str) -> String {
+pub(crate) fn percent_decode(s: &str) -> String {
     let bytes = s.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
     let mut i = 0;

@@ -32,6 +32,16 @@ fn sample_entry() -> NewEntry {
     }
 }
 
+/// An `ImportOtpAccounts` selection shaped like a reviewed account —
+/// case data, same reasoning as [`sample_entry`].
+fn sample_selection() -> castellan_protocol::OtpImportSelection {
+    castellan_protocol::OtpImportSelection {
+        title: "GitHub".into(),
+        username: Some("octocat".into()),
+        otpauth: "otpauth://totp/GitHub:octocat?secret=JBSWY3DPEHPK3PXP&issuer=GitHub".into(),
+    }
+}
+
 /// A tiny real vault in a temp file, built through keepass's own builder
 /// and opened through the vault crate's front door — the same shape as the
 /// vault crate's fixture, one entry so assertions read at a glance. The
@@ -97,6 +107,8 @@ fn locked_dispatcher() -> Dispatcher {
 #[case(11, RpcMethod::LockDatabase {})]
 #[case(9, RpcMethod::GetTotp { entry_id: "entry-id".into() })]
 #[case(5, RpcMethod::SaveEntry { entry: sample_entry() })]
+#[case(6, RpcMethod::PreviewOtpImport { payload: "otpauth://totp/A:a?secret=JBSWY3DPEHPK3PXP".into() })]
+#[case(8, RpcMethod::ImportOtpAccounts { accounts: vec![] })]
 fn every_operation_echoes_the_request_id_and_answers_exactly_one_side(
     unlocked_dispatcher: Dispatcher,
     #[case] id: u64,
@@ -140,11 +152,10 @@ fn the_result_variant_is_the_operations_own(
     assert!(response.error.is_none());
 }
 
-/// The two operations this build refuses still answer inside the
-/// envelope, with the stable code the app's error mapping branches on —
-/// an application failure is a response, not a broken transport.
+/// The operation this build still refuses answers inside the envelope,
+/// with the stable code the app's error mapping branches on — an
+/// application failure is a response, not a broken transport.
 #[rstest]
-#[case(RpcMethod::GetTotp { entry_id: "entry-id".into() })]
 #[case(RpcMethod::SaveEntry { entry: sample_entry() })]
 fn unimplemented_operations_fail_inside_the_envelope(
     unlocked_dispatcher: Dispatcher,
@@ -227,6 +238,7 @@ fn out_of_range_word_counts_clamp_into_the_contract(
 #[case(RpcMethod::GetEntries { origin: "https://github.com".into() })]
 #[case(RpcMethod::GetTotp { entry_id: "entry-id".into() })]
 #[case(RpcMethod::SaveEntry { entry: sample_entry() })]
+#[case(RpcMethod::ImportOtpAccounts { accounts: vec![sample_selection()] })]
 fn a_locked_vault_answers_with_vault_locked(
     locked_dispatcher: Dispatcher,
     #[case] method: RpcMethod,
@@ -300,6 +312,237 @@ fn unlock_flows_through_to_the_faces(unlocked_dispatcher: Dispatcher) {
     assert_eq!(entries[0].username.as_deref(), Some("octocat"));
 }
 
+// ── TOTP: codes and the import pipeline (task-13) ────────────────────────────
+
+/// A dispatcher whose vault carries one TOTP entry — the seed is the
+/// classic test secret, so the expected code is plain arithmetic.
+#[fixture]
+fn totp_dispatcher() -> Dispatcher {
+    let path = vault_file("totp");
+    let session = VaultSession::new();
+    session
+        .unlock(&path, Some("fixture password, never a real one"), None)
+        .expect("a database this suite just saved must unlock");
+    let dispatcher = Dispatcher::new(Arc::new(session));
+    let response = dispatcher.dispatch(RpcRequest {
+        id: 1,
+        method: RpcMethod::ImportOtpAccounts {
+            accounts: vec![sample_selection()],
+        },
+    });
+    assert!(response.error.is_none(), "fixture import must succeed");
+    dispatcher
+}
+
+/// The id of the fixture's TOTP entry, read the way a face would: from
+/// the entry list, by its badge.
+fn totp_entry_id(dispatcher: &Dispatcher) -> String {
+    let response = dispatcher.dispatch(RpcRequest {
+        id: 2,
+        method: RpcMethod::GetEntries {
+            origin: "https://github.com".into(),
+        },
+    });
+    let Some(RpcResult::GetEntries { entries }) = response.result else {
+        panic!("entries must answer");
+    };
+    entries
+        .into_iter()
+        .find(|entry| entry.has_totp)
+        .expect("the imported TOTP entry is in the list")
+        .id
+}
+
+/// `get_totp` answers the code the stored seed produces *right now* —
+/// verified against the otp crate directly, same seed, same instant.
+/// The window guard keeps the test honest across a period boundary.
+#[rstest]
+fn get_totp_computes_from_the_stored_seed(totp_dispatcher: Dispatcher) {
+    let entry_id = totp_entry_id(&totp_dispatcher);
+    let config = castellan_otp::parse(&sample_selection().otpauth).unwrap();
+
+    let before = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    let response = totp_dispatcher.dispatch(RpcRequest {
+        id: 3,
+        method: RpcMethod::GetTotp { entry_id },
+    });
+    let after = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+
+    let Some(RpcResult::GetTotp {
+        code,
+        seconds_remaining,
+    }) = response.result
+    else {
+        panic!("get_totp must answer its own variant: {response:?}");
+    };
+    let (expected_before, _) = castellan_otp::code_now(&config, before);
+    let (expected_after, _) = castellan_otp::code_now(&config, after);
+    assert!(
+        code == expected_before || code == expected_after,
+        "the code must be the seed's code for the dispatch instant"
+    );
+    assert!((1..=30).contains(&seconds_remaining));
+}
+
+/// The two no-answer shapes stay distinguishable for the UI: a row that
+/// was never there vs a row whose entry carries no seed — both the
+/// stable `no_such_entry` code, each with its own message.
+#[rstest]
+fn get_totp_names_missing_entries_and_missing_seeds(unlocked_dispatcher: Dispatcher) {
+    let response = unlocked_dispatcher.dispatch(RpcRequest {
+        id: 4,
+        method: RpcMethod::GetTotp {
+            entry_id: "00000000-0000-0000-0000-000000000000".into(),
+        },
+    });
+    let error = response.error.expect("a missing entry is an error");
+    assert_eq!(error.code, RpcErrorCode::NoSuchEntry);
+
+    // The fixture vault's one entry exists but has no seed.
+    let entries = match unlocked_dispatcher
+        .dispatch(RpcRequest {
+            id: 5,
+            method: RpcMethod::GetEntries {
+                origin: String::new(),
+            },
+        })
+        .result
+    {
+        Some(RpcResult::GetEntries { entries }) => entries,
+        other => panic!("entries must answer: {other:?}"),
+    };
+    let response = unlocked_dispatcher.dispatch(RpcRequest {
+        id: 6,
+        method: RpcMethod::GetTotp {
+            entry_id: entries[0].id.clone(),
+        },
+    });
+    let error = response.error.expect("a seedless entry is an error");
+    assert_eq!(error.code, RpcErrorCode::NoSuchEntry);
+    assert!(error.message.contains("no TOTP seed"));
+}
+
+/// Preview is pure parsing and deliberately answers while locked — a
+/// scan is reviewed wherever it happens, and nothing is stored.
+#[rstest]
+fn preview_otp_import_answers_even_locked(locked_dispatcher: Dispatcher) {
+    let response = locked_dispatcher.dispatch(RpcRequest {
+        id: 7,
+        method: RpcMethod::PreviewOtpImport {
+            payload: "otpauth://totp/GitHub:octocat?secret=JBSWY3DPEHPK3PXP&issuer=GitHub".into(),
+        },
+    });
+    let Some(RpcResult::PreviewOtpImport { accounts }) = response.result else {
+        panic!("preview must answer its own variant: {response:?}");
+    };
+    assert_eq!(accounts.len(), 1);
+    assert_eq!(accounts[0].issuer.as_deref(), Some("GitHub"));
+    assert!(accounts[0].otpauth.is_some());
+    assert!(accounts[0].problem.is_none());
+}
+
+/// An unparseable payload is the caller's input problem: `bad_request`,
+/// not `not_implemented` — the UI's "fix what you pasted" branch.
+#[rstest]
+fn preview_of_garbage_is_bad_request(locked_dispatcher: Dispatcher) {
+    let response = locked_dispatcher.dispatch(RpcRequest {
+        id: 8,
+        method: RpcMethod::PreviewOtpImport {
+            payload: "certainly not an export".into(),
+        },
+    });
+    assert_eq!(
+        response.error.expect("garbage is an error").code,
+        RpcErrorCode::BadRequest
+    );
+}
+
+/// A selection with one unusable seed rejects the whole batch before
+/// anything is stored — the review's checkboxes are the unit of consent,
+/// and a half-imported batch is the state they exist to prevent.
+#[rstest]
+fn import_with_a_bad_seed_rejects_the_whole_batch(unlocked_dispatcher: Dispatcher) {
+    let response = unlocked_dispatcher.dispatch(RpcRequest {
+        id: 9,
+        method: RpcMethod::ImportOtpAccounts {
+            accounts: vec![
+                sample_selection(),
+                castellan_protocol::OtpImportSelection {
+                    title: "Broken".into(),
+                    username: None,
+                    otpauth: "otpauth://totp/Broken:x".into(), // no secret
+                },
+            ],
+        },
+    });
+    assert_eq!(
+        response.error.expect("a bad seed is an error").code,
+        RpcErrorCode::BadRequest
+    );
+
+    // Nothing landed: the vault still has only the fixture's entry.
+    let entries = match unlocked_dispatcher
+        .dispatch(RpcRequest {
+            id: 10,
+            method: RpcMethod::GetEntries {
+                origin: String::new(),
+            },
+        })
+        .result
+    {
+        Some(RpcResult::GetEntries { entries }) => entries,
+        other => panic!("entries must answer: {other:?}"),
+    };
+    assert_eq!(entries.len(), 1);
+}
+
+/// The import round trip a face sees: import answers the count, the
+/// session announces each entry, and the new entry serves codes.
+#[rstest]
+fn imported_accounts_show_up_and_serve_codes(unlocked_dispatcher: Dispatcher) {
+    let seen = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let recorder = {
+        let seen = Arc::clone(&seen);
+        Arc::new(move |event: &castellan_protocol::Event| {
+            seen.lock().expect("events").push(event.clone())
+        })
+    };
+    unlocked_dispatcher.session().subscribe(recorder);
+
+    let response = unlocked_dispatcher.dispatch(RpcRequest {
+        id: 11,
+        method: RpcMethod::ImportOtpAccounts {
+            accounts: vec![sample_selection()],
+        },
+    });
+    let Some(RpcResult::ImportOtpAccounts { imported }) = response.result else {
+        panic!("import must answer its own variant: {response:?}");
+    };
+    assert_eq!(imported, 1);
+
+    let events = seen.lock().expect("events");
+    assert!(
+        events
+            .iter()
+            .any(|event| matches!(event, castellan_protocol::Event::EntryChanged { .. })),
+        "faces refresh on entry_changed; the import must announce"
+    );
+    drop(events);
+
+    let entry_id = totp_entry_id(&unlocked_dispatcher);
+    let response = unlocked_dispatcher.dispatch(RpcRequest {
+        id: 12,
+        method: RpcMethod::GetTotp { entry_id },
+    });
+    assert!(response.result.is_some(), "the new entry must serve codes");
+}
+
 /// Any operation the contract defines, with arbitrary field values — so
 /// the properties below hold over the whole request space, not the few
 /// shapes a hand-written test thought to try. The session stays unlocked
@@ -322,6 +565,13 @@ fn any_method() -> impl Strategy<Value = RpcMethod> {
             RpcMethod::GeneratePassphrase {
                 words,
                 separator: separator.to_string(),
+            }
+        }),
+        // Preview parses arbitrary text; the property run proves the
+        // sniffing never panics and always stays inside the envelope.
+        (proptest::collection::vec(proptest::char::any(), 0..64)).prop_map(|payload| {
+            RpcMethod::PreviewOtpImport {
+                payload: payload.into_iter().collect(),
             }
         }),
     ]

@@ -60,8 +60,22 @@ const arbNewEntry: fc.Arbitrary<NewEntry> = fc.record({
 const arbRpcErrorCode: fc.Arbitrary<RpcErrorCode> = fc.constantFrom(
   "vault_locked",
   "no_such_entry",
-  "not_implemented"
+  "not_implemented",
+  "bad_request"
 );
+
+const arbOtpImportCandidate = fc.record({
+  issuer: nullableText,
+  account: text,
+  otpauth: nullableText,
+  problem: nullableText
+});
+
+const arbOtpImportSelection = fc.record({
+  title: text,
+  username: nullableText,
+  otpauth: text
+});
 
 const arbRpcError: fc.Arbitrary<RpcError> = fc.record({
   code: arbRpcErrorCode,
@@ -107,6 +121,14 @@ const methodArbitraries = {
     words: fc.nat(64),
     separator: text
   }),
+  preview_otp_import: fc.record({
+    method: fc.constant("preview_otp_import"),
+    payload: text
+  }),
+  import_otp_accounts: fc.record({
+    method: fc.constant("import_otp_accounts"),
+    accounts: fc.array(arbOtpImportSelection)
+  }),
   save_entry: fc.record({ method: fc.constant("save_entry"), entry: arbNewEntry }),
   lock_database: fc.record({ method: fc.constant("lock_database") }),
   ping: fc.record({ method: fc.constant("ping") })
@@ -131,6 +153,14 @@ const resultArbitraries = {
   get_entries: fc.record({ type: fc.constant("get_entries"), entries: fc.array(arbEntrySummary) }),
   get_totp: fc.record({ type: fc.constant("get_totp"), code: text, seconds_remaining: fc.nat() }),
   generate_passphrase: fc.record({ type: fc.constant("generate_passphrase"), value: text }),
+  preview_otp_import: fc.record({
+    type: fc.constant("preview_otp_import"),
+    accounts: fc.array(arbOtpImportCandidate)
+  }),
+  import_otp_accounts: fc.record({
+    type: fc.constant("import_otp_accounts"),
+    imported: fc.nat()
+  }),
   save_entry: fc.record({ type: fc.constant("save_entry"), id: text }),
   lock_database: fc.record({ type: fc.constant("lock_database") }),
   ping: fc.record({ type: fc.constant("ping") })
