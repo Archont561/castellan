@@ -72,6 +72,20 @@ gtk3 = ">=3.24,<3.25"
 "webkit2gtk4.1" = ">=2.48,<2.50"
 dbus = ">=1.15"
 librsvg = ">=2.58"
+# gio-2.0.pc carries `Requires.private: zlib`, and the gtk stack only ever
+# pulls libzlib transitively — the runtime .so, with no zlib.pc and no
+# zlib.h. pkg-config resolves the whole Requires.private chain even for a
+# dynamic link, so gio-sys's build script fails with "Package 'zlib',
+# required by 'gio-2.0', not found" and every --workspace cargo lane
+# compiled against this env dies with it (task-49). The `zlib` conda-forge
+# package is the dev side (headers + .pc); libzlib stays its runtime peer.
+zlib = ">=1.3,<2"
+# Same shape one layer down: fontconfig.pc carries `Requires.private:
+# expat`, and the gtk stack pulls libexpat (runtime .so) transitively with
+# no expat.pc and no expat.h. cairo, pango and gdk-3.0 all resolve
+# fontconfig, so this one gap breaks every remaining -sys build script in
+# the env — the gtk/webkit chain cannot compile past gio-sys without it.
+expat = ">=2.6,<3"
 
 # Export the search path explicitly instead of trusting pkg-config's
 # baked-in default: conda-forge bakes the *install-time* prefix into the
@@ -118,14 +132,8 @@ dev-extension = "bun run dev:ext"
 dev-docs = "bun run dev:docs"
 dev-storybook = "bun run dev:storybook"
 
-# Solve-time virtuals, declared instead of host-detected: the lock must
-# resolve identically on a CI runner (glibc 2.39), an airlock (as old as
-# 2.36), and any laptop — and it must never resolve a package that needs a
-# newer glibc than the oldest airlock it will be restored into. 2.34 is
-# webkit2gtk4.1's own floor, so the gtk-shells feature lands exactly at it.
-[system-requirements]
-libc = { family = "glibc", version = "2.34" }
-
+# The workspace table is where the platforms live, and the two linux entries
+# below carry the solve-time virtuals, declared rather than host-detected.
 [workspace]
 channels = [
     "conda-forge",
@@ -133,8 +141,15 @@ channels = [
 description = "Local-first secrets manager: KeePass-compatible vault, authenticator and soft security key"
 name = "castellan"
 platforms = [
-    "linux-64",
-    "linux-aarch64",
+    # Declared instead of host-detected: the lock must resolve identically on
+    # a CI runner (glibc 2.39), an airlock (as old as 2.36), and any laptop —
+    # and it must never resolve a package that needs a newer glibc than the
+    # oldest airlock it will be restored into. 2.34 is webkit2gtk4.1's own
+    # floor, so the gtk-shells feature lands exactly at it.
+    { platform = "linux-64", glibc = "2.34" },
+    { platform = "linux-aarch64", glibc = "2.34" },
+    # macOS gets bare entries: a glibc constraint is meaningless there, and a
+    # bare string solves the subdir against pixi's default virtual packages.
     "osx-64",
     "osx-arm64",
 ]

@@ -11,7 +11,7 @@ generated:
   by: agent/castellan-kb
   at: "2026-10-01T22:00:00Z"
 created: "2026-10-01T22:00:00Z"
-updated: "2026-10-04T15:26:34Z"
+updated: "2026-10-05T12:05:00Z"
 id: infrastructure/monorepo
 category: infrastructure
 refs:
@@ -42,7 +42,15 @@ single-job CI, dual MIT/Apache-2.0.
   (fronts every clap subcommand in `crates/xtask`). Contributors with plain
   rustup + bun.sh installs (or CI) get the same binaries without pixi.
   Platforms are linux-64, linux-aarch64, osx-64, osx-arm64 — conda-forge
-  does not publish bun for win-64.
+  does not publish bun for win-64. The two linux entries are **inline tables
+  carrying `glibc = "2.34"`**, not bare strings: solve-time virtuals are
+  declared, never host-detected, so the lock resolves identically on a CI
+  runner (2.39), an airlock (as old as 2.36) and any laptop. 2.34 is
+  webkit2gtk4.1's own floor. This is the form pixi asks for now —
+  `[system-requirements]` is parsed for backwards compatibility but warns on
+  every command, and pixi already migrates it internally into synthetic
+  `linux-64-glibc-2-34` platform entries, which is why the swap left
+  `pixi.lock` byte-identical.
 - The **docs site**: `apps/docs/` is pixi-sandbox's Astro + Starlight app,
   adapted — without its version-substitution rig (no versioned pages yet;
   copy the machinery from the template when the first one exists) and with
@@ -92,6 +100,7 @@ single-job CI, dual MIT/Apache-2.0.
 | `@castellan/utils` owns the TS bases + test fixtures | geoquery's root `tsconfig.base.json` became a package: `base`/`lib`/`app` extended through package exports (apps compose their framework-generated config with `app.json` via extends-arrays — strictness now reaches the apps, which a root file never did), plus `createFixture` for bun test suites |
 | Repo-wide `@` root alias + bunup builds through one preset | every member resolves `@/` to its own root (tsconfig paths in packages, `kit.alias` in SvelteKit, generated in WXT, tsconfig paths in Astro); `libPreset` in `@castellan/utils/bunup` centralizes ESM+dts build choices — package `src/` never uses `@` because consumer bundlers would misresolve it. The alias is **enforced**, not suggested: biome's `style/noRestrictedImports` forbids any `../`-climbing import, with `packages/*/src/**` exempted as the place where `@` is the wrong answer. A directory the alias does not reach is a directory whose bundler has not been taught it — `packages/ui`'s component tests needed `resolve.alias` in `ctViteConfig`, because tsconfig `paths` is a typechecker fact and vite never reads it |
 | fast-check + bun-test properties | the TS packages get proptest's mirror; convco/actionlint ride the toolchain (neither ships a usable npm CLI — the npm `convco` entry is an empty squat, npm `actionlint` is a wasm library with no bin) |
+| `zlib` and `expat` named explicitly in the `gtk-shells` feature | conda-forge splits every library into a runtime `.so` package and a dev package that carries the headers and the `.pc` file, and a `.pc`'s `Requires` chain names the *dev* names. `gtk3`/`webkit2gtk4.1` pull `libzlib`/`libexpat` transitively (runtime only), but `gio-2.0.pc` carries `Requires.private: zlib` and `fontconfig.pc` carries `Requires.private: expat` — and pkg-config resolves the whole `Requires.private` chain even for a dynamic link. Every `-sys` build script in the env therefore died on the first missing name (`zlib`, then `expat` behind it), which meant the `@castellan/rust` lint/typecheck lanes that decision-13 routes into `shells` had never run in a restored airlock. Naming the dev packages is the whole fix; it is connected-side work because the relock needs the conda network |
 
 ## Conventions that travel with the pattern
 
