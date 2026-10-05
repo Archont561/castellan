@@ -21,6 +21,6 @@ test("announces that a code is loading until the face client responds", async ({
 test("announces a failed code refresh", async ({ mount }) => {
   const totp = await mount(TotpCodeHarness, { props: { scenario: "rejected" } });
 
-  await expect(totp).toContainText("the vault is locked");
-  await expect(totp.getByRole("alert")).toContainText("the vault is locked");
+  const error = totp.getByText("Error: the vault is locked", { exact: true });
+  await expect(error).toHaveAttribute("role", "alert");
 });
