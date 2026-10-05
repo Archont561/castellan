@@ -1,31 +1,46 @@
 # Fob — the Castellan browser companion
 
-One codebase (WXT) → Chrome/Edge/Brave/Vivaldi (chromium) and Firefox
-(gecko). Speaks the same protocol as the desktop and mobile apps over native
-messaging; the host is the app binary itself, so app/proxy/extension version
-drift — the classic KeePass breakage — cannot happen.
+Fob is the WXT browser-extension face for Chromium-family browsers and Firefox.
+It speaks the same protocol as the native faces over browser native messaging:
+the browser-spawned host only pumps bytes to the local app, while the extension
+owns browser interaction, association-key persistence, and reconnect behavior.
+It never opens or stores a vault.
 
-## Run
+## Run and verify
+
+Use Pixi from the repository root:
 
 ```console
-$ pixi run dev-extension                              # Chromium
-$ pixi run bun run --cwd apps/extension dev:firefox  # Firefox
+$ pixi run dev-extension
+$ pixi run bun run --cwd apps/extension dev:firefox
+$ pixi run bun run --cwd apps/extension typecheck
+$ pixi run bun run --cwd apps/extension test
+$ pixi run bun run --cwd apps/extension e2e
 ```
+
+`e2e` first builds the unpacked Chromium extension, then starts full
+Chrome-for-Testing with a persistent profile. It cannot use the default
+headless shell because that shell cannot load extensions.
 
 ## Layout
 
-| Path | What it is |
+| Path | Responsibility |
 | --- | --- |
-| `entrypoints/background.ts` | the root: one transport, one client, reconnect policy |
-| `entrypoints/content.ts` | passkey interception at document_start, MAIN world |
-| `entrypoints/popup/` | the Fob popup |
-| `src/generated/client.ts` | xtask-generated operations assigned to the web-extension face |
-| `src/transport.ts` | the tested Transport implementation over connectNative |
-| `src/messages.ts` | the typed popup/content-to-background message contract |
-| `native-hosts/host.json` | canonical host identity and browser extension IDs |
-| `native-hosts/generated/` | xtask-generated Chromium and Firefox manifest templates |
+| `entrypoints/background.ts` | Native-messaging transport/client lifecycle |
+| `entrypoints/content.ts` | Document-start content integration |
+| `entrypoints/popup/` | The Fob status popup |
+| `src/transport.ts` | Tested `connectNative` transport and association handshake |
+| `src/association.ts` | Association key storage and WebCrypto proof helpers |
+| `src/messages.ts` | Typed messages among extension surfaces |
+| `src/generated/client.ts` | Generated web-extension RPC client |
+| `native-hosts/` | Host identity and generated browser manifest templates |
+| `test/`, `e2e/` | Unit/protocol and built-extension browser tests |
 
-Host metadata lives here because the *extension* defines the IDs the app must
-allow. Xtask emits each browser family's schema and the constant used by
-`connectNative`; the app installs the appropriate generated manifest after
-replacing its binary-path placeholder.
+## Generated contract and host identity
+
+`src/generated/client.ts`, `src/generated/native-host.ts`, and
+`native-hosts/generated/` are xtask output. Update the Rust protocol or
+`native-hosts/host.json`, then run `pixi run codegen`; do not edit the output.
+The manifest installer in `crates/manifests` replaces the binary-path template
+and installs/audits the platform-specific host files. See
+[`native-hosts/README.md`](native-hosts/README.md) for that boundary.

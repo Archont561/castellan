@@ -1,22 +1,35 @@
 # Castellan mobile
 
-Tauri 2 iOS/Android + SvelteKit. Its `rpc` command is the same thin adapter
-to `castellan-dispatch` as desktop; its xtask-generated `MobileClient` exposes
-only operations assigned to mobile. Its invoke adapter comes from the same
-`@castellan/tauri` package as desktop, while this face owns phone metrics for
-the shared `VaultHome` surface. Biometric unlock / credential-provider
-integrations land here as Tauri plugins.
+The mobile face is a Tauri 2 Android/iOS shell around SvelteKit. It shares the
+same `rpc` adapter, generated face-scoped client, and `@castellan/tauri`
+transport as desktop while owning phone-specific layout, lifecycle, and future
+biometric integrations.
 
-## Run
+## Run and verify
+
+Run from the repository root through Pixi. Generate each platform once on its
+host, then use a device or emulator:
 
 ```console
-$ pixi run bun run --cwd apps/mobile android:init   # once: generate Android
-$ pixi run bun run --cwd apps/mobile android        # device or emulator
-$ pixi run bun run --cwd apps/mobile ios:init       # once, on a Mac
+$ pixi run bun run --cwd apps/mobile android:init
+$ pixi run bun run --cwd apps/mobile android
+$ pixi run bun run --cwd apps/mobile ios:init       # macOS only
 $ pixi run bun run --cwd apps/mobile ios
+$ pixi run bun run --cwd apps/mobile typecheck
+$ pixi run bun run --cwd apps/mobile e2e
 ```
 
-`src/generated/client.ts` is committed xtask output for the operations assigned
-to mobile. `src-tauri/gen/` is platform-generated and git-ignored. Biometric
-unlock wraps the vault key in Keystore/Secure Enclave per the design doc; the
-plugin surface this app will grow is `createBioKey` / `wrap` / `unwrap`.
+## Layout
+
+| Path | Responsibility |
+| --- | --- |
+| `src/routes/` | Static SvelteKit shell and touch-oriented composition/metrics |
+| `src/generated/client.ts` | Committed xtask output for mobile-allowed RPC methods |
+| `src-tauri/` | Tauri workspace member, platform lifecycle, and native adapter |
+| `e2e/` | Phone-viewport browser shell tests |
+
+`src/generated/client.ts` is generated from the Rust protocol; regenerate it
+with `pixi run codegen`, never by hand. `src-tauri/gen/` is platform-generated
+and ignored. Future biometric support belongs in Tauri plugins that wrap vault
+key material with Keystore/Secure Enclave facilities; the UI continues to call
+the generated client rather than platform APIs directly.
