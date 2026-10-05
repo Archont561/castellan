@@ -18,6 +18,25 @@
  * where bun accepts `beforeAll` and friends); it registers its hooks there
  * and hands back a getter that only works inside the wired lifecycle:
  *
+ * One caveat, learned the hard way: "where the hooks are registered" is the
+ * *test file* that evaluates the call, and an imported module is evaluated
+ * once no matter how many test files import it. So a fixture defined at the
+ * top level of a shared `support.ts` and exported as a value wires its whole
+ * lifecycle into whichever file imported that module first, and every other
+ * file reads it before setup and throws. Share the *factory* and let each
+ * test file call it — the classes and helpers stay shared, only the
+ * registration is per file:
+ *
+ * ```ts
+ * // ./support.ts — shared, but a factory, not a fixture
+ * export function scriptedClient() {
+ *   return createFixture(() => new TestClient(new ScriptedTransport()));
+ * }
+ *
+ * // ./client.test.ts
+ * const client = scriptedClient();
+ * ```
+ *
  * ```ts
  * const wasm = createFixture(buildArtifact, undefined, "file");
  *

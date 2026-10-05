@@ -6,10 +6,19 @@
  * silently dropped them), which is the exact failure mode the repo's
  * fixtures convention exists to prevent.
  *
- * `scriptedClient` is the per-test fixture for the example-driven suite.
- * The property suite constructs the same pair inside each `fc.assert`
- * run, where a fixture's per-test lifecycle cannot reach — it imports
- * the classes from here so the pair still exists exactly once.
+ * `scriptedClientFixture` is the per-test fixture factory for the
+ * example-driven suite: each test file calls it at its own module scope to
+ * register the hooks against itself. It cannot be created once here and
+ * exported — `createFixture` registers `beforeEach`/`afterEach` against the
+ * test file that evaluates it, and this module is evaluated exactly once no
+ * matter how many test files import it, so one shared instance wires its
+ * lifecycle into a single file and every other file reads it before setup
+ * and fails. (The classes are shared freely; only the hook registration has
+ * to happen per file.)
+ *
+ * The property suite constructs the same pair inside each `fc.assert` run,
+ * where a fixture's per-test lifecycle cannot reach — it imports the classes
+ * from here so the pair still exists exactly once.
  */
 import type { Event, RpcRequest, RpcResponse } from "@castellan/protocol";
 import { createFixture } from "@castellan/utils/fixtures";
@@ -84,12 +93,17 @@ export class ScriptedTransport implements Transport {
 }
 
 /**
- * A client over a scripted transport, fresh per test: each test's script
- * is its own (`transport.answerWith(...)`), and no `sent` record or event
- * listener leaks from one test into the next.
+ * Build the per-test fixture for one test file. Call at that file's module
+ * scope: each test's script is its own (`transport.answerWith(...)`), and no
+ * `sent` record or event listener leaks from one test into the next.
  */
-export const scriptedClient = createFixture(() => {
-  const transport = new ScriptedTransport();
-  const client = new TestClient(transport);
-  return { client, transport };
-});
+export function scriptedClientFixture(): () => {
+  client: TestClient;
+  transport: ScriptedTransport;
+} {
+  return createFixture(() => {
+    const transport = new ScriptedTransport();
+    const client = new TestClient(transport);
+    return { client, transport };
+  });
+}

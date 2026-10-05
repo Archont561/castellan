@@ -9,7 +9,9 @@ import { describe, expect, test } from "bun:test";
 import { CastellanError } from "@/src/client";
 import { disconnected } from "@/src/transport";
 
-import { scriptedClient } from "./support";
+import { scriptedClientFixture } from "./support";
+
+const scriptedClient = scriptedClientFixture();
 
 describe("RpcClient", () => {
   test("builds the flat wire shape the Rust dispatcher deserializes", () => {

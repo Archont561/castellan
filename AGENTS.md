@@ -110,7 +110,14 @@ escaping the locked environment.
   TypeScript properties wrap `fc.assert(fc.property(...))` in a `test()`,
   `fc.asyncProperty` when the body awaits; expensive properties pin
   `numRuns` (50–200); fixtures default to per-test scope (`"file"` is the
-  deliberate, mutation-leaking trade for expensive immutable setup). A new
+   deliberate, mutation-leaking trade for expensive immutable setup). A
+  `createFixture` call registers its hooks against **the test file that
+  evaluates it**, and an imported module evaluates once however many files
+  import it — so a fixture defined at a shared `support.ts`'s top level
+  wires itself into one file and every other file reads it before setup and
+  throws. Share the *factory*, let each test file call it
+  (`packages/core/test/support.ts`, with its two-file regression in
+  `packages/utils/test/fixtures-across-files-*.test.ts`). A new
   discrete example gets a `#[case]`; a new "for any X" claim gets a
   property. If proptest finds a real bug, commit the seed under
   `proptest-regressions/` so the case replays for everyone; if the input
@@ -381,3 +388,14 @@ The IPC socket server in the desktop app (the half that talks to
 and every Tauri mobile plugin. Their homes are named in the code comments
 (`TODO(ipc)`, `TODO(passkeys)`) — implement in place; don't restructure
 around them.
+
+<!-- BEGIN:turborepo-agent-rules -->
+
+# This is NOT the Turborepo you know
+
+Turborepo configuration, task behavior, and CLI commands can vary between installed versions and may differ from your training data. Resolve the `turbo` package from this file's directory or relevant workspace; in monorepos, it may not be visible from the repository root. For example, run `node -p "require.resolve('turbo/package.json')"` from a workspace that depends on `turbo`.
+
+Read `docs/README.md` inside that installed package first, then read the relevant pages from its `docs/` directory before changing Turborepo configuration or commands. Heed deprecation notices. These bundled docs match the installed package version and are available without network access.
+
+This block is written and re-added by `turbo` before repository-scoped commands when an AI agent is detected. In the Turborepo source repository, its template is defined in `crates/turborepo-cli/src/cli/agent_guidance.rs`. Removing the managed block while updates are enabled means a later qualifying invocation will add it again. Set `"agentGuidance": false` in the root `turbo.json` or `turbo.jsonc` to opt out; this does not remove an existing block. Keep the block committed with your work to avoid an uncommitted change on the next agent invocation.
+<!-- END:turborepo-agent-rules -->
