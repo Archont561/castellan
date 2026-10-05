@@ -23,7 +23,12 @@ import type {
 import { createFixture } from "@castellan/utils/fixtures";
 import fc from "fast-check";
 
-import { createTauriTransport, type TauriInvoke, type TauriListen } from "@/src/index";
+import {
+  createTauriTransport,
+  type TauriInvoke,
+  type TauriListen,
+  tauriTransport
+} from "@/src/index";
 
 /** An `invoke` that answers from a script and records what it was asked. */
 class ScriptedInvoke {
@@ -278,6 +283,19 @@ describe("createTauriTransport", () => {
 });
 
 // ── The event pipe: session events in, callbacks out ─────────────────────────
+
+describe("tauriTransport", () => {
+  test("returns a disconnected fallback outside a Tauri webview", async () => {
+    const transport = tauriTransport();
+
+    expect(transport.connected).toBe(false);
+    await expect(transport.request({} as RpcRequest)).rejects.toMatchObject({
+      code: "disconnected",
+      message:
+        "not connected to the Castellan app: Tauri runtime is not available in this browser preview"
+    });
+  });
+});
 
 describe("onEvent", () => {
   test("subscribes to the castellan channel and forwards its payloads", () => {

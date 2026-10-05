@@ -3,9 +3,15 @@ import { PROTOCOL_VERSION } from "@castellan/protocol";
 import { onMount } from "svelte";
 import { pingBackground } from "@/src/messages";
 
+let { preview = false } = $props<{ preview?: boolean }>();
 let state = $state<"checking" | "up" | "down">("checking");
 
 onMount(async () => {
+  if (preview) {
+    state = "down";
+    return;
+  }
+
   const answer = await pingBackground(browser.runtime);
   state = answer.ok ? "up" : "down";
 });

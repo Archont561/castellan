@@ -17,7 +17,7 @@
     "typecheck": "svelte-kit sync && svelte-check --tsconfig tsconfig.json",
     "lint": "biome check src",
     "test": "playwright test",
-    "storybook": "storybook dev -p 6006 --no-open",
+    "storybook": "storybook dev -p 6006 --host 0.0.0.0 --no-open",
     "build:storybook": "storybook build"
   },
   "dependencies": {

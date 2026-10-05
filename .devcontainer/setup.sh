@@ -6,6 +6,79 @@ set -euo pipefail
 
 pixi --version
 
+# Android tooling is deliberately installed outside Pixi: Google distributes the
+# SDK/NDK as platform SDKs, not as part of the repository's conda toolchain.
+# Keep the versions here explicit so a rebuilt container is reproducible and so
+# `tauri android build` works without Android Studio in the container.
+ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-/opt/android-sdk}"
+ANDROID_HOME="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+ANDROID_API_LEVEL="${ANDROID_API_LEVEL:-35}"
+ANDROID_BUILD_TOOLS="${ANDROID_BUILD_TOOLS:-35.0.0}"
+ANDROID_NDK_VERSION="${ANDROID_NDK_VERSION:-27.2.12479018}"
+ANDROID_CMDLINE_TOOLS_VERSION="${ANDROID_CMDLINE_TOOLS_VERSION:-13114758}"
+
+export ANDROID_HOME ANDROID_SDK_ROOT
+
+if [[ "$(id -u)" -ne 0 ]]; then
+  echo "Android SDK setup requires the dev container to run setup.sh as root" >&2
+  exit 1
+fi
+
+apt-get update
+DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+  ca-certificates \
+  fontconfig \
+  fonts-dejavu \
+  openjdk-17-jdk-headless \
+  unzip \
+  wget \
+  xvfb
+
+mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
+if [[ ! -x "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" ]]; then
+  tmpdir="$(mktemp -d)"
+  trap 'rm -rf "$tmpdir"' EXIT
+  wget -q "https://dl.google.com/android/repository/commandlinetools-linux-${ANDROID_CMDLINE_TOOLS_VERSION}_latest.zip" \
+    -O "$tmpdir/cmdline-tools.zip"
+  rm -rf "$tmpdir/cmdline-tools" "$ANDROID_SDK_ROOT/cmdline-tools/latest"
+  unzip -q "$tmpdir/cmdline-tools.zip" -d "$tmpdir"
+  mv "$tmpdir/cmdline-tools" "$ANDROID_SDK_ROOT/cmdline-tools/latest"
+fi
+
+export PATH="$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH"
+export JAVA_HOME="${JAVA_HOME:-/usr/lib/jvm/java-17-openjdk-amd64}"
+
+yes | sdkmanager --licenses >/dev/null || true
+sdkmanager \
+  "platform-tools" \
+  "platforms;android-${ANDROID_API_LEVEL}" \
+  "build-tools;${ANDROID_BUILD_TOOLS}" \
+  "ndk;${ANDROID_NDK_VERSION}"
+
+cat >/etc/profile.d/castellan-android.sh <<EOF
+export JAVA_HOME="$JAVA_HOME"
+export ANDROID_HOME="$ANDROID_HOME"
+export ANDROID_SDK_ROOT="$ANDROID_SDK_ROOT"
+export PATH="$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:\$PATH"
+if [ -d "$ANDROID_SDK_ROOT/ndk" ]; then
+  export NDK_HOME="\$(find "$ANDROID_SDK_ROOT/ndk" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+fi
+EOF
+
+# The Pixi Rust package does not include Android standard libraries. If a
+# rustup-managed toolchain is available, install the mobile targets; otherwise
+# leave the explicit prerequisite visible rather than silently changing the
+# repository's pinned Pixi toolchain.
+if command -v rustup >/dev/null 2>&1; then
+  rustup target add \
+    aarch64-linux-android \
+    armv7-linux-androideabi \
+    x86_64-linux-android \
+    i686-linux-android
+else
+  echo "Note: rustup is not installed; install Rust Android targets before tauri android dev/build."
+fi
+
 # Baseline CLI tooling that the pixi image does not ship with.
 pixi global install git gh
 

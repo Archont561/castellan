@@ -24,7 +24,7 @@
       ]
     },
     "cov": {
-      // cargo-env.sh cds to the repository root, so the report lands at
+      // The package invokes cargo through pixi, so the report lands at
       // crates/lcov.info (the package dir turbo attributes outputs to).
       "cache": false,
       "outputs": ["lcov.info"]

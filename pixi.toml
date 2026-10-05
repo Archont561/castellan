@@ -1,5 +1,6 @@
-# default: every-day command API (bun-led gates; cargo against the ambient
-# toolchain or — via scripts/cargo-env.sh — delegated into shells).
+# default: every-day command API (bun-led gates; cargo runs in the selected
+# pixi environment). Set PIXI_ENVIRONMENT=shells for lanes that need the
+# conda-forge gtk/webkit stack.
 # shells: rust toolchain + the conda-forge gtk/webkit stack and NO JavaScript
 # runtime. The split is not cosmetic: conda-forge's bun builds all link
 # icu 75 while every brotli-compatible webkit2gtk4.1 build demands icu 78,
@@ -31,7 +32,8 @@ wasm-pack = "0.15.*"
 
 # Rust commands ride the feature, not the default environment: every
 # environment that carries the toolchain exposes them — `pixi run cargo`
-# in default, `pixi run -e shells cargo` where the gtk stack is present.
+# in default, `PIXI_ENVIRONMENT=shells pixi run cargo` where the gtk
+# stack is present.
 [feature.rust.tasks]
 cargo = "cargo"
 fmt-rust-check = "cargo fmt --all --check"
@@ -55,7 +57,8 @@ convco = "0.7.*"
 # castellan-desktop/mobile (wry → gtk3 + webkit2gtk-4.1) with no system
 # packages, including in this repo's offline airlocks. It lives in the
 # `shells` environment because it can never share one with bun
-# (decision-13); rust lanes reach it through scripts/cargo-env.sh.
+# (decision-13). Select this environment with PIXI_ENVIRONMENT=shells when
+# running Rust lanes that compile the Tauri shells.
 # JavaScriptCoreGTK ships inside the webkit2gtk4.1 package
 # (same upstream tarball);
 # glib/cairo/pango/atk/gdk-pixbuf/libsoup arrive transitively through

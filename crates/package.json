@@ -1,20 +1,20 @@
 {
   "name": "@castellan/rust",
   "private": true,
-  "//": "Façade so turbo can see the Rust workspace's workspace-wide commands as ONE node in the repo-wide task graph (pathway's split): rustfmt, the Tauri app crates' clippy (they cannot be per-package — apps/desktop and apps/mobile are JS-face turbo packages already, and their src-tauri crates need the gtk stack), cargo-deny, coverage, codegen and the workspace-wide builds and checks stay here as single Cargo invocations. Per-crate nextest/clippy live in crates/*/package.json (@castellan/rust-*) so `turbo run test/lint --affected` selects changed crates and their dependents. Every script enters cargo through scripts/cargo-env.sh, which runs the lane inside pixi's `shells` environment when that env is present locally (conda-forge gtk/webkit — the two-environment split, decision-13) and against the ambient toolchain otherwise (system gtk, e.g. CI's apt step). cargo-env.sh cds to the repository root before exec'ing, where Cargo reads the workspace Cargo.toml/deny.toml. `--workspace` is load-bearing: it covers the two Tauri app crates under apps/*/src-tauri as well as everything under crates/. `test` is deliberately absent: the turbo `test` verb runs the per-crate suites; `test:all` is the all-Rust bypass (nextest does not run doc-tests, so it is two invocations).",
+  "//": "Façade so turbo can see the Rust workspace's workspace-wide commands as ONE node in the repo-wide task graph (pathway's split): rustfmt, the Tauri app crates' clippy (they cannot be per-package — apps/desktop and apps/mobile are JS-face turbo packages already, and their src-tauri crates need the gtk stack), cargo-deny, coverage, codegen and the workspace-wide builds and checks stay here as single Cargo invocations. Per-crate nextest/clippy live in crates/*/package.json (@castellan/rust-*) so `turbo run test/lint --affected` selects changed crates and their dependents. Every script enters cargo through `pixi run cargo`; Turbo passes `PIXI_ENVIRONMENT` through so callers can select `default` or `shells` without a wrapper script. Cargo runs from the package directory and pixi resolves the repository manifest. `--workspace` is load-bearing: it covers the two Tauri app crates under apps/*/src-tauri as well as everything under crates/. `test` is deliberately absent: the turbo `test` verb runs the per-crate suites; `test:all` is the all-Rust bypass (nextest does not run doc-tests, so it is two invocations).",
   "scripts": {
-    "build": "../scripts/cargo-env.sh build --workspace",
-    "typecheck": "../scripts/cargo-env.sh check --workspace --all-targets",
-    "codegen": "../scripts/cargo-env.sh run -p castellan-xtask -- codegen",
+    "build": "pixi run cargo build --workspace",
+    "typecheck": "pixi run cargo check --workspace --all-targets",
+    "codegen": "pixi run cargo run -p castellan-xtask -- codegen",
     "lint": "bun run lint:fmt && bun run lint:apps && bun run lint:deps",
-    "lint:fmt": "../scripts/cargo-env.sh fmt --all --check",
-    "lint:apps": "../scripts/cargo-env.sh clippy -p castellan-desktop -p castellan-mobile --all-targets -- -D warnings",
-    "lint:deps": "../scripts/cargo-env.sh deny --workspace check bans licenses sources",
-    "advisories": "../scripts/cargo-env.sh deny --workspace check advisories",
+    "lint:fmt": "pixi run cargo fmt --all --check",
+    "lint:apps": "pixi run cargo clippy -p castellan-desktop -p castellan-mobile --all-targets -- -D warnings",
+    "lint:deps": "pixi run cargo deny --workspace check bans licenses sources",
+    "advisories": "pixi run cargo deny --workspace check advisories",
     "test:all": "bun run test:unit:all && bun run test:doc:all",
-    "test:unit:all": "../scripts/cargo-env.sh nextest run --workspace",
-    "test:doc:all": "../scripts/cargo-env.sh test --doc --workspace",
-    "cov": "../scripts/cargo-env.sh llvm-cov nextest --workspace --lcov --output-path crates/lcov.info",
-    "fmt": "../scripts/cargo-env.sh fmt --all"
+    "test:unit:all": "pixi run cargo nextest run --workspace",
+    "test:doc:all": "pixi run cargo test --doc --workspace",
+    "cov": "pixi run cargo llvm-cov nextest --workspace --lcov --output-path crates/lcov.info",
+    "fmt": "pixi run cargo fmt --all"
   }
 }

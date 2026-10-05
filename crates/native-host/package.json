@@ -4,7 +4,7 @@
   "private": true,
   "description": "Turbo package for the castellan-native-host Cargo crate: per-crate nextest and clippy so `turbo run test/lint --affected` can select the changed crates and their dependents. Workspace-wide Cargo invocations stay on @castellan/rust.",
   "scripts": {
-    "lint": "../../scripts/cargo-env.sh clippy -p castellan-native-host --all-targets -- -D warnings"
+    "lint": "pixi run cargo clippy -p castellan-native-host --all-targets -- -D warnings"
   },
   "dependencies": {
     "@castellan/rust-ipc": "workspace:*"

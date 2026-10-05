@@ -78,7 +78,27 @@ export function createTauriTransport(
   };
 }
 
+/** Whether this page is running inside a Tauri webview rather than a browser preview. */
+function hasTauriRuntime(): boolean {
+  return "__TAURI_INTERNALS__" in globalThis;
+}
+
+/**
+ * The browser preview has no native bridge. Keep it renderable and surface the
+ * same transport-level error as a disconnected app instead of leaking the
+ * Tauri API stub's `invoke` TypeError into the UI.
+ */
+function unavailableTauriTransport(): Transport {
+  return {
+    connected: false,
+    request: async () => {
+      throw disconnected("Tauri runtime is not available in this browser preview");
+    },
+    onEvent: () => () => {}
+  };
+}
+
 /** The production transport used by both native faces. */
 export function tauriTransport(): Transport {
-  return createTauriTransport(invoke);
+  return hasTauriRuntime() ? createTauriTransport(invoke) : unavailableTauriTransport();
 }
