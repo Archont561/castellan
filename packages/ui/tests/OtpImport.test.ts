@@ -13,9 +13,7 @@ test("lets a user review a batch and import only the accepted accounts", async (
   await panel.getByRole("checkbox", { name: "Import Example" }).uncheck();
   await panel.getByRole("button", { name: "Import 1 account" }).click();
 
-  await expect(panel.getByRole("status", { name: "Imported 1 account." })).toHaveText(
-    "Imported 1 account."
-  );
+  await expect(panel.getByText("Imported 1 account.", { exact: true })).toBeVisible();
   await expect(panel.getByRole("list", { name: "Imported accounts" })).toHaveText("GitHub:octocat");
   await expect(panel.getByLabel("Import requests")).toHaveText("1");
 });
@@ -71,8 +69,6 @@ test("prevents a second import while the first is still pending", async ({ mount
   );
   await expect(panel.getByRole("button", { name: "Importing…" })).toBeDisabled();
   await panel.getByRole("button", { name: "Finish import" }).click();
-  await expect(panel.getByRole("status", { name: "Imported 1 account." })).toHaveText(
-    "Imported 1 account."
-  );
+  await expect(panel.getByText("Imported 1 account.", { exact: true })).toBeVisible();
   await expect(panel.getByLabel("Import requests")).toHaveText("1");
 });

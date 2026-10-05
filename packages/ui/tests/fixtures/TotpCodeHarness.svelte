@@ -18,7 +18,7 @@ let calls = 0;
 let finishCodeLoading = $state<(() => void) | undefined>();
 
 async function getCode(): Promise<{ code: string; secondsRemaining: number }> {
-  if (scenario === "error") throw new Error("the vault is locked");
+  if (scenario === "error") return Promise.reject("the vault is locked");
   if (scenario === "loading") {
     return new Promise((resolve) => {
       finishCodeLoading = () => resolve({ code: "123456", secondsRemaining: 30 });
