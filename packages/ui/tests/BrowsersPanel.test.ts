@@ -42,7 +42,7 @@ test("shows each browser enrollment waiting for a decision", async ({ mount }) =
   const panel = await mount(BrowsersPanel, { props: { snapshot, ...noops } });
   const approvals = panel.getByRole("region", { name: "Waiting for approval" });
 
-  await expect(approvals.getByRole("listitem")).toHaveText("Firefox on this machineAllowDeny");
+  await expect(approvals.getByRole("listitem")).toHaveText("Firefox on this machine Allow Deny");
   await expect(approvals.getByRole("button", { name: "Allow" })).toBeVisible();
   await expect(approvals.getByRole("button", { name: "Deny" })).toBeVisible();
 });
@@ -52,11 +52,11 @@ test("reports connected browser state without hiding unavailable metadata", asyn
   const connections = panel.getByRole("list", { name: "Active connections" });
 
   await expect(connections.getByRole("listitem").filter({ hasText: "Chrome" })).toContainText(
-    "Chrome1.2.0readyget_entries"
+    "Chrome 1.2.0 ready get_entries"
   );
   await expect(connections.getByRole("button", { name: "Disconnect Chrome" })).toBeVisible();
   await expect(connections.getByRole("listitem").filter({ hasText: "Firefox" })).toContainText(
-    "Firefoxunknown versionwaiting—"
+    "Firefox unknown version waiting —"
   );
 });
 
@@ -64,10 +64,10 @@ test("shows remembered browsers and repairable manifest problems", async ({ moun
   const panel = await mount(BrowsersPanel, { props: { snapshot, ...noops } });
 
   await expect(panel.getByRole("list", { name: "Remembered browsers" })).toContainText(
-    "Chrome on this machinesince 2025-10-09"
+    "Chrome on this machine since 2025-10-09"
   );
   await expect(panel.getByRole("list", { name: "Manifest problems" })).toContainText(
-    "EdgeManifest points at an old app path"
+    "Edge Manifest points at an old app path"
   );
 });
 
