@@ -32,6 +32,21 @@ use crate::{VaultError, VaultHandle, open};
 /// A callback that hears session events as they happen.
 pub type EventSink = std::sync::Arc<dyn Fn(&Event) + Send + Sync>;
 
+/// One reviewed account for [`VaultSession::import_totp_entries`]: the
+/// display title the review chose and the `otpauth://` URI to store
+/// verbatim. Deliberately not `castellan-otp`'s candidate type — the
+/// vault stores what it is handed and stays independent of the crate
+/// that computes codes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TotpImport {
+    /// The entry title ("GitHub", or the account when no issuer).
+    pub title: String,
+    /// The account name, stored as the entry's username when present.
+    pub username: Option<String>,
+    /// The seed URI, exactly as scanned or exported.
+    pub otpauth: String,
+}
+
 /// Where the session reads the time. The default is the system clock;
 /// the tests inject a scripted one so lock policy is decided by arithmetic,
 /// never by how long the test happened to take.
@@ -310,6 +325,60 @@ impl VaultSession {
             State::Unlocked(unlocked) => Ok(unlocked.handle.entries()),
             State::Empty | State::Locked { .. } => Err(VaultError::Locked),
         }
+    }
+
+    /// The raw `otpauth://` seed of one entry — the per-entry, by-id
+    /// secret read behind the protocol's `get_totp`. Locked sessions
+    /// answer [`VaultError::Locked`] before entry existence is even
+    /// considered: "unlock first" is the fact the caller needs, and a
+    /// locked vault must not confirm which ids exist.
+    pub fn totp_uri(&self, entry_id: &str) -> Result<String, VaultError> {
+        let state = self.state.lock().expect("session state");
+        match &*state {
+            State::Unlocked(unlocked) => unlocked.handle.otp_uri(entry_id),
+            State::Empty | State::Locked { .. } => Err(VaultError::Locked),
+        }
+    }
+
+    /// Import a reviewed batch of TOTP accounts: add every entry, save
+    /// once under the copy-aside rule, then announce each new entry.
+    ///
+    /// The batch is atomic against the file: one save persists all of it,
+    /// and a failed save rolls the in-memory additions back, so memory
+    /// and disk never disagree about what was imported. Events fire only
+    /// after the save succeeds — a face that refreshes on `EntryChanged`
+    /// must see entries that are actually on disk.
+    pub fn import_totp_entries(&self, accounts: &[TotpImport]) -> Result<Vec<String>, VaultError> {
+        if accounts.is_empty() {
+            return Ok(Vec::new());
+        }
+        let ids = {
+            let mut state = self.state.lock().expect("session state");
+            let State::Unlocked(unlocked) = &mut *state else {
+                return Err(VaultError::Locked);
+            };
+            let handle = &mut unlocked.handle;
+            let mut ids = Vec::with_capacity(accounts.len());
+            for account in accounts {
+                ids.push(handle.add_totp_entry(
+                    &account.title,
+                    account.username.as_deref(),
+                    &account.otpauth,
+                ));
+            }
+            if let Err(error) = handle.save() {
+                for id in ids {
+                    handle.remove_entry(id);
+                }
+                return Err(error);
+            }
+            ids
+        };
+        let ids: Vec<String> = ids.into_iter().map(|id| id.uuid().to_string()).collect();
+        for id in &ids {
+            self.notify(&Event::EntryChanged { id: id.clone() });
+        }
+        Ok(ids)
     }
 
     /// Note user activity: resets the idle clock and cancels any pending

@@ -12,8 +12,9 @@ use ts_rs::TS;
 use castellan_protocol::{
     AssociationClaim, Capability, ClientMessage, ClientTarget, ConnectionInfo, ConnectionState,
     EntrySummary, Event, FaceKind, Hello, HostMessage, ManifestProblem, ManifestProblemKind,
-    NewEntry, PanelSnapshot, PendingKey, RPC_OPERATIONS, RememberedKey, RpcError, RpcErrorCode,
-    RpcMethod, RpcRequest, RpcResponse, RpcResult, VaultStatus,
+    NewEntry, OtpImportCandidate, OtpImportSelection, PanelSnapshot, PendingKey, RPC_OPERATIONS,
+    RememberedKey, RpcError, RpcErrorCode, RpcMethod, RpcRequest, RpcResponse, RpcResult,
+    VaultStatus,
 };
 use castellan_wasm::OtpAuthInfo;
 
@@ -102,6 +103,8 @@ pub(crate) fn run(root: &Path) -> Result<()> {
         Hello,
         EntrySummary,
         NewEntry,
+        OtpImportCandidate,
+        OtpImportSelection,
         RpcMethod,
         RpcRequest,
         RpcErrorCode,

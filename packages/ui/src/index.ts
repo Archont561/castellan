@@ -10,5 +10,7 @@
 export { default as BrowsersPanel } from "./components/BrowsersPanel.svelte";
 export { default as EntryRow } from "./components/EntryRow.svelte";
 export { default as LockedShield } from "./components/LockedShield.svelte";
+export { default as OtpImport } from "./components/OtpImport.svelte";
+export { default as TotpCode } from "./components/TotpCode.svelte";
 export { default as TotpRing } from "./components/TotpRing.svelte";
 export { default as VaultHome } from "./components/VaultHome.svelte";

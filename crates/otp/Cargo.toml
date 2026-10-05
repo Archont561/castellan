@@ -16,6 +16,10 @@ workspace = true
 [dependencies]
 data-encoding = { workspace = true }
 hmac = { workspace = true }
+# The Aegis and andOTP export formats are JSON; the importers deserialize
+# them with the same serde the protocol crate already builds against.
+serde = { workspace = true }
+serde_json = { workspace = true }
 sha1 = { workspace = true }
 thiserror = { workspace = true }
 

@@ -30,7 +30,8 @@ pub mod session;
 
 pub use save::{ASIDE_EXTENSION, SaveOutcome, TEMP_SUFFIX, aside_name};
 pub use session::{
-    EventSink, LockPolicy, LockReason, LockTrigger, SessionClock, SystemClock, VaultSession,
+    EventSink, LockPolicy, LockReason, LockTrigger, SessionClock, SystemClock, TotpImport,
+    VaultSession,
 };
 
 /// The custom field name that marks an entry as carrying a passkey.
@@ -69,6 +70,21 @@ pub enum VaultError {
     /// is a valid backup and stays.
     #[error("cannot save database: {0}")]
     Save(#[from] keepass::db::DatabaseSaveError),
+    /// The request named an entry this vault does not have.
+    #[error("no entry with id {id}")]
+    NoSuchEntry {
+        /// The id that matched nothing.
+        id: String,
+    },
+    /// The entry exists but carries no TOTP seed — same protocol code as
+    /// [`VaultError::NoSuchEntry`] (there is nothing to compute from),
+    /// but a distinct message: "this entry has no 2FA" is actionable,
+    /// "no such entry" after clicking a visible row would read as a bug.
+    #[error("entry {id} has no TOTP seed")]
+    NoTotpSeed {
+        /// The entry without a seed.
+        id: String,
+    },
 }
 
 impl VaultError {
@@ -84,6 +100,7 @@ impl VaultError {
             Self::Credentials => Some(RpcErrorCode::BadCredentials),
             Self::Locked => Some(RpcErrorCode::VaultLocked),
             Self::Io { .. } | Self::Keepass(_) => Some(RpcErrorCode::VaultUnreadable),
+            Self::NoSuchEntry { .. } | Self::NoTotpSeed { .. } => Some(RpcErrorCode::NoSuchEntry),
             Self::Save(_) => None,
         }
     }
@@ -171,6 +188,73 @@ impl VaultHandle {
         let mut out = Vec::new();
         walk(self.database.root(), &mut out);
         out
+    }
+
+    /// The raw `otpauth://` seed of one entry, exactly as stored.
+    ///
+    /// Secret material leaves this crate only through this per-entry,
+    /// by-id read — the list projection ([`VaultHandle::entries`])
+    /// deliberately carries `has_totp` and nothing more. The seed is
+    /// returned as text, not parsed: computing codes is `castellan-otp`'s
+    /// job, and only this crate touches KDBX bytes (the two crates stay
+    /// deliberately independent).
+    ///
+    /// Reads the KeePass `otp` field first and KeeWeb's legacy
+    /// `TOTP Seed` second — the same pair [`VaultHandle::entries`]'s
+    /// `has_totp` is computed from, so a row that shows a 2FA badge can
+    /// always answer this call.
+    pub fn otp_uri(&self, id: &str) -> Result<String, VaultError> {
+        fn find(group: GroupRef<'_>, id: &str) -> Option<Result<String, ()>> {
+            for entry in group.entries() {
+                if entry.id().uuid().to_string() == id {
+                    return Some(
+                        entry
+                            .get_raw_otp_value()
+                            .or_else(|| entry.get("TOTP Seed"))
+                            .map(str::to_string)
+                            .ok_or(()),
+                    );
+                }
+            }
+            group.groups().find_map(|child| find(child, id))
+        }
+        match find(self.database.root(), id) {
+            Some(Ok(uri)) => Ok(uri),
+            Some(Err(())) => Err(VaultError::NoTotpSeed { id: id.to_string() }),
+            None => Err(VaultError::NoSuchEntry { id: id.to_string() }),
+        }
+    }
+
+    /// Add one TOTP entry at the vault root and return its id.
+    ///
+    /// The seed is stored protected under the KeePass `otp` field — the
+    /// name every other client (KeePassXC, KeeWeb, KeePassDX) reads —
+    /// and verbatim: re-encoding a URI the user scanned could lose a
+    /// parameter a future build understands (`NewEntry.otpauth` keeps
+    /// the same rule). In-memory only; the caller decides when the
+    /// batch is complete and [`VaultHandle::save`] runs once.
+    pub fn add_totp_entry(
+        &mut self,
+        title: &str,
+        username: Option<&str>,
+        otpauth: &str,
+    ) -> keepass::db::EntryId {
+        let mut root = self.database.root_mut();
+        let mut entry = root.add_entry();
+        entry.set_unprotected("Title", title);
+        if let Some(username) = username {
+            entry.set_unprotected("UserName", username);
+        }
+        entry.set_protected("otp", otpauth);
+        entry.id()
+    }
+
+    /// Remove one entry — the rollback half of a failed batch import,
+    /// so the in-memory database never claims entries the file refused.
+    pub(crate) fn remove_entry(&mut self, id: keepass::db::EntryId) {
+        if let Some(entry) = self.database.entry_mut(id) {
+            entry.remove();
+        }
     }
 }
 

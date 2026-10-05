@@ -19,7 +19,8 @@
     "@castellan/core": "workspace:*",
     "@castellan/protocol": "workspace:*",
     "@castellan/tauri": "workspace:*",
-    "@castellan/ui": "workspace:*"
+    "@castellan/ui": "workspace:*",
+    "jsqr": "1.4.0"
   },
   "devDependencies": {
     "@castellan/utils": "workspace:*",

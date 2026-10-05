@@ -17,6 +17,10 @@ publish = false
 workspace = true
 
 [dependencies]
+# The TOTP computation and import parsing behind get_totp /
+# preview_otp_import — the dispatcher is where the vault's seed text and
+# the otp crate's arithmetic meet (the two stay independent of each other).
+castellan-otp = { workspace = true }
 castellan-protocol = { workspace = true }
 castellan-vault = { workspace = true }
 

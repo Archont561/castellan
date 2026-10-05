@@ -17,6 +17,10 @@ const client = {
   async getEntries(): Promise<EntrySummary[]> {
     return [entry];
   },
+  async getTotp(entryId: string): Promise<{ code: string; secondsRemaining: number }> {
+    if (entryId !== entry.id) throw new Error(`no such entry: ${entryId}`);
+    return { code: "135791", secondsRemaining: 30 };
+  },
   async generatePassphrase(): Promise<string> {
     return "amber-castle-river-lantern";
   }

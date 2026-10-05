@@ -12,9 +12,15 @@
 interface Props {
   code: string;
   secondsRemaining: number;
+  /**
+   * Fired once when the local countdown reaches zero — the caller's cue
+   * to ask the protocol for the next code. The ring itself never knows
+   * the period; it only runs down what the last answer said was left.
+   */
+  onExpired?: () => void;
 }
 
-let { code, secondsRemaining }: Props = $props();
+let { code, secondsRemaining, onExpired }: Props = $props();
 
 // Zero, not the prop: $state would capture the initial prop value
 // (svelte's state_referenced_locally warning is right about that);
@@ -25,6 +31,12 @@ $effect(() => {
   remaining = secondsRemaining;
   const timer = setInterval(() => {
     remaining = Math.max(0, remaining - 1);
+    if (remaining === 0) {
+      // Stop ticking at zero: the owner refetches and the new
+      // `secondsRemaining` restarts this effect with a fresh timer.
+      clearInterval(timer);
+      onExpired?.();
+    }
   }, 1000);
   return () => clearInterval(timer);
 });

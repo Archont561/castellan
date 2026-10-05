@@ -114,6 +114,19 @@ const arbNewEntry: fc.Arbitrary<NewEntry> = fc.record({
   otpauth: nullableText
 });
 
+const arbOtpImportCandidate = fc.record({
+  issuer: nullableText,
+  account: text,
+  otpauth: nullableText,
+  problem: nullableText
+});
+
+const arbOtpImportSelection = fc.record({
+  title: text,
+  username: nullableText,
+  otpauth: text
+});
+
 /** The registries below are `satisfies`-typed the same way the protocol
  * package's round-trip suite types its own: adding an operation to the
  * Rust contract makes these objects fail to compile until the new
@@ -132,6 +145,14 @@ const methodArbitraries = {
     method: fc.constant("generate_passphrase"),
     words: fc.nat(64),
     separator: text
+  }),
+  preview_otp_import: fc.record({
+    method: fc.constant("preview_otp_import"),
+    payload: text
+  }),
+  import_otp_accounts: fc.record({
+    method: fc.constant("import_otp_accounts"),
+    accounts: fc.array(arbOtpImportSelection)
   }),
   save_entry: fc.record({ method: fc.constant("save_entry"), entry: arbNewEntry })
 } satisfies MethodArbitraries;
@@ -160,6 +181,14 @@ const resultArbitraries = {
     type: fc.constant("generate_passphrase"),
     value: text
   }),
+  preview_otp_import: fc.record({
+    type: fc.constant("preview_otp_import"),
+    accounts: fc.array(arbOtpImportCandidate)
+  }),
+  import_otp_accounts: fc.record({
+    type: fc.constant("import_otp_accounts"),
+    imported: fc.nat()
+  }),
   save_entry: fc.record({ type: fc.constant("save_entry"), id: text })
 } satisfies ResultArbitraries;
 
@@ -169,7 +198,8 @@ const arbRpcError: fc.Arbitrary<RpcError> = fc.record({
     "bad_credentials",
     "vault_unreadable",
     "no_such_entry",
-    "not_implemented"
+    "not_implemented",
+    "bad_request"
   ),
   message: text
 });
