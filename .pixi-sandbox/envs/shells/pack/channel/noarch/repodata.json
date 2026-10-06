@@ -1,0 +1,322 @@
+{
+  "info": {
+    "subdir": "noarch"
+  },
+  "packages": {},
+  "packages.conda": {
+    "adwaita-icon-theme-51.0-unix_0.conda": {
+      "build": "unix_0",
+      "build_number": 0,
+      "depends": [
+        "__unix",
+        "hicolor-icon-theme",
+        "librsvg"
+      ],
+      "license": "LGPL-3.0-or-later OR CC-BY-SA-3.0",
+      "md5": "6f62266fb2bfc35a5071cfa1d6ffdcc9",
+      "name": "adwaita-icon-theme",
+      "noarch": "generic",
+      "run_exports": {},
+      "sha256": "def01b148aa54d4de29b7d4bf58d941c8699582201db14cf78c6c89fa1666434",
+      "size": 687517,
+      "subdir": "noarch",
+      "timestamp": 1790100765464,
+      "version": "51.0"
+    },
+    "ca-certificates-2026.7.22-hbd8a1cb_0.conda": {
+      "build": "hbd8a1cb_0",
+      "build_number": 0,
+      "depends": [
+        "__unix"
+      ],
+      "license": "ISC",
+      "md5": "0f51e2391ade309db462a55611263e9c",
+      "name": "ca-certificates",
+      "noarch": "generic",
+      "run_exports": {},
+      "sha256": "0a0544cf95f64394fe4959286f5c71f5444ad58feb0602e53becb27448d24da6",
+      "size": 131780,
+      "subdir": "noarch",
+      "timestamp": 1784754889428,
+      "version": "2026.7.22"
+    },
+    "font-ttf-dejavu-sans-mono-2.37-hab24e00_0.tar.bz2": {
+      "build": "hab24e00_0",
+      "build_number": 0,
+      "depends": [],
+      "license": "BSD-3-Clause",
+      "license_family": "BSD",
+      "md5": "0c96522c6bdaed4b1566d11387caaf45",
+      "name": "font-ttf-dejavu-sans-mono",
+      "noarch": "generic",
+      "run_exports": {},
+      "sha256": "58d7f40d2940dd0a8aa28651239adbf5613254df0f75789919c4e6762054403b",
+      "size": 397370,
+      "subdir": "noarch",
+      "timestamp": 1566932522327,
+      "version": "2.37"
+    },
+    "font-ttf-inconsolata-3.000-h77eed37_0.tar.bz2": {
+      "build": "h77eed37_0",
+      "build_number": 0,
+      "depends": [],
+      "license": "OFL-1.1",
+      "license_family": "Other",
+      "md5": "34893075a5c9e55cdafac56607368fc6",
+      "name": "font-ttf-inconsolata",
+      "noarch": "generic",
+      "run_exports": {},
+      "sha256": "c52a29fdac682c20d252facc50f01e7c2e7ceac52aa9817aaf0bb83f7559ec5c",
+      "size": 96530,
+      "subdir": "noarch",
+      "timestamp": 1620479909603,
+      "version": "3.000"
+    },
+    "font-ttf-source-code-pro-2.038-h77eed37_0.tar.bz2": {
+      "build": "h77eed37_0",
+      "build_number": 0,
+      "depends": [],
+      "license": "OFL-1.1",
+      "license_family": "Other",
+      "md5": "4d59c254e01d9cde7957100457e2d5fb",
+      "name": "font-ttf-source-code-pro",
+      "noarch": "generic",
+      "run_exports": {},
+      "sha256": "00925c8c055a2275614b4d983e1df637245e19058d79fc7dd1a93b8d9fb4b139",
+      "size": 700814,
+      "subdir": "noarch",
+      "timestamp": 1620479612257,
+      "version": "2.038"
+    },
+    "font-ttf-ubuntu-0.83-h77eed37_3.conda": {
+      "build": "h77eed37_3",
+      "build_number": 3,
+      "depends": [],
+      "license": "LicenseRef-Ubuntu-Font-Licence-Version-1.0",
+      "license_family": "Other",
+      "md5": "49023d73832ef61042f6a237cb2687e7",
+      "name": "font-ttf-ubuntu",
+      "noarch": "generic",
+      "run_exports": {},
+      "sha256": "2821ec1dc454bd8b9a31d0ed22a7ce22422c0aef163c59f49dfdf915d0f0ca14",
+      "size": 1620504,
+      "subdir": "noarch",
+      "timestamp": 1727511233259,
+      "version": "0.83"
+    },
+    "fonts-conda-ecosystem-1-0.tar.bz2": {
+      "build": "0",
+      "build_number": 0,
+      "depends": [
+        "fonts-conda-forge"
+      ],
+      "license": "BSD-3-Clause",
+      "license_family": "BSD",
+      "md5": "fee5683a3f04bd15cbd8318b096a27ab",
+      "name": "fonts-conda-ecosystem",
+      "noarch": "generic",
+      "run_exports": {},
+      "sha256": "a997f2f1921bb9c9d76e6fa2f6b408b7fa549edd349a77639c9fe7a23ea93e61",
+      "size": 3667,
+      "subdir": "noarch",
+      "timestamp": 1566974674465,
+      "version": "1"
+    },
+    "fonts-conda-forge-1-hc364b38_1.conda": {
+      "build": "hc364b38_1",
+      "build_number": 1,
+      "depends": [
+        "font-ttf-ubuntu",
+        "font-ttf-inconsolata",
+        "font-ttf-dejavu-sans-mono",
+        "font-ttf-source-code-pro"
+      ],
+      "license": "BSD-3-Clause",
+      "license_family": "BSD",
+      "md5": "a7970cd949a077b7cb9696379d338681",
+      "name": "fonts-conda-forge",
+      "noarch": "generic",
+      "run_exports": {},
+      "sha256": "54eea8469786bc2291cc40bca5f46438d3e062a399e8f53f013b6a9f50e98333",
+      "size": 4059,
+      "subdir": "noarch",
+      "timestamp": 1762351264405,
+      "version": "1"
+    },
+    "kernel-headers_linux-64-5.14.0-he073ed8_3.conda": {
+      "build": "he073ed8_3",
+      "build_number": 3,
+      "constrains": [
+        "sysroot_linux-64 ==2.34"
+      ],
+      "depends": [],
+      "license": "LGPL-2.0-or-later AND LGPL-2.0-or-later WITH exceptions AND GPL-2.0-or-later",
+      "license_family": "GPL",
+      "md5": "1e453742ed8f6b4250c66be1dd6ba4fe",
+      "name": "kernel-headers_linux-64",
+      "noarch": "generic",
+      "run_exports": {},
+      "sha256": "c4d973dd80ab10028b3e4c58c1c6d8f437bfeaf6069dafb1130dabc550e9caf4",
+      "size": 1410267,
+      "subdir": "noarch",
+      "timestamp": 1765578677964,
+      "version": "5.14.0"
+    },
+    "libgcc-devel_linux-64-16.2.0-he3ce08f_107.conda": {
+      "build": "he3ce08f_107",
+      "build_number": 107,
+      "depends": [
+        "__unix"
+      ],
+      "license": "GPL-3.0-only WITH GCC-exception-3.1",
+      "license_family": "GPL",
+      "md5": "f689d67c3e828fe80ff290d15f361bc5",
+      "name": "libgcc-devel_linux-64",
+      "noarch": "generic",
+      "run_exports": {},
+      "sha256": "f1e7465f6b53f89b325e441c30ad7b19407b051eca556b6d0386ec05513b8e76",
+      "size": 3099665,
+      "subdir": "noarch",
+      "timestamp": 1790302976359,
+      "version": "16.2.0"
+    },
+    "libstdcxx-devel_linux-64-16.2.0-h86e191b_107.conda": {
+      "build": "h86e191b_107",
+      "build_number": 107,
+      "depends": [
+        "__unix"
+      ],
+      "license": "GPL-3.0-only WITH GCC-exception-3.1",
+      "license_family": "GPL",
+      "md5": "a713d3c09518a9fc8f603ac0e157263c",
+      "name": "libstdcxx-devel_linux-64",
+      "noarch": "generic",
+      "run_exports": {},
+      "sha256": "ebbad84bdebd8a9964020d74dcce0f211f1431878c66326f6115dcb59e4c3469",
+      "size": 23329491,
+      "subdir": "noarch",
+      "timestamp": 1790303058123,
+      "version": "16.2.0"
+    },
+    "packaging-26.3-pyhc364b38_0.conda": {
+      "build": "pyhc364b38_0",
+      "build_number": 0,
+      "depends": [
+        "python >=3.9",
+        "python"
+      ],
+      "license": "Apache-2.0",
+      "license_family": "APACHE",
+      "md5": "936687ed80f295a1f5dbcf8bd34c252c",
+      "name": "packaging",
+      "noarch": "python",
+      "run_exports": {},
+      "sha256": "c432626b16768b8dab228bfb706f7060c2d462a21c516d240f68f2f902b5a044",
+      "size": 116363,
+      "subdir": "noarch",
+      "timestamp": 1785888127370,
+      "version": "26.3"
+    },
+    "python_abi-3.14-9_cp314.conda": {
+      "build": "9_cp314",
+      "build_number": 9,
+      "constrains": [
+        "python 3.14.* *_cp314"
+      ],
+      "depends": [],
+      "license": "BSD-3-Clause",
+      "license_family": "BSD",
+      "md5": "350d89b50d7de805abf2e63e29dee451",
+      "name": "python_abi",
+      "noarch": "generic",
+      "run_exports": {},
+      "sha256": "e7f8e965bbfb98e08feb2365cacdad8bb218fa5b5a0a2752f747287f425f213c",
+      "size": 6791,
+      "subdir": "noarch",
+      "timestamp": 1788302824440,
+      "version": "3.14"
+    },
+    "rust-std-wasm32-unknown-unknown-1.98.1-unix_2.conda": {
+      "build": "unix_2",
+      "build_number": 2,
+      "constrains": [
+        "rust >=1.98.1,<1.98.2.0a0"
+      ],
+      "depends": [
+        "__unix"
+      ],
+      "license": "MIT",
+      "license_family": "MIT",
+      "md5": "7f35945210f5ded22dd8919719e7e84d",
+      "name": "rust-std-wasm32-unknown-unknown",
+      "noarch": "generic",
+      "run_exports": {},
+      "sha256": "cdec9bdce1008816fa08150435724cd1970e232cb4ed8ee46539a18db733e195",
+      "size": 26324783,
+      "subdir": "noarch",
+      "timestamp": 1788887945200,
+      "version": "1.98.1"
+    },
+    "rust-std-x86_64-unknown-linux-gnu-1.98.1-h2c6d0dc_2.conda": {
+      "build": "h2c6d0dc_2",
+      "build_number": 2,
+      "constrains": [
+        "rust >=1.98.1,<1.98.2.0a0"
+      ],
+      "depends": [
+        "__unix"
+      ],
+      "license": "MIT",
+      "license_family": "MIT",
+      "md5": "d26821c482dd4577f7bca11d4f34a460",
+      "name": "rust-std-x86_64-unknown-linux-gnu",
+      "noarch": "generic",
+      "run_exports": {},
+      "sha256": "0b174b85c848fb74994debad1590dd13b2245daadc4b244a3d4e5f044ccd7759",
+      "size": 36854225,
+      "subdir": "noarch",
+      "timestamp": 1788888197535,
+      "version": "1.98.1"
+    },
+    "sysroot_linux-64-2.34-h087de78_3.conda": {
+      "build": "h087de78_3",
+      "build_number": 3,
+      "depends": [
+        "__glibc >=2.34",
+        "kernel-headers_linux-64 5.14.0 he073ed8_3",
+        "tzdata"
+      ],
+      "license": "LGPL-2.0-or-later AND LGPL-2.0-or-later WITH exceptions AND GPL-2.0-or-later",
+      "license_family": "GPL",
+      "md5": "b04e3a97151611d6a35c8c068b2a03a2",
+      "name": "sysroot_linux-64",
+      "noarch": "generic",
+      "run_exports": {
+        "strong": [
+          "__glibc >=2.34,<3.0.a0"
+        ]
+      },
+      "sha256": "08c50c314b331730eeb8f87c39a45e5426a5463e078392ab283e2552d753443e",
+      "size": 40779381,
+      "subdir": "noarch",
+      "timestamp": 1765578902269,
+      "version": "2.34"
+    },
+    "tzdata-2026c-h151e31d_0.conda": {
+      "build": "h151e31d_0",
+      "build_number": 0,
+      "depends": [],
+      "license": "LicenseRef-Public-Domain",
+      "md5": "fcb489df604d100968b737f2cb6076c6",
+      "name": "tzdata",
+      "noarch": "generic",
+      "run_exports": {},
+      "sha256": "b928c30ddcb0e3f544c6eade8352737e6e610e263276b90232db6a578ef899d8",
+      "size": 118849,
+      "subdir": "noarch",
+      "timestamp": 1784250406640,
+      "version": "2026c"
+    }
+  },
+  "repodata_version": 2
+}
